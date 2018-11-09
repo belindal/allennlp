@@ -26,34 +26,41 @@ from allennlp.training.metrics import CategoricalAccuracy
 
 torch.manual_seed(1)
 
+COREF_TRAIN_DATA_PATH = "../../data/coref_ontonotes/train.english.v4_gold_conll"
+COREF_DEV_DATA_PATH = "../../data/coref_ontonotes/dev.english.v4_gold_conll"
+COREF_TEST_DATA_PATH = "../../data/coref_ontonotes/test.english.v4_gold_conll"
 
 # In practice you'd probably do this from the command line:
 #   $ allennlp train tutorials/tagger/experiment.jsonnet -s /tmp/serialization_dir
 #
 def main():
 
-
-    params = Params.from_file('config/coref.jsonnet')  # Not just model parameters in here
-    serialization_dir = tempfile.mkdtemp()
-    model = train_model(params, serialization_dir)
-
-    
-    #reader = ConllCorefReader(model, reader="")
-    #reader.read()  # file paths
+    '''
+    params = Params.from_file('training_config/coref.jsonnet')
+    serialization_dir = "../../models" # tempfile.mkdtemp()
+    # model = train_model(params, serialization_dir)
+    model = Model.load(params, serialization_dir, os.path.join(serialization_dir, "weights.th")
 
 
     # Make prediction
     predictor = CorefPredictor(model)
-
-    ''' from sample code-- but this won't update
+    # '''
+    # from sample code-- but this won't update
     # Make predictions
-    predictor = Predictor.from_path("https://s3-us-west-2.amazonaws.com/allennlp/models/coref-model-2018.02.05.tar.gz")
-            # this won't update if I edit the code?
-    '''
-
-    predictor.predict(
-        document="The woman reading a newspaper sat on the bench with her dog."
+    predictor = Predictor.from_path("../../models")
+    # '''
+    docs = [{"document": "The woman reading a newspaper sat on the bench with her dog."},
+            {"document": "The man looked at himself."}]
+    output = predictor.predict_batch_json(
+        inputs=docs,
     )
+    print("output: ")
+    for i in range(len(docs)):
+        for item in output[i]:
+            print(str(item) + ": " + str(output[i][item]))
+        print()
+
+    # '''
 
 
 if __name__ == "__main__":
