@@ -34,11 +34,11 @@ def main():
     # ''' Make training happen
     params = Params.from_file('training_config/coref.jsonnet')
     serialization_dir = "../models"  # tempfile.mkdtemp()
-    model = train_model(params, "../models_train")
+    best_model = train_model(params, "../models_train_prune")
     # model = Model.load(params, serialization_dir, os.path.join(serialization_dir, "weights.th"))
 
     # Make prediction
-    predictor = CorefPredictor(model)
+    predictor = CorefPredictor(best_model)
     ''' # Make predicting happen
     # Make predictions
     predictor = Predictor.from_path("../models")

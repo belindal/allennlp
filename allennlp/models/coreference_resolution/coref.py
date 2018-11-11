@@ -85,7 +85,7 @@ class CoreferenceResolver(Model):
         self._antecedent_scorer = TimeDistributed(torch.nn.Linear(antecedent_feedforward.get_output_dim(), 1))
 
         # do coarse to fine pruning
-        self.coarse_to_fine_prune = False
+        self.coarse_to_fine_prune = True
 
         self._endpoint_span_extractor = EndpointSpanExtractor(context_layer.get_output_dim(),
                                                               combination="x,y",
@@ -147,7 +147,6 @@ class CoreferenceResolver(Model):
         loss : ``torch.FloatTensor``, optional
             A scalar loss to be optimised.
         """
-        print("\nforward was called.")
         # Shape: (batch_size, document_length, embedding_size)
         text_embeddings = self._lexical_dropout(self._text_field_embedder(text))
 
@@ -219,7 +218,6 @@ class CoreferenceResolver(Model):
         #  like (batch_size, num_spans_to_keep, max_antecedents, embedding_size), which
         #  we can use to make coreference decisions between valid span pairs.
 
-        # '''
         # Shapes:
         # (num_spans_to_keep, max_antecedents),
         # (1, max_antecedents),
@@ -264,7 +262,6 @@ class CoreferenceResolver(Model):
                                                               candidate_antecedent_mention_scores,
                                                               valid_antecedent_log_mask)
 
-        print("coref scores = " + str(coreference_scores))
 
         # We now have, for each span which survived the pruning stage,
         # a predicted antecedent. This implies a clustering if we group
@@ -281,31 +278,23 @@ class CoreferenceResolver(Model):
                        "predicted_antecedents": predicted_antecedents}
         # TODO: check this part works in training
         if span_labels is not None:
-            print("span labels = " + str(span_labels))
-            print("top indices = " + str(top_span_indices))
             # Find the gold labels for the spans which we kept.
             pruned_gold_labels = util.batched_index_select(span_labels.unsqueeze(-1),
                                                            top_span_indices,
                                                            flat_top_span_indices)
 
-            print("pruned gold labels = " + str(pruned_gold_labels.squeeze(-1)))
-            print("valid indices = " + str(valid_antecedent_indices))
 
             # Find the gold labels for each antecedent of each span we kept
             # Shape: (batch_size, num_spans_to_keep, max_antecedents)
             antecedent_labels = util.batched_index_select(pruned_gold_labels,
                                                           valid_antecedent_indices,
                                                           flat_valid_antecedent_indices).squeeze(-1)
-            print("ant labels = " + str(antecedent_labels))
-            print("valid_antecedent_log_mask = " + str(valid_antecedent_log_mask))
             antecedent_labels += valid_antecedent_log_mask.long()
-            print("ant labels = " + str(antecedent_labels))
 
             # Compute labels.
             # Shape: (batch_size, num_spans_to_keep, max_antecedents + 1)
             gold_antecedent_labels = self._compute_antecedent_gold_labels(pruned_gold_labels,
                                                                           antecedent_labels)
-            print("gold_antecedent_labels = " + str(gold_antecedent_labels))
             # Now, compute the loss using the negative marginal log-likelihood.
             # This is equal to the log of the sum of the probabilities of all antecedent predictions
             # that would be consistent with the data, in the sense that we are minimising, for a
@@ -317,11 +306,8 @@ class CoreferenceResolver(Model):
             # clustering as we don't mind which antecedent is predicted, so long as they are in
             #  the same coreference cluster.
             coreference_log_probs = util.masked_log_softmax(coreference_scores, top_span_mask)
-            print("coref log probs = " + str(coreference_log_probs))
             correct_antecedent_log_probs = coreference_log_probs + gold_antecedent_labels.log()
-            print("correct ant log probs = " + str(correct_antecedent_log_probs))
             negative_marginal_log_likelihood = -util.logsumexp(correct_antecedent_log_probs).sum()
-            print("loss = " + str(negative_marginal_log_likelihood))
 
             self._mention_recall(top_spans, metadata)
             self._conll_coref_scores(top_spans, valid_antecedent_indices, predicted_antecedents, metadata)
@@ -330,9 +316,6 @@ class CoreferenceResolver(Model):
 
         if metadata is not None:
             output_dict["document"] = [x["original_text"] for x in metadata]
-        print("forward finished. output_dict =")
-        for item in output_dict:
-            print(str(item) + " : \n" + str(output_dict[item]))
         return output_dict
 
     @overrides
@@ -365,12 +348,8 @@ class CoreferenceResolver(Model):
         # the index can be -1, specifying that the span has no predicted antecedent.
         batch_predicted_antecedents = output_dict["predicted_antecedents"].detach().cpu()
 
-        '''
-        # A tensor of shape (num_spans_to_keep, max_antecedents), representing the indices
-        # of the predicted antecedents with respect to the 2nd dimension of ``batch_top_spans``
-        # for each antecedent we considered.
-        '''
-        # A tensor of shape (batch_size, num_spans_to_keep, max_antecedents)
+        # A tensor of shape (batch_size, num_spans_to_keep, max_antecedents), representing the indices
+        # of the predicted antecedents for each antecedent we considered.
         batch_antecedent_indices = output_dict["antecedent_indices"].detach().cpu()
         batch_clusters: List[List[List[Tuple[int, int]]]] = []
 
@@ -426,7 +405,6 @@ class CoreferenceResolver(Model):
                 "coref_recall": coref_recall,
                 "coref_f1": coref_f1,
                 "mention_recall": mention_recall}
-
 
     @staticmethod
     def _generate_valid_antecedents(num_spans_to_keep: int,
@@ -489,7 +467,6 @@ class CoreferenceResolver(Model):
 
         # Shape: (num_spans_to_keep, max_antecedents)
         valid_antecedent_indices = F.relu(raw_antecedent_indices.float()).long()
-
         return valid_antecedent_indices, valid_antecedent_offsets, valid_antecedent_log_mask
 
     def _coarse_to_fine_pruning(self,
@@ -645,7 +622,7 @@ class CoreferenceResolver(Model):
     def _compute_coreference_scores(self,
                                     pairwise_embeddings: torch.FloatTensor,
                                     top_span_mention_scores: torch.FloatTensor,
-                                    fast_antecedent_scores: torch.FloatTensor,
+                                    antecedent_mention_scores: torch.FloatTensor,
                                     antecedent_log_mask: torch.FloatTensor) -> torch.FloatTensor:
         """
         Computes scores for every pair of spans. Additionally, a dummy label is included,
@@ -681,10 +658,10 @@ class CoreferenceResolver(Model):
         antecedent_scores = self._antecedent_scorer(
                 self._antecedent_feedforward(pairwise_embeddings)).squeeze(-1)
         if not self.coarse_to_fine_prune:
-            antecedent_scores += top_span_mention_scores + fast_antecedent_scores
+            antecedent_scores += top_span_mention_scores + antecedent_mention_scores
             antecedent_scores += antecedent_log_mask
         else:
-            antecedent_scores += fast_antecedent_scores
+            antecedent_scores += antecedent_mention_scores
 
         # Shape: (batch_size, num_spans_to_keep, 1)
         shape = [antecedent_scores.size(0), antecedent_scores.size(1), 1]
