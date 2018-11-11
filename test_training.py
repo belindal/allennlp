@@ -31,17 +31,17 @@ torch.manual_seed(1)
 #   $ allennlp train tutorials/tagger/experiment.jsonnet -s /tmp/serialization_dir
 #
 def main():
-    # '''
+    # ''' Make training happen
     params = Params.from_file('training_config/coref.jsonnet')
-    serialization_dir = "../../models"  # tempfile.mkdtemp()
-    model = train_model(params, serialization_dir)
+    serialization_dir = "../models"  # tempfile.mkdtemp()
+    model = train_model(params, "../models_train")
     # model = Model.load(params, serialization_dir, os.path.join(serialization_dir, "weights.th"))
 
     # Make prediction
     predictor = CorefPredictor(model)
-    '''
+    ''' # Make predicting happen
     # Make predictions
-    predictor = Predictor.from_path("../../models")
+    predictor = Predictor.from_path("../models")
     # '''
     docs = [{"document": "The woman reading a newspaper sat on the bench with her dog."},
             {"document": "The man looked at himself."}]

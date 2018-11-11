@@ -227,8 +227,6 @@ class CoreferenceResolver(Model):
         if not self.coarse_to_fine_prune:
             valid_antecedent_indices, valid_antecedent_offsets, valid_antecedent_log_mask = \
                 self._generate_valid_antecedents(num_spans_to_keep, max_antecedents, util.get_device_of(text_mask))
-            print("top span embeddings = " + str(top_span_embeddings))
-            print("valid indices = " + str(valid_antecedent_indices))
             # Select tensors relating to the antecedent spans.
             # Shape: (batch_size, num_spans_to_keep, max_antecedents, embedding_size)
             candidate_antecedent_embeddings = util.flattened_index_select(top_span_embeddings,
@@ -236,7 +234,6 @@ class CoreferenceResolver(Model):
             # Shape: (batch_size, num_spans_to_keep, max_antecedents)
             candidate_antecedent_mention_scores = util.flattened_index_select(top_span_mention_scores,
                                                                               valid_antecedent_indices).squeeze(-1)
-            print("candidate embeddings = " + str(candidate_antecedent_embeddings))
             # Shape: (batch_size, num_spans_to_keep, max_antecedents)
             valid_antecedent_indices = \
                 valid_antecedent_indices.unsqueeze(0).expand_as(candidate_antecedent_mention_scores)
@@ -248,8 +245,6 @@ class CoreferenceResolver(Model):
                 self._coarse_to_fine_pruning(top_span_embeddings, top_span_mention_scores,
                                              num_spans_to_keep, max_antecedents, util.get_device_of(text_mask))
 
-            print("top span embeddings = " + str(top_span_embeddings))
-            print("valid indices = " + str(valid_antecedent_indices))
             flat_valid_antecedent_indices = util.flatten_and_batch_shift_indices(valid_antecedent_indices,
                                                                                  num_spans_to_keep)
             # Select tensors relating to the antecedent spans.
@@ -257,7 +252,6 @@ class CoreferenceResolver(Model):
             candidate_antecedent_embeddings = util.batched_index_select(top_span_embeddings,
                                                                         valid_antecedent_indices,
                                                                         flat_valid_antecedent_indices)
-            print("candidate embeds = " + str(candidate_antecedent_embeddings))
 
         # Compute antecedent scores.
         # Shape: (batch_size, num_spans_to_keep, max_antecedents, embedding_size)
@@ -421,7 +415,6 @@ class CoreferenceResolver(Model):
             batch_clusters.append(clusters)
 
         output_dict["clusters"] = batch_clusters
-        print("decode finished.")
         return output_dict
 
     @overrides
@@ -475,19 +468,15 @@ class CoreferenceResolver(Model):
             span in the document should have no valid antecedents.
             Has shape ``(1, num_spans_to_keep, max_antecedents)``.
         """
-        print("max ants = " + str(max_antecedents))
         # Shape: (num_spans_to_keep, 1)
         target_indices = util.get_range_vector(num_spans_to_keep, device).unsqueeze(1)
-        print("target indices = " + str(target_indices))
 
         # Shape: (1, max_antecedents)
         valid_antecedent_offsets = (util.get_range_vector(max_antecedents, device) + 1).unsqueeze(0)
-        print("valid ant offsets 2 = " + str(valid_antecedent_offsets))
 
         # This is a broadcasted subtraction.
         # Shape: (num_spans_to_keep, max_antecedents)
         raw_antecedent_indices = target_indices - valid_antecedent_offsets
-        print("raw ant indices = " + str(raw_antecedent_indices))
 
         # In our matrix of indices, the upper triangular part will be negative
         # because the offsets will be > the target indices. We want to mask these,
@@ -497,18 +486,9 @@ class CoreferenceResolver(Model):
         # in order to not mess up the normalisation of the distribution.
         # Shape: (1, num_spans_to_keep, max_antecedents)
         valid_antecedent_log_mask = (raw_antecedent_indices >= 0).float().unsqueeze(0).log()
-        print("valid ant log mask = " + str(valid_antecedent_log_mask))
 
         # Shape: (num_spans_to_keep, max_antecedents)
         valid_antecedent_indices = F.relu(raw_antecedent_indices.float()).long()
-        print("valid ant indices = " + str(valid_antecedent_indices))
-
-        '''
-        (top_antecedent_embeddings, top_antecedent_mask,
-         top_antecedent_indices, top_antecedent_coarse_scores) = self._coarse_pruner((span_embeddings,span_embeddings),
-                                                                                     span_mask,
-                                                                                     num_spans_to_keep)
-        '''
 
         return valid_antecedent_indices, valid_antecedent_offsets, valid_antecedent_log_mask
 
@@ -523,65 +503,43 @@ class CoreferenceResolver(Model):
                                                       torch.FloatTensor]:
         # Shape: (num_spans_to_keep)
         target_indices = util.get_range_vector(num_spans_to_keep, device)
-        print("target indices = " + str(target_indices))
 
         # Shape: (num_spans_to_keep, num_spans_to_keep)
         valid_antecedent_offsets = target_indices.unsqueeze(1) - target_indices.unsqueeze(0)
-        print("valid ant offsets = " + str(valid_antecedent_offsets))
 
         # Shape: (num_spans_to_keep, num_spans_to_keep)
         valid_antecedent_log_mask = (valid_antecedent_offsets >= 1).float().unsqueeze(0).log()
-        print("valid ant log mask = " + str(valid_antecedent_log_mask))
-
         valid_antecedent_indices = F.relu(valid_antecedent_offsets.float()).long()
-        print("valid ant indices = " + str(valid_antecedent_indices))
 
-        print("top span mention scores = " + str(top_span_mention_scores) + " " + str(top_span_mention_scores.squeeze(-1).unsqueeze(1)))
         # Shape: (batch_size, num_spans_to_keep, num_spans_to_keep)
         fast_antecedent_scores = top_span_mention_scores + top_span_mention_scores.squeeze(-1).unsqueeze(1)
-        print("fast ant score = " + str(fast_antecedent_scores))
-
         fast_antecedent_scores += valid_antecedent_log_mask
-        print("fast ant score w/ mask = " + str(fast_antecedent_scores))
 
         # Shape: (batch_size, num_spans_to_keep, num_spans_to_keep)
         coarse_scores = self._compute_coarse_scores(top_span_embeddings)
-        print("coarse scores = " + str(coarse_scores))
         fast_antecedent_scores += coarse_scores
-        print("fast ant scores w/ coarse scores = " + str(fast_antecedent_scores))
 
-        print("max antecedents = " + str(self._max_antecedents))
-
-        # mask scores
-        # antecedent_pruner_scores = util.replace_masked_values(fast_antecedent_scores, valid_antecedent_mask, -1e20)
-        # print("antecedent pruner scores = " + str(antecedent_pruner_scores) + " shape = " + str(
-        #     antecedent_pruner_scores.size()))
         # Shape: (batch_size, num_spans_to_keep, max_antecedents)
         _, top_antecedent_indices = fast_antecedent_scores.topk(max_antecedents, -1)
-        print("top k = " + str(top_antecedent_indices))
 
         # Now we order the selected indices in increasing order with
         # respect to their indices (and hence, with respect to the
         # order they originally appeared in the ``embeddings`` tensor).
         # Shape: (batch_size, num_spans_to_keep, max_antecedents)
         top_antecedent_indices, _ = torch.sort(top_antecedent_indices, dim=-1)
-        print("top k sorted = " + str(top_antecedent_indices))
 
         # Shape: (batch_size, num_items_to_keep, max_antecedents)
         # (batch_size, num_spans_to_keep, max_antecedents)
         valid_antecedent_log_mask = valid_antecedent_log_mask.expand(top_antecedent_indices.size(0), -1, -1)
         top_antecedent_log_mask = torch.gather(valid_antecedent_log_mask, -1, top_antecedent_indices)
-        print("top log mask = " + str(top_antecedent_log_mask))
 
         # Shape: (batch_size, num_items_to_keep, max_antecedents)
         valid_antecedent_offsets = \
             valid_antecedent_offsets.unsqueeze(0).expand(top_antecedent_indices.size(0), -1, -1)
         top_antecedent_offsets = torch.gather(valid_antecedent_offsets, -1, top_antecedent_indices)
-        print("top offsets = " + str(top_antecedent_offsets))
 
         # Shape: (batch_size, num_items_to_keep, max_antecedents)
         top_fast_antecedent_scores = torch.gather(fast_antecedent_scores, -1, top_antecedent_indices)
-        print("top scores = " + str(top_fast_antecedent_scores))
 
         return top_antecedent_indices, top_antecedent_offsets, top_antecedent_log_mask, top_fast_antecedent_scores
 
@@ -620,14 +578,12 @@ class CoreferenceResolver(Model):
         """
         # Shape: (batch_size, num_spans_to_keep, max_antecedents, embedding_size)
         target_embeddings = top_span_embeddings.unsqueeze(2).expand_as(antecedent_embeddings)
-        print("target embeds = " + str(target_embeddings))
 
         # Shape: (1, max_antecedents, embedding_size)
         # Shape (coarse-to-fine pruning): (batch_size, num_spans_to_keep, max_antecedents, embedding_size)
         antecedent_distance_embeddings = self._distance_embedding(
                 util.bucket_values(antecedent_offsets,
                                    num_total_buckets=self._num_distance_buckets))
-        print("distance embeddings = " + str(antecedent_distance_embeddings))
         if not self.coarse_to_fine_prune:
             # Shape: (1, 1, max_antecedents, embedding_size)
             antecedent_distance_embeddings = antecedent_distance_embeddings.unsqueeze(0)
@@ -638,7 +594,6 @@ class CoreferenceResolver(Model):
                                                   antecedent_distance_embeddings.size(-1))
             # Shape: (batch_size, num_spans_to_keep, max_antecedents, embedding_size)
             antecedent_distance_embeddings = antecedent_distance_embeddings.expand(*expanded_distance_embeddings_shape)
-            print("distance embeddings = " + str(antecedent_distance_embeddings))
 
         # Shape: (batch_size, num_spans_to_keep, max_antecedents, embedding_size)
         span_pair_embeddings = torch.cat([target_embeddings,

@@ -26,9 +26,8 @@ class ConllCorefScores(Metric):
             (start, end) indices for all spans kept after span pruning in the model.
             Expected shape: (batch_size, num_spans, 2)
         antecedent_indices : ``torch.Tensor``
-            For each span, the indices of all allowed antecedents for that span.  This is
-            independent of the batch dimension, as it's just based on order in the document.
-            Expected shape: (num_spans, num_antecedents)
+            For each span, the indices of all allowed antecedents for that span.
+            Expected shape: (batch_size, num_spans, num_antecedents)
         predicted_antecedents: ``torch.Tensor``
             For each span, this contains the index (into antecedent_indices) of the most likely
             antecedent for that span.
@@ -43,7 +42,7 @@ class ConllCorefScores(Metric):
         for i, metadata in enumerate(metadata_list):
             gold_clusters, mention_to_gold = self.get_gold_clusters(metadata["clusters"])
             predicted_clusters, mention_to_predicted = self.get_predicted_clusters(top_spans[i],
-                                                                                   antecedent_indices,
+                                                                                   antecedent_indices[i],
                                                                                    predicted_antecedents[i])
             for scorer in self.scorers:
                 scorer.update(predicted_clusters, gold_clusters, mention_to_predicted, mention_to_gold)
