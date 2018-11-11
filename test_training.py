@@ -27,20 +27,15 @@ import os
 
 torch.manual_seed(1)
 
-COREF_TRAIN_DATA_PATH = "../../data/coref_ontonotes/train.english.v4_gold_conll"
-COREF_DEV_DATA_PATH = "../../data/coref_ontonotes/dev.english.v4_gold_conll"
-COREF_TEST_DATA_PATH = "../../data/coref_ontonotes/test.english.v4_gold_conll"
-
 # In practice you'd probably do this from the command line:
 #   $ allennlp train tutorials/tagger/experiment.jsonnet -s /tmp/serialization_dir
 #
 def main():
-
-    '''
+    # '''
     params = Params.from_file('training_config/coref.jsonnet')
-    serialization_dir = "../../models" # tempfile.mkdtemp()
-    # model = train_model(params, serialization_dir)
-    model = Model.load(params, serialization_dir, os.path.join(serialization_dir, "weights.th"))
+    serialization_dir = "../../models"  # tempfile.mkdtemp()
+    model = train_model(params, serialization_dir)
+    # model = Model.load(params, serialization_dir, os.path.join(serialization_dir, "weights.th"))
 
     # Make prediction
     predictor = CorefPredictor(model)
