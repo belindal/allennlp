@@ -185,7 +185,6 @@ class CoreferenceResolver(Model):
          top_span_indices, top_span_mention_scores) = self._mention_pruner(span_embeddings,
                                                                            span_mask,
                                                                            num_spans_to_keep)
-
         top_span_mask = top_span_mask.unsqueeze(-1)
         # Shape: (batch_size * num_spans_to_keep)
         # torch.index_select only accepts 1D indices, but here
@@ -262,7 +261,6 @@ class CoreferenceResolver(Model):
                                                               candidate_antecedent_mention_scores,
                                                               valid_antecedent_log_mask)
 
-
         # We now have, for each span which survived the pruning stage,
         # a predicted antecedent. This implies a clustering if we group
         # mentions which refer to each other in a chain.
@@ -276,16 +274,12 @@ class CoreferenceResolver(Model):
         output_dict = {"top_spans": top_spans,
                        "antecedent_indices": valid_antecedent_indices,
                        "predicted_antecedents": predicted_antecedents}
-        # TODO: check this part works in training
         if span_labels is not None:
             # Find the gold labels for the spans which we kept.
             pruned_gold_labels = util.batched_index_select(span_labels.unsqueeze(-1),
                                                            top_span_indices,
                                                            flat_top_span_indices)
 
-
-            # Find the gold labels for each antecedent of each span we kept
-            # Shape: (batch_size, num_spans_to_keep, max_antecedents)
             antecedent_labels = util.batched_index_select(pruned_gold_labels,
                                                           valid_antecedent_indices,
                                                           flat_valid_antecedent_indices).squeeze(-1)
@@ -350,7 +344,7 @@ class CoreferenceResolver(Model):
 
         # A tensor of shape (batch_size, num_spans_to_keep, max_antecedents), representing the indices
         # of the predicted antecedents for each antecedent we considered.
-        batch_antecedent_indices = output_dict["antecedent_indices"].detach().cpu()
+        antecedent_indices = output_dict["antecedent_indices"].detach().cpu()
         batch_clusters: List[List[List[Tuple[int, int]]]] = []
 
         # Calling zip() on two tensors results in an iterator over their
@@ -371,7 +365,7 @@ class CoreferenceResolver(Model):
                 # The predicted antecedent is then an index into this list
                 # of indices, denoting the span from ``top_spans`` which is the
                 # most likely antecedent.
-                predicted_index = batch_antecedent_indices[b, i, predicted_antecedent]
+                predicted_index = antecedent_indices[b, i, predicted_antecedent]
 
                 antecedent_span = (top_spans[predicted_index, 0].item(),
                                    top_spans[predicted_index, 1].item())
@@ -486,7 +480,6 @@ class CoreferenceResolver(Model):
 
         # Shape: (num_spans_to_keep, num_spans_to_keep)
         valid_antecedent_log_mask = (valid_antecedent_offsets >= 1).float().unsqueeze(0).log()
-        valid_antecedent_indices = F.relu(valid_antecedent_offsets.float()).long()
 
         # Shape: (batch_size, num_spans_to_keep, num_spans_to_keep)
         fast_antecedent_scores = top_span_mention_scores + top_span_mention_scores.squeeze(-1).unsqueeze(1)
@@ -517,11 +510,10 @@ class CoreferenceResolver(Model):
 
         # Shape: (batch_size, num_items_to_keep, max_antecedents)
         top_fast_antecedent_scores = torch.gather(fast_antecedent_scores, -1, top_antecedent_indices)
-
         return top_antecedent_indices, top_antecedent_offsets, top_antecedent_log_mask, top_fast_antecedent_scores
 
-    def _compute_coarse_scores(self,
-                               top_span_embeddings: torch.FloatTensor) -> torch.FloatTensor:
+    @staticmethod
+    def _compute_coarse_scores(top_span_embeddings: torch.FloatTensor) -> torch.FloatTensor:
         return torch.bmm(top_span_embeddings, top_span_embeddings.transpose(1, 2))
 
     def _compute_span_pair_embeddings(self,
