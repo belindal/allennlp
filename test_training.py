@@ -23,6 +23,7 @@ from allennlp.predictors.coref import CorefPredictor
 from allennlp.data.dataset_readers.coreference_resolution import ConllCorefReader
 from allennlp.predictors.predictor import Predictor
 from allennlp.training.metrics import CategoricalAccuracy
+import os
 
 torch.manual_seed(1)
 
@@ -39,13 +40,11 @@ def main():
     params = Params.from_file('training_config/coref.jsonnet')
     serialization_dir = "../../models" # tempfile.mkdtemp()
     # model = train_model(params, serialization_dir)
-    model = Model.load(params, serialization_dir, os.path.join(serialization_dir, "weights.th")
-
+    model = Model.load(params, serialization_dir, os.path.join(serialization_dir, "weights.th"))
 
     # Make prediction
     predictor = CorefPredictor(model)
-    # '''
-    # from sample code-- but this won't update
+    '''
     # Make predictions
     predictor = Predictor.from_path("../../models")
     # '''
