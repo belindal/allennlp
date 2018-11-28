@@ -1,5 +1,6 @@
 import logging
 import math
+import pdb
 from typing import Any, Dict, List, Optional, Tuple
 
 import torch
@@ -472,6 +473,7 @@ class CoreferenceResolver(Model):
                                                       torch.IntTensor,
                                                       torch.FloatTensor,
                                                       torch.FloatTensor]:
+        pdb.set_trace()
         # Shape: (num_spans_to_keep)
         target_indices = util.get_range_vector(num_spans_to_keep, device)
 

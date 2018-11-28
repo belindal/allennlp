@@ -24,18 +24,20 @@ from allennlp.data.dataset_readers.coreference_resolution import ConllCorefReade
 from allennlp.predictors.predictor import Predictor
 from allennlp.training.metrics import CategoricalAccuracy
 import os
+from torch import cuda
 
+load_from = "../models_train_prune_2"  # tempfile.mkdtemp()
 torch.manual_seed(1)
 
 # In practice you'd probably do this from the command line:
 #   $ allennlp train tutorials/tagger/experiment.jsonnet -s /tmp/serialization_dir
 #
 def main():
+    print("# GPUs = " + str(cuda.device_count()));
     # ''' Make training happen
     params = Params.from_file('training_config/coref.jsonnet')
-    serialization_dir = "../models"  # tempfile.mkdtemp()
-    best_model = train_model(params, "../models_train_prune")
-    # model = Model.load(params, serialization_dir, os.path.join(serialization_dir, "weights.th"))
+    best_model = train_model(params, load_from, recover=False)
+    # model = Model.load(params, load_from, os.path.join(load_from, "weights.th"))
 
     # Make prediction
     predictor = CorefPredictor(best_model)
