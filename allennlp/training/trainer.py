@@ -34,6 +34,8 @@ from allennlp.nn import util
 from allennlp.training.learning_rate_schedulers import LearningRateScheduler
 from allennlp.training.optimizers import Optimizer
 
+import pdb
+
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 
@@ -339,6 +341,11 @@ class Trainer(Registrable):
         else:
             self._tensorboard = TensorboardWriter()
         self._warned_tqdm_ignores_underscores = False
+
+        self._active_learning_coref = True
+        if self._active_learning_coref and not isinstance(self.model, CorefResolver):
+            raise ConfigurationError("Active learning only compatible with coreference model (for now)")
+
 
     def _enable_gradient_clipping(self) -> None:
         if self._grad_clipping is not None:
@@ -747,6 +754,7 @@ class Trainer(Registrable):
         epochs_trained = 0
         training_start_time = time.time()
 
+        pdb.set_trace()
         for epoch in range(epoch_counter, self._num_epochs):
             epoch_start_time = time.time()
             train_metrics = self._train_epoch(epoch)
@@ -775,6 +783,18 @@ class Trainer(Registrable):
 
             self._metrics_to_tensorboard(epoch, train_metrics, val_metrics=val_metrics)
             self._metrics_to_console(train_metrics, val_metrics)
+
+            # query user for data after each epoch
+            # TODO: fill this out
+            pdb.set_trace()
+            if self._active_learning_coref:
+                pdb.set_trace()
+                #  choose a mention and an un-labelled mention (perhaps a random span?)
+                #  get user label
+                # user_training =
+                #  update training set
+                # self.train_data.append()
+
 
             # Create overall metrics dict
             training_elapsed_time = time.time() - training_start_time
