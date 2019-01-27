@@ -15,6 +15,8 @@ from allennlp.modules.span_extractors import SelfAttentiveSpanExtractor, Endpoin
 from allennlp.nn import util, InitializerApplicator, RegularizerApplicator
 from allennlp.training.metrics import MentionRecall, ConllCorefScores
 
+import pdb
+
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 
@@ -85,7 +87,7 @@ class CoreferenceResolver(Model):
         self._antecedent_scorer = TimeDistributed(torch.nn.Linear(antecedent_feedforward.get_output_dim(), 1))
 
         # do coarse to fine pruning
-        self.coarse_to_fine_prune = True
+        self.coarse_to_fine_prune = False
 
         self._endpoint_span_extractor = EndpointSpanExtractor(context_layer.get_output_dim(),
                                                               combination="x,y",

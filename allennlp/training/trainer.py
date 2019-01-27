@@ -184,7 +184,8 @@ class Trainer(Registrable):
                  summary_interval: int = 100,
                  histogram_interval: int = None,
                  should_log_parameter_statistics: bool = True,
-                 should_log_learning_rate: bool = False) -> None:
+                 should_log_learning_rate: bool = False,
+                 active_learning: Optional[Dict[str, int]] = None) -> None:
         """
         Parameters
         ----------
@@ -269,6 +270,8 @@ class Trainer(Registrable):
             of parameters and gradients) to tensorboard.
         should_log_learning_rate : ``bool``, optional, (default = False)
             Whether to send parameter specific learning rate to tensorboard.
+        active_learning : ``Dict[str, int]``, optional, (default = None)
+            Whether to do active learning, ONLY applies if model is a CorefResolver
         """
         self.model = model
         self.iterator = iterator
@@ -344,12 +347,12 @@ class Trainer(Registrable):
         self._warned_tqdm_ignores_underscores = False
 
         # Whether or not to do active learning
-        # TODO: make this part of config file
-        self._active_learning_coref = True
-        ''' can't do isinstance here... may have to do smthing else
-        if self._active_learning_coref and not isinstance(self.model, CoreferenceResolver):
-            raise ConfigurationError("Active learning only compatible with coreference model (for now)")
-        '''
+        if active_learning:
+            if active_learning['model_type'] != 'coref':
+                raise ConfigurationError("Active learning only compatible with coreference model (for now)")
+            self._do_active_learning = True
+            self._active_learning_epoch_interval = active_learning['epoch_interval']
+            self._active_learning_num_labels = active_learning['num_labels']
 
     def _enable_gradient_clipping(self) -> None:
         if self._grad_clipping is not None:
@@ -826,58 +829,63 @@ class Trainer(Registrable):
                 formatted_time = str(datetime.timedelta(seconds=int(estimated_time_remaining)))
                 logger.info("Estimated training time remaining: %s", formatted_time)
 
-            # Active learning: query user for data after each epoch
-            # Do this after the timing computations above to ensure the time it takes for the user to input labels
-            # isn't counted into timing info
-            # TODO: maybe do this multiple times, each time choosing either:
-            # 1. diff. cluster or 2. diff. un-labelled span or 3. both
-            if self._active_learning_coref:
-                # Choose a random training instance (document) and get its fields
-                instance = random.randint(0, len(self.train_data) - 1)
-                text_tensor = self.train_data[instance].fields['text'].as_tensor(
-                    self.train_data[instance].fields['text'].get_padding_lengths()
-                )['tokens']
-                spans_tensor = self.train_data[instance].fields['spans'].as_tensor(
-                    self.train_data[instance].fields['spans'].get_padding_lengths()
-                )
-                span_labels_tensor = self.train_data[instance].fields['span_labels'].as_tensor(
-                    self.train_data[instance].fields['span_labels'].get_padding_lengths()
-                )
-
-                # Choose a random cluster
-                cluster = random.randint(0, len(self.train_data[instance].fields['metadata']['clusters']) - 1)
-                cluster_span_indices = (span_labels_tensor == cluster).nonzero().squeeze(-1)
-                cluster_spans = spans_tensor[cluster_span_indices]
-
-                # Choose a random un-labelled span
-                unlabelled_span_indices = (span_labels_tensor <= 0).nonzero().squeeze(-1)
-                unlabelled_span_index = unlabelled_span_indices[
-                    random.randint(0, unlabelled_span_indices.size(0) - 1)
-                ]
-                unlabelled_span = spans_tensor[unlabelled_span_index]
-
-                # Create a color-coded output to allow user to see entire document,
-                # the chosen cluster, and chosen unlabelled span
-                tokens = [str(token) for token in self.train_data[instance].fields['text'].tokens]
-                # Color code unlabelled span
-                tokens[unlabelled_span[0].item()] = '\033[4;31;47m' + tokens[unlabelled_span[0].item()]
-                tokens[unlabelled_span[1].item()] = tokens[unlabelled_span[1].item()] + '\033[0;37;40m'
-                # Color code chosen cluster
-                for c in range(cluster_spans.size(0)):
-                    tokens[cluster_spans[c][0].item()] = '\033[1;34;43m' + tokens[cluster_spans[c][0].item()]
-                    tokens[cluster_spans[c][1].item()] = tokens[cluster_spans[c][1].item()] + '\033[0;37;40m'
-                print(" ".join(tokens))
-
-                # Prompt user for labels and update training data based on user input
-                if (input("Is red/underline a complete and valid mention? Y/[N]: ") == 'Y') and (
-                        input("Is it coreferent w/ blue/bold cluster? Y/[N]: ") == 'Y'
-                ):
-                    # update clusters in metadata
-                    self.train_data[instance].fields['metadata']['clusters'][cluster].append(
-                        (unlabelled_span[0].item(), unlabelled_span[1].item())
+            # Active learning: query user for self._active_learning_num_labels data after each
+            # self._active_learning_epoch_interval epochs
+            # (Done after the timing computations above to ensure that time it takes for the user to input labels
+            # isn't counted into timing info)
+            if self._do_active_learning and epoch % self._active_learning_epoch_interval == (
+                    self._active_learning_epoch_interval - 1):
+                # Loop (self._active_learning_num_labels) times
+                for l in range(self._active_learning_num_labels):
+                    print("\nQuerying label " + str(l))
+                    # Choose a random training instance (document) and get its fields
+                    instance = random.randint(0, len(self.train_data) - 1)
+                    spans_tensor = self.train_data[instance].fields['spans'].as_tensor(
+                        self.train_data[instance].fields['spans'].get_padding_lengths()
                     )
-                    # update span label of chosen unlabelled span
-                    self.train_data[instance].fields['span_labels'].labels[unlabelled_span_index] = cluster
+                    span_labels_tensor = self.train_data[instance].fields['span_labels'].as_tensor(
+                        self.train_data[instance].fields['span_labels'].get_padding_lengths()
+                    )
+
+                    # Choose a random cluster
+                    cluster = random.randint(0, len(self.train_data[instance].fields['metadata']['clusters']) - 1)
+                    cluster_span_indices = (span_labels_tensor == cluster).nonzero().squeeze(-1)
+                    cluster_spans = spans_tensor[cluster_span_indices]
+
+                    # Choose a random un-labelled span
+                    unlabelled_span_indices = (span_labels_tensor <= 0).nonzero().squeeze(-1)
+                    unlabelled_span_index = unlabelled_span_indices[
+                        random.randint(0, unlabelled_span_indices.size(0) - 1)
+                    ]
+                    unlabelled_span = spans_tensor[unlabelled_span_index]
+
+                    # Create a color-coded output to allow user to see entire document,
+                    # the chosen cluster, and chosen unlabelled span
+                    tokens = [str(token) for token in self.train_data[instance].fields['text'].tokens]
+                    # Color code unlabelled span
+                    tokens[unlabelled_span[0].item()] = '\033[4;31;47m' + tokens[unlabelled_span[0].item()]
+                    tokens[unlabelled_span[1].item()] = tokens[unlabelled_span[1].item()] + '\033[0;37;40m'
+                    # Color code chosen cluster
+                    for c in range(cluster_spans.size(0)):
+                        tokens[cluster_spans[c][0].item()] = '\033[1;34;43m' + tokens[cluster_spans[c][0].item()]
+                        tokens[cluster_spans[c][1].item()] = tokens[cluster_spans[c][1].item()] + '\033[0;37;40m'
+                    print(" ".join(tokens))
+
+                    # Prompt user for labels and update training data based on user input
+                    if input("The red/underline a complete and valid entity mention. T/[F]: ") == 'T':
+                        if input("It is coreferent w/ blue/bold cluster. T/[F]: ") == 'T':
+                            # update clusters in metadata
+                            self.train_data[instance].fields['metadata']['clusters'][cluster].append(
+                                (unlabelled_span[0].item(), unlabelled_span[1].item())
+                            )
+                            # update span label of chosen unlabelled span
+                            self.train_data[instance].fields['span_labels'].labels[unlabelled_span_index] = cluster
+                    else:
+                        # TODO: actually maybe we don't want this
+                        # unlabelled span is not an entity, so remove it from list of spans to consider
+                        del self.train_data[instance].fields['spans'].field_list[unlabelled_span_index]
+                        # also must remember to delete corresponding index in span_labels
+                        del self.train_data[instance].fields['span_labels'].labels[unlabelled_span_index]
 
             epochs_trained += 1
 
@@ -1100,6 +1108,8 @@ class Trainer(Registrable):
         should_log_parameter_statistics = params.pop_bool("should_log_parameter_statistics", True)
         should_log_learning_rate = params.pop_bool("should_log_learning_rate", False)
 
+        active_learning = params.pop("active_learning", None)
+
         params.assert_empty(cls.__name__)
         return cls(model, optimizer, iterator,
                    train_data, validation_data,
@@ -1119,7 +1129,8 @@ class Trainer(Registrable):
                    summary_interval=summary_interval,
                    histogram_interval=histogram_interval,
                    should_log_parameter_statistics=should_log_parameter_statistics,
-                   should_log_learning_rate=should_log_learning_rate)
+                   should_log_learning_rate=should_log_learning_rate,
+                   active_learning=active_learning)
 
 
 Trainer.register("default")(Trainer)

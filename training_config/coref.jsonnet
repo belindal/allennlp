@@ -98,6 +98,11 @@
     },
     "optimizer": {
       "type": "adam"
+    },
+    "active_learning": {
+      "model_type": "coref",
+      "epoch_interval": 10,
+      "num_labels": 5,
     }
   }
 }
