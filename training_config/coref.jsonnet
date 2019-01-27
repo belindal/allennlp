@@ -14,9 +14,9 @@
     },
     "max_span_width": 10
   },
-  "train_data_path": std.extVar("COREF_TRAIN_DATA_PATH"),
-  "validation_data_path": std.extVar("COREF_DEV_DATA_PATH"),
-  "test_data_path": std.extVar("COREF_TEST_DATA_PATH"),
+  "train_data_path": "../data/coref_ontonotes/sample",
+  "validation_data_path": "../data/coref_ontonotes/sample",
+  "test_data_path": "../data/coref_ontonotes/sample",
   "model": {
     "type": "coref",
     "text_field_embedder": {
@@ -88,7 +88,7 @@
     "num_epochs": 150,
     "grad_norm": 5.0,
     "patience" : 10,
-    "cuda_device" : 0,
+    "cuda_device" : -1,
     "validation_metric": "+coref_f1",
     "learning_rate_scheduler": {
       "type": "reduce_on_plateau",

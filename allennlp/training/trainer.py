@@ -34,6 +34,9 @@ from allennlp.nn import util
 from allennlp.training.learning_rate_schedulers import LearningRateScheduler
 from allennlp.training.optimizers import Optimizer
 
+import pdb
+import random
+
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 
@@ -339,6 +342,14 @@ class Trainer(Registrable):
         else:
             self._tensorboard = TensorboardWriter()
         self._warned_tqdm_ignores_underscores = False
+
+        # Whether or not to do active learning
+        # TODO: make this part of config file
+        self._active_learning_coref = True
+        ''' can't do isinstance here... may have to do smthing else
+        if self._active_learning_coref and not isinstance(self.model, CoreferenceResolver):
+            raise ConfigurationError("Active learning only compatible with coreference model (for now)")
+        '''
 
     def _enable_gradient_clipping(self) -> None:
         if self._grad_clipping is not None:
@@ -814,6 +825,59 @@ class Trainer(Registrable):
                     ((self._num_epochs - epoch_counter) / float(epoch - epoch_counter + 1) - 1)
                 formatted_time = str(datetime.timedelta(seconds=int(estimated_time_remaining)))
                 logger.info("Estimated training time remaining: %s", formatted_time)
+
+            # Active learning: query user for data after each epoch
+            # Do this after the timing computations above to ensure the time it takes for the user to input labels
+            # isn't counted into timing info
+            # TODO: maybe do this multiple times, each time choosing either:
+            # 1. diff. cluster or 2. diff. un-labelled span or 3. both
+            if self._active_learning_coref:
+                # Choose a random training instance (document) and get its fields
+                instance = random.randint(0, len(self.train_data) - 1)
+                text_tensor = self.train_data[instance].fields['text'].as_tensor(
+                    self.train_data[instance].fields['text'].get_padding_lengths()
+                )['tokens']
+                spans_tensor = self.train_data[instance].fields['spans'].as_tensor(
+                    self.train_data[instance].fields['spans'].get_padding_lengths()
+                )
+                span_labels_tensor = self.train_data[instance].fields['span_labels'].as_tensor(
+                    self.train_data[instance].fields['span_labels'].get_padding_lengths()
+                )
+
+                # Choose a random cluster
+                cluster = random.randint(0, len(self.train_data[instance].fields['metadata']['clusters']) - 1)
+                cluster_span_indices = (span_labels_tensor == cluster).nonzero().squeeze(-1)
+                cluster_spans = spans_tensor[cluster_span_indices]
+
+                # Choose a random un-labelled span
+                unlabelled_span_indices = (span_labels_tensor <= 0).nonzero().squeeze(-1)
+                unlabelled_span_index = unlabelled_span_indices[
+                    random.randint(0, unlabelled_span_indices.size(0) - 1)
+                ]
+                unlabelled_span = spans_tensor[unlabelled_span_index]
+
+                # Create a color-coded output to allow user to see entire document,
+                # the chosen cluster, and chosen unlabelled span
+                tokens = [str(token) for token in self.train_data[instance].fields['text'].tokens]
+                # Color code unlabelled span
+                tokens[unlabelled_span[0].item()] = '\033[4;31;47m' + tokens[unlabelled_span[0].item()]
+                tokens[unlabelled_span[1].item()] = tokens[unlabelled_span[1].item()] + '\033[0;37;40m'
+                # Color code chosen cluster
+                for c in range(cluster_spans.size(0)):
+                    tokens[cluster_spans[c][0].item()] = '\033[1;34;43m' + tokens[cluster_spans[c][0].item()]
+                    tokens[cluster_spans[c][1].item()] = tokens[cluster_spans[c][1].item()] + '\033[0;37;40m'
+                print(" ".join(tokens))
+
+                # Prompt user for labels and update training data based on user input
+                if (input("Is red/underline a complete and valid mention? Y/[N]: ") == 'Y') and (
+                        input("Is it coreferent w/ blue/bold cluster? Y/[N]: ") == 'Y'
+                ):
+                    # update clusters in metadata
+                    self.train_data[instance].fields['metadata']['clusters'][cluster].append(
+                        (unlabelled_span[0].item(), unlabelled_span[1].item())
+                    )
+                    # update span label of chosen unlabelled span
+                    self.train_data[instance].fields['span_labels'].labels[unlabelled_span_index] = cluster
 
             epochs_trained += 1
 
