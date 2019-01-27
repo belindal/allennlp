@@ -271,7 +271,7 @@ class Trainer(Registrable):
         should_log_learning_rate : ``bool``, optional, (default = False)
             Whether to send parameter specific learning rate to tensorboard.
         active_learning : ``Dict[str, int]``, optional, (default = None)
-            Whether to do active learning, ONLY applies if model is a CorefResolver
+            Settings for active learning, ONLY applies if model is a CorefResolver
         """
         self.model = model
         self.iterator = iterator
@@ -347,6 +347,7 @@ class Trainer(Registrable):
         self._warned_tqdm_ignores_underscores = False
 
         # Whether or not to do active learning
+        self._do_active_learning = False
         if active_learning:
             if active_learning['model_type'] != 'coref':
                 raise ConfigurationError("Active learning only compatible with coreference model (for now)")

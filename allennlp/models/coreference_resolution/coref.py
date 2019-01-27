@@ -61,6 +61,8 @@ class CoreferenceResolver(Model):
         Used to initialize the model parameters.
     regularizer : ``RegularizerApplicator``, optional (default=``None``)
         If provided, will be used to calculate the regularization penalty during training.
+    coarse_to_fine_pruning : ``bool``, optional (default=``False``)
+        Whether to do coarse-to-fine pruning
     """
     def __init__(self,
                  vocab: Vocabulary,
@@ -74,7 +76,8 @@ class CoreferenceResolver(Model):
                  max_antecedents: int,
                  lexical_dropout: float = 0.2,
                  initializer: InitializerApplicator = InitializerApplicator(),
-                 regularizer: Optional[RegularizerApplicator] = None) -> None:
+                 regularizer: Optional[RegularizerApplicator] = None,
+                 coarse_to_fine_pruning: bool = False) -> None:
         super(CoreferenceResolver, self).__init__(vocab, regularizer)
 
         self._text_field_embedder = text_field_embedder
@@ -87,7 +90,7 @@ class CoreferenceResolver(Model):
         self._antecedent_scorer = TimeDistributed(torch.nn.Linear(antecedent_feedforward.get_output_dim(), 1))
 
         # do coarse to fine pruning
-        self.coarse_to_fine_prune = False
+        self._do_coarse_to_fine_prune = coarse_to_fine_pruning
 
         self._endpoint_span_extractor = EndpointSpanExtractor(context_layer.get_output_dim(),
                                                               combination="x,y",
@@ -223,7 +226,7 @@ class CoreferenceResolver(Model):
         # (num_spans_to_keep, max_antecedents),
         # (1, max_antecedents),
         # (1, num_spans_to_keep, max_antecedents)
-        if not self.coarse_to_fine_prune:
+        if not self._do_coarse_to_fine_prune:
             valid_antecedent_indices, valid_antecedent_offsets, valid_antecedent_log_mask = \
                 self._generate_valid_antecedents(num_spans_to_keep, max_antecedents, util.get_device_of(text_mask))
             # Select tensors relating to the antecedent spans.
@@ -555,7 +558,7 @@ class CoreferenceResolver(Model):
         antecedent_distance_embeddings = self._distance_embedding(
                 util.bucket_values(antecedent_offsets,
                                    num_total_buckets=self._num_distance_buckets))
-        if not self.coarse_to_fine_prune:
+        if not self._do_coarse_to_fine_prune:
             # Shape: (1, 1, max_antecedents, embedding_size)
             antecedent_distance_embeddings = antecedent_distance_embeddings.unsqueeze(0)
 
@@ -651,7 +654,7 @@ class CoreferenceResolver(Model):
         # Shape: (batch_size, num_spans_to_keep, max_antecedents)
         antecedent_scores = self._antecedent_scorer(
                 self._antecedent_feedforward(pairwise_embeddings)).squeeze(-1)
-        if not self.coarse_to_fine_prune:
+        if not self._do_coarse_to_fine_prune:
             antecedent_scores += top_span_mention_scores + antecedent_mention_scores
             antecedent_scores += antecedent_log_mask
         else:

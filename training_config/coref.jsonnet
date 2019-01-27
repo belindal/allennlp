@@ -19,6 +19,7 @@
   "test_data_path": "../data/coref_ontonotes/sample",
   "model": {
     "type": "coref",
+    "coarse_to_fine_pruning": false,
     "text_field_embedder": {
       "token_embedders": {
         "tokens": {
