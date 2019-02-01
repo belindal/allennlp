@@ -12,6 +12,8 @@ from allennlp.data.tokenizers import Token
 from allennlp.data.token_indexers import SingleIdTokenIndexer, TokenIndexer
 from allennlp.data.dataset_readers.dataset_utils import Ontonotes, enumerate_spans
 
+import pdb
+
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 
@@ -74,10 +76,12 @@ class ConllCorefReader(DatasetReader):
     def __init__(self,
                  max_span_width: int,
                  token_indexers: Dict[str, TokenIndexer] = None,
+                 simulate_user_inputs: bool = False,
                  lazy: bool = False) -> None:
         super().__init__(lazy)
         self._max_span_width = max_span_width
         self._token_indexers = token_indexers or {"tokens": SingleIdTokenIndexer()}
+        self._simulate_user_inputs = simulate_user_inputs
 
     @overrides
     def _read(self, file_path: str):
@@ -141,14 +145,32 @@ class ConllCorefReader(DatasetReader):
 
         text_field = TextField([Token(word) for word in flattened_sentences], self._token_indexers)
 
+        # approximate % of gold labels to use as simulated user labels
+        user_threshold = 0.5 if self._simulate_user_inputs else 1.0
         cluster_dict = {}
+        simulated_user_cluster_dict = {}
+
         if gold_clusters is not None:
             for cluster_id, cluster in enumerate(gold_clusters):
-                for mention in cluster:
-                    cluster_dict[tuple(mention)] = cluster_id
+                for i in range(len(cluster)):
+                    # use modulo to have a relatively even distribution of user labels across length of document,
+                    # (since clusters are sorted)--so user simulated clusters are spread evenly across document
+                    if i % int(1 / user_threshold) == 0:
+                        cluster_dict[tuple(cluster[i])] = cluster_id
+                    else:
+                        simulated_user_cluster_dict[tuple(cluster[i])] = cluster_id
 
+        # Note cluster_dict and simulated_user_cluster_dict are mutually exclusive.
+        # Consequently span_labels and user_labels are as well
         spans: List[Field] = []
         span_labels: Optional[List[int]] = [] if gold_clusters is not None else None
+        user_labels: Optional[List[int]] = [] if self._simulate_user_inputs and gold_clusters is not None else None
+
+        # our must-link and cannot-link constraints, derived from user labels
+        # using gold_clusters being None as an indicator of whether we're running training or not
+        # TODO: confirm ^^
+        must_link: Optional[List[int]] = [] if gold_clusters is not None else None
+        cannot_link: Optional[List[int]] = [] if gold_clusters is not None else None
 
         sentence_offset = 0
         for sentence in sentences:
@@ -160,6 +182,11 @@ class ConllCorefReader(DatasetReader):
                         span_labels.append(cluster_dict[(start, end)])
                     else:
                         span_labels.append(-1)
+                    if self._simulate_user_inputs:
+                        if (start, end) in simulated_user_cluster_dict:
+                            user_labels.append(simulated_user_cluster_dict[(start, end)])
+                        else:
+                            user_labels.append(-1)
 
                 spans.append(SpanField(start, end, text_field))
             sentence_offset += len(sentence)
@@ -171,7 +198,10 @@ class ConllCorefReader(DatasetReader):
                                     "spans": span_field,
                                     "metadata": metadata_field}
         if span_labels is not None:
+            # pdb.set_trace()
             fields["span_labels"] = SequenceLabelField(span_labels, span_field)
+            if user_labels is not None:
+                fields["user_labels"] = SequenceLabelField(user_labels, span_field)
 
         return Instance(fields)
 

@@ -12,7 +12,8 @@
         "type": "characters"
       }
     },
-    "max_span_width": 10
+    "max_span_width": 10,
+    "simulate_user_inputs": true,  // Sampled from training data
   },
   "train_data_path": "../data/coref_ontonotes/sample",
   "validation_data_path": "../data/coref_ontonotes/sample",
@@ -104,6 +105,7 @@
       "model_type": "coref",
       "epoch_interval": 10,
       "num_labels": 5,
+      "simulate_user_inputs": true, // have to update in 2 places
     }
   }
 }

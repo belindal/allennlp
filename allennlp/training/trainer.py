@@ -354,6 +354,7 @@ class Trainer(Registrable):
             self._do_active_learning = True
             self._active_learning_epoch_interval = active_learning['epoch_interval']
             self._active_learning_num_labels = active_learning['num_labels']
+            self._sample_from_training = active_learning['simulate_user_inputs']
 
     def _enable_gradient_clipping(self) -> None:
         if self._grad_clipping is not None:
@@ -844,6 +845,7 @@ class Trainer(Registrable):
                     spans_tensor = self.train_data[instance].fields['spans'].as_tensor(
                         self.train_data[instance].fields['spans'].get_padding_lengths()
                     )
+                    # (tensorize to make searching for a cluster an easier operation)
                     span_labels_tensor = self.train_data[instance].fields['span_labels'].as_tensor(
                         self.train_data[instance].fields['span_labels'].get_padding_lengths()
                     )
@@ -860,8 +862,12 @@ class Trainer(Registrable):
                     ]
                     unlabelled_span = spans_tensor[unlabelled_span_index]
 
+                    coreferent = False
+
                     # Create a color-coded output to allow user to see entire document,
                     # the chosen cluster, and chosen unlabelled span
+
+                    # Display to user and prompt for input
                     tokens = [str(token) for token in self.train_data[instance].fields['text'].tokens]
                     # Color code unlabelled span
                     tokens[unlabelled_span[0].item()] = '\033[4;31;47m' + tokens[unlabelled_span[0].item()]
@@ -872,21 +878,32 @@ class Trainer(Registrable):
                         tokens[cluster_spans[c][1].item()] = tokens[cluster_spans[c][1].item()] + '\033[0;37;40m'
                     print(" ".join(tokens))
 
-                    # Prompt user for labels and update training data based on user input
-                    if input("The red/underline a complete and valid entity mention. T/[F]: ") == 'T':
-                        if input("It is coreferent w/ blue/bold cluster. T/[F]: ") == 'T':
-                            # update clusters in metadata
-                            self.train_data[instance].fields['metadata']['clusters'][cluster].append(
-                                (unlabelled_span[0].item(), unlabelled_span[1].item())
-                            )
-                            # update span label of chosen unlabelled span
-                            self.train_data[instance].fields['span_labels'].labels[unlabelled_span_index] = cluster
+                    if self._sample_from_training:
+                        # using gold set as input
+                        user_labels = self.train_data[instance].fields['user_labels']
+                        # check "user labels" for whether chosen un-labelled span is coreferent w/ chosen cluster
+                        if user_labels[unlabelled_span_index] == cluster:
+                            coreferent = True
+                            print("coreferent")
                     else:
-                        # TODO: actually maybe we don't want this
-                        # unlabelled span is not an entity, so remove it from list of spans to consider
-                        del self.train_data[instance].fields['spans'].field_list[unlabelled_span_index]
-                        # also must remember to delete corresponding index in span_labels
-                        del self.train_data[instance].fields['span_labels'].labels[unlabelled_span_index]
+                        coreferent = (input("The red/underline a complete and valid entity mention. T/[F]: ") == 'T' and
+                                      input("It is coreferent w/ blue/bold cluster. T/[F]: ") == 'T')
+
+                    # Prompt user for labels and update training data based on user input
+                    if coreferent:
+                        pdb.set_trace()
+                        # update clusters in metadata
+                        self.train_data[instance].fields['metadata']['clusters'][cluster].append(
+                            (unlabelled_span[0].item(), unlabelled_span[1].item())
+                        )
+                        # update span label of chosen unlabelled span
+                        self.train_data[instance].fields['span_labels'].labels[unlabelled_span_index] = cluster
+                    # else:
+                    #     # TODO: actually maybe we don't want this
+                    #     # unlabelled span is not an entity, so remove it from list of spans to consider
+                    #     del self.train_data[instance].fields['spans'].field_list[unlabelled_span_index]
+                    #     # also must remember to delete corresponding index in span_labels
+                    #     del self.train_data[instance].fields['span_labels'].labels[unlabelled_span_index]
 
             epochs_trained += 1
 

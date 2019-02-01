@@ -120,6 +120,9 @@ class CoreferenceResolver(Model):
                 text: Dict[str, torch.LongTensor],
                 spans: torch.IntTensor,
                 span_labels: torch.IntTensor = None,
+                user_labels: torch.IntTensor = None,
+                must_link: torch.IntTensor = None,
+                cannot_link: torch.IntTensor = None,
                 metadata: List[Dict[str, Any]] = None) -> Dict[str, torch.Tensor]:
         # pylint: disable=arguments-differ
         """
@@ -307,6 +310,10 @@ class CoreferenceResolver(Model):
             coreference_log_probs = util.masked_log_softmax(coreference_scores, top_span_mask)
             correct_antecedent_log_probs = coreference_log_probs + gold_antecedent_labels.log()
             negative_marginal_log_likelihood = -util.logsumexp(correct_antecedent_log_probs).sum()
+
+            # Now add constraints
+            if must_link is not None and cannot_link is not None:
+                pdb.set_trace()
 
             self._mention_recall(top_spans, metadata)
             self._conll_coref_scores(top_spans, valid_antecedent_indices, predicted_antecedents, metadata)
