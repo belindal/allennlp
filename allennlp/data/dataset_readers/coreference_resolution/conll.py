@@ -146,7 +146,8 @@ class ConllCorefReader(DatasetReader):
         text_field = TextField([Token(word) for word in flattened_sentences], self._token_indexers)
 
         # approximate % of gold labels to use as simulated user labels
-        user_threshold = 0.5 if self._simulate_user_inputs else 1.0
+        user_threshold = 0.33
+	user_threshold_mod = int(1 / user_threshold) if self._simulate_user_inputs else 0
         cluster_dict = {}
         simulated_user_cluster_dict = {}
 
@@ -155,10 +156,10 @@ class ConllCorefReader(DatasetReader):
                 for i in range(len(cluster)):
                     # use modulo to have a relatively even distribution of user labels across length of document,
                     # (since clusters are sorted)--so user simulated clusters are spread evenly across document
-                    if i % int(1 / user_threshold) == 0:
-                        cluster_dict[tuple(cluster[i])] = cluster_id
-                    else:
+                    if user_threshold_mod != 0 && i % user_threshold_mod == user_threshold_mod - 1:
                         simulated_user_cluster_dict[tuple(cluster[i])] = cluster_id
+                    else:
+                        cluster_dict[tuple(cluster[i])] = cluster_id
 
         # Note cluster_dict and simulated_user_cluster_dict are mutually exclusive.
         # Consequently span_labels and user_labels are as well

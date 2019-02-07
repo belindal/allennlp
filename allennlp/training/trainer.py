@@ -882,9 +882,8 @@ class Trainer(Registrable):
                         # using gold set as input
                         user_labels = self.train_data[instance].fields['user_labels']
                         # check "user labels" for whether chosen un-labelled span is coreferent w/ chosen cluster
-                        if user_labels[unlabelled_span_index] == cluster:
-                            coreferent = True
-                            print("coreferent")
+                        coreferent = (user_labels[unlabelled_span_index] == cluster)
+                        print("coreferent")
                     else:
                         coreferent = (input("The red/underline a complete and valid entity mention. T/[F]: ") == 'T' and
                                       input("It is coreferent w/ blue/bold cluster. T/[F]: ") == 'T')
