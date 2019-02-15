@@ -2,22 +2,6 @@
 //   Lee, Kenton et al. “End-to-end Neural Coreference Resolution.” EMNLP (2017).
 {
   // Separate dataset reader for holding out labels in training data as user labels
-  /*
-  "held_out_dataset_reader": {
-    "type": "coref",
-    "token_indexers": {
-      "tokens": {
-        "type": "single_id",
-        "lowercase_tokens": false
-      },
-      "token_characters": {
-        "type": "characters"
-      }
-    },
-    "max_span_width": 10,
-    "simulate_user_inputs": true,  // Sampled from training data
-  },
-  */
   "dataset_reader": {
     "type": "coref",
     "token_indexers": {
@@ -31,7 +15,7 @@
     },
     "max_span_width": 10,
     "simulate_user_inputs": true,  // Sampled from training data
-    "fully_labelled_threshold": 1,
+    "fully_labelled_threshold": 700,
   },
   "validation_dataset_reader": {
     "type": "coref",
@@ -48,9 +32,9 @@
   },
   //"fully_labelled_train_data_path": "../data/coref_ontonotes/sample_train_full",
   //"held_out_train_data_path": "../data/coref_ontonotes/sample_train_held",
-  "train_data_path": "../data/coref_ontonotes/sample",
-  "validation_data_path": "../data/coref_ontonotes/sample",
-  "test_data_path": "../data/coref_ontonotes/sample",
+  "train_data_path": "../data/coref_ontonotes/train.english.v4_gold_conll",
+  "validation_data_path": "../data/coref_ontonotes/dev.english.v4_gold_conll",
+  "test_data_path": "../data/coref_ontonotes/test.english.v4_gold_conll",
   "model": {
     "type": "coref",
     "coarse_to_fine_pruning": false,
@@ -58,9 +42,9 @@
       "token_embedders": {
         "tokens": {
             "type": "embedding",
-            // "pretrained_file": "https://s3-us-west-2.amazonaws.com/allennlp/datasets/glove/glove.6B.300d.txt.gz",
+            "pretrained_file": "https://s3-us-west-2.amazonaws.com/allennlp/datasets/glove/glove.6B.300d.txt.gz",
             "embedding_dim": 300,
-            // "trainable": false
+            "trainable": false
         },
         "token_characters": {
             "type": "character_encoding",
@@ -119,11 +103,15 @@
     "padding_noise": 0.0,
     "batch_size": 1
   },
+  "held_out_iterator": {
+    "type": "basic",
+    "batch_size": 1
+  },
   "trainer": {
     "num_epochs": 150,
     "grad_norm": 5.0,
     "patience" : 10,
-    "cuda_device" : -1,
+    "cuda_device" : 0,
     "validation_metric": "+coref_f1",
     "learning_rate_scheduler": {
       "type": "reduce_on_plateau",
