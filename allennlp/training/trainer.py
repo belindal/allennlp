@@ -874,6 +874,11 @@ class Trainer(Registrable):
                             instance_idx = num_batches * batch_size + i
                             for j in range(len(model_output_clusters)):
                                 cluster = model_output_clusters[j]
+                                # gold label for the cluster--identify this by checking whether any span in the cluster
+                                # has been annotated, and the label of that span
+                                # if no span, ignore/skip
+                                # TODO: ^^
+                                # gold_cluster_label =
                                 # note that each cluster numbering will ALWAYS correspond to gold labels since we start
                                 #   with >= 1 example from each cluster--we make this assumption in our code
                                 for span in cluster:
@@ -890,13 +895,15 @@ class Trainer(Registrable):
                                     if batch['span_labels'][i, span_idx] != -1:
                                         continue
                                     # TODO: have an option for obtaining user input from below
-                                    # span is labelled correctly by 'user_label's (span is not already labelled)
-                                    # Assume gold data's cluster label = model output's cluster label = j
-                                    # TODO: check whether this assumption is safe
+                                    # span has been labelled (by 'user_labels'), directly transfer label of
+                                    # 'user_labels' to 'span_labels'
+                                    # TODO: revise using gold label thing in TODO
                                     pdb.set_trace()
-                                    if batch['user_labels'][i, span_idx] == j:
+                                    user_cluster_label = batch['user_labels'][i, span_idx]
+                                    if user_cluster_label != -1:
                                         # copy label from user_labels to span_labels
-                                        train_data_to_add[instance_idx].fields['span_labels'].labels[span_idx] = j
+                                        train_data_to_add[instance_idx].fields['span_labels'].labels[span_idx] = \
+                                            user_cluster_label
 
                         if output_dict['loss'] is not None:
                             num_batches += 1
