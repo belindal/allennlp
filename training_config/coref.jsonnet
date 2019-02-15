@@ -1,7 +1,8 @@
 // Configuration for a coreference resolution model based on:
 //   Lee, Kenton et al. “End-to-end Neural Coreference Resolution.” EMNLP (2017).
 {
-  "dataset_reader": {
+  // Separate dataset reader for holding out labels in training data as user labels
+  "held_out_dataset_reader": {
     "type": "coref",
     "token_indexers": {
       "tokens": {
@@ -15,7 +16,21 @@
     "max_span_width": 10,
     "simulate_user_inputs": true,  // Sampled from training data
   },
-  "train_data_path": "../data/coref_ontonotes/sample",
+  "dataset_reader": {
+    "type": "coref",
+    "token_indexers": {
+      "tokens": {
+        "type": "single_id",
+        "lowercase_tokens": false
+      },
+      "token_characters": {
+        "type": "characters"
+      }
+    },
+    "max_span_width": 10,
+  },
+  "fully_labelled_train_data_path": "../data/coref_ontonotes/sample_train_full",
+  "held_out_train_data_path": "../data/coref_ontonotes/sample_train_held",
   "validation_data_path": "../data/coref_ontonotes/sample",
   "test_data_path": "../data/coref_ontonotes/sample",
   "model": {
@@ -25,9 +40,9 @@
       "token_embedders": {
         "tokens": {
             "type": "embedding",
-            "pretrained_file": "https://s3-us-west-2.amazonaws.com/allennlp/datasets/glove/glove.6B.300d.txt.gz",
+            // "pretrained_file": "https://s3-us-west-2.amazonaws.com/allennlp/datasets/glove/glove.6B.300d.txt.gz",
             "embedding_dim": 300,
-            "trainable": false
+            // "trainable": false
         },
         "token_characters": {
             "type": "character_encoding",

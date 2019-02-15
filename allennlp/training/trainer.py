@@ -865,6 +865,7 @@ class Trainer(Registrable):
 
                         # Get clusters
                         batch_model_output_clusters = self.model.decode(output_dict)['clusters']
+                        # batch_model_output_clusters = [[[(14, 14)], [], [(2, 18)],[(2, 18)]]]
 
                         batch_size = len(batch_model_output_clusters)
                         # Verify clusters
@@ -879,7 +880,6 @@ class Trainer(Registrable):
                                     # query gold user labels to verify whether span is okay
                                     # TODO: make this actual human user input-able
                                     # search for index of span
-                                    # Squeeze: assumes 1 instance per cluster
                                     span_idx = ((batch['spans'][i, :, 0] == span[0]) *
                                                 (batch['spans'][i, :, 1] == span[1])).nonzero().squeeze()
                                     if not span_idx:
@@ -891,6 +891,9 @@ class Trainer(Registrable):
                                         continue
                                     # TODO: have an option for obtaining user input from below
                                     # span is labelled correctly by 'user_label's (span is not already labelled)
+                                    # Assume gold data's cluster label = model output's cluster label = j
+                                    # TODO: check whether this assumption is safe
+                                    pdb.set_trace()
                                     if batch['user_labels'][i, span_idx] == j:
                                         # copy label from user_labels to span_labels
                                         train_data_to_add[instance_idx].fields['span_labels'].labels[span_idx] = j

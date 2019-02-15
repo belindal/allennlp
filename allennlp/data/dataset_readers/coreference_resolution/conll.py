@@ -104,12 +104,14 @@ class ConllCorefReader(DatasetReader):
                 total_tokens += len(sentence.words)
 
             canonical_clusters = canonicalize_clusters(clusters)
+
             yield self.text_to_instance([s.words for s in sentences], canonical_clusters)
 
     @overrides
     def text_to_instance(self,  # type: ignore
                          sentences: List[List[str]],
                          gold_clusters: Optional[List[List[Tuple[int, int]]]] = None) -> Instance:
+                         # user_threshold: Optional[float] = 0.0) -> Instance:
         # pylint: disable=arguments-differ
         """
         Parameters
@@ -120,6 +122,9 @@ class ConllCorefReader(DatasetReader):
             A list of all clusters in the document, represented as word spans. Each cluster
             contains some number of spans, which can be nested and overlap, but will never
             exactly match between clusters.
+        user_threshold: ``Optional[float]``, optional (default = 0.0)
+            % of gold labels to label to hold out as user input.
+            EX = 0.5, 0.33, 0.25, 0.125
 
         Returns
         -------
@@ -146,8 +151,8 @@ class ConllCorefReader(DatasetReader):
         text_field = TextField([Token(word) for word in flattened_sentences], self._token_indexers)
 
         # approximate % of gold labels to use as simulated user labels
-        user_threshold = 0.33
-	user_threshold_mod = int(1 / user_threshold) if self._simulate_user_inputs else 0
+        user_threshold = 0.5
+        user_threshold_mod = int(1 / user_threshold) if self._simulate_user_inputs else 0
         cluster_dict = {}
         simulated_user_cluster_dict = {}
 
@@ -156,7 +161,7 @@ class ConllCorefReader(DatasetReader):
                 for i in range(len(cluster)):
                     # use modulo to have a relatively even distribution of user labels across length of document,
                     # (since clusters are sorted)--so user simulated clusters are spread evenly across document
-                    if user_threshold_mod != 0 && i % user_threshold_mod == user_threshold_mod - 1:
+                    if user_threshold_mod != 0 and i % user_threshold_mod == user_threshold_mod - 1:
                         simulated_user_cluster_dict[tuple(cluster[i])] = cluster_id
                     else:
                         cluster_dict[tuple(cluster[i])] = cluster_id
@@ -199,7 +204,6 @@ class ConllCorefReader(DatasetReader):
                                     "spans": span_field,
                                     "metadata": metadata_field}
         if span_labels is not None:
-            # pdb.set_trace()
             fields["span_labels"] = SequenceLabelField(span_labels, span_field)
             if user_labels is not None:
                 fields["user_labels"] = SequenceLabelField(user_labels, span_field)
