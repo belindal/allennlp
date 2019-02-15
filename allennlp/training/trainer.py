@@ -167,6 +167,7 @@ class Trainer(Registrable):
                  optimizer: torch.optim.Optimizer,
                  iterator: DataIterator,
                  train_dataset: Iterable[Instance],
+                 held_out_train_dataset: Optional[Iterable[Instance]] = None,
                  validation_dataset: Optional[Iterable[Instance]] = None,
                  patience: Optional[int] = None,
                  validation_metric: str = "-loss",
@@ -279,6 +280,7 @@ class Trainer(Registrable):
         self.shuffle = shuffle
         self.optimizer = optimizer
         self.train_data = train_dataset
+        self._held_out_train_data = held_out_train_dataset
         self._validation_data = validation_dataset
 
         if patience is None:  # no early stopping
@@ -831,6 +833,83 @@ class Trainer(Registrable):
                 formatted_time = str(datetime.timedelta(seconds=int(estimated_time_remaining)))
                 logger.info("Estimated training time remaining: %s", formatted_time)
 
+            # ''' ACTIVE LEARNING BY SELF-TRAINING/EM:
+            # 1. evaluate on held-out training data
+            # 2. use active learning/gold labels to confirm/deny labels on held-out training data
+            # 3. add correct instances in held-out training data to actual train data, then re-train
+            if self._held_out_train_data is not None:
+                # take a subset of training data to evaluate on, and add to actual training set
+                # TODO: currently arbitrarily choosing next 1 instance (by order in file), perhaps change this future(?)
+
+                train_data_to_add = self._held_out_train_data[:1]
+                self._held_out_train_data = self._held_out_train_data[1:]
+
+                with torch.no_grad():
+                    logger.info("Held-Out Training")
+                    # Run model on held out training data
+                    self.model.eval()
+
+                    held_out_generator = self.iterator(train_data_to_add,
+                                                       num_epochs=1,
+                                                       shuffle=False)
+                    num_held_out_batches = self.iterator.get_num_batches(train_data_to_add)
+                    held_out_generator_tqdm = Tqdm.tqdm(held_out_generator, total=num_held_out_batches)
+                    num_batches = 0
+                    held_out_loss = 0
+                    for batch in held_out_generator_tqdm:
+                        if self._multiple_gpu:
+                            output_dict = self._data_parallel(batch)
+                        else:
+                            batch = util.move_to_device(batch, self._cuda_devices[0])
+                            output_dict = self.model(**batch)
+
+                        # Get clusters
+                        batch_model_output_clusters = self.model.decode(output_dict)['clusters']
+
+                        batch_size = len(batch_model_output_clusters)
+                        # Verify clusters
+                        for i in range(batch_size):
+                            model_output_clusters = batch_model_output_clusters[i]
+                            instance_idx = num_batches * batch_size + i
+                            for j in range(len(model_output_clusters)):
+                                cluster = model_output_clusters[j]
+                                # note that each cluster numbering will ALWAYS correspond to gold labels since we start
+                                #   with >= 1 example from each cluster--we make this assumption in our code
+                                for span in cluster:
+                                    # query gold user labels to verify whether span is okay
+                                    # TODO: make this actual human user input-able
+                                    # search for index of span
+                                    # Squeeze: assumes 1 instance per cluster
+                                    span_idx = ((batch['spans'][i, :, 0] == span[0]) *
+                                                (batch['spans'][i, :, 1] == span[1])).nonzero().squeeze()
+                                    if not span_idx:
+                                        # span was not found (span_idx = 0), this should not happen
+                                        continue
+                                    # span has already been labelled in span_labels, don't need to add anything
+                                    # (regardless of if that label was correct)
+                                    if batch['span_labels'][i, span_idx] != -1:
+                                        continue
+                                    # TODO: have an option for obtaining user input from below
+                                    # span is labelled correctly by 'user_label's (span is not already labelled)
+                                    if batch['user_labels'][i, span_idx] == j:
+                                        # copy label from user_labels to span_labels
+                                        train_data_to_add[instance_idx].fields['span_labels'].labels[span_idx] = j
+
+                        if output_dict['loss'] is not None:
+                            num_batches += 1
+                            held_out_loss += output_dict['loss'].detach().cpu().numpy()
+
+                        # Update the description with the latest metrics
+                        held_out_metrics = self._get_metrics(held_out_loss, num_batches)
+                        description = self._description_from_metrics(held_out_metrics)
+                        held_out_generator_tqdm.set_description(description, refresh=False)
+
+                    # add instance(s) from held-out training dataset to actual dataset (already removed from held-out
+                    # above)
+                    for instance in train_data_to_add:
+                        self.train_data.append(instance)
+
+            ''' TRADITIONAL ACTIVE LEARNING: BY SELECTING RANDOM CLUSTER AND SPAN AND ASKING IF COREFERENT
             # Active learning: query user for self._active_learning_num_labels data after each
             # self._active_learning_epoch_interval epochs
             # (Done after the timing computations above to ensure that time it takes for the user to input labels
@@ -892,9 +971,10 @@ class Trainer(Registrable):
                     if coreferent:
                         pdb.set_trace()
                         # update clusters in metadata
-                        self.train_data[instance].fields['metadata']['clusters'][cluster].append(
-                            (unlabelled_span[0].item(), unlabelled_span[1].item())
-                        )
+                        if not self._sample_from_training:
+                            self.train_data[instance].fields['metadata']['clusters'][cluster].append(
+                                (unlabelled_span[0].item(), unlabelled_span[1].item())
+                            )
                         # update span label of chosen unlabelled span
                         self.train_data[instance].fields['span_labels'].labels[unlabelled_span_index] = cluster
                     # else:
@@ -903,6 +983,7 @@ class Trainer(Registrable):
                     #     del self.train_data[instance].fields['spans'].field_list[unlabelled_span_index]
                     #     # also must remember to delete corresponding index in span_labels
                     #     del self.train_data[instance].fields['span_labels'].labels[unlabelled_span_index]
+            # '''
 
             epochs_trained += 1
 
@@ -1095,6 +1176,7 @@ class Trainer(Registrable):
                     serialization_dir: str,
                     iterator: DataIterator,
                     train_data: Iterable[Instance],
+                    held_out_train_data:  Optional[Iterable[Instance]],
                     validation_data: Optional[Iterable[Instance]],
                     params: Params,
                     validation_iterator: DataIterator = None) -> 'Trainer':
@@ -1129,7 +1211,7 @@ class Trainer(Registrable):
 
         params.assert_empty(cls.__name__)
         return cls(model, optimizer, iterator,
-                   train_data, validation_data,
+                   train_data, held_out_train_data, validation_data,
                    patience=patience,
                    validation_metric=validation_metric,
                    validation_iterator=validation_iterator,
