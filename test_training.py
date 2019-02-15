@@ -32,14 +32,9 @@ def datasets_from_params(params: Params) -> Dict[str, Iterable[Instance]]:
     """
     Load all the datasets specified by the config.
     """
-    dataset_reader = DatasetReader.from_params(params.pop('dataset_reader'))
-    held_out_dataset_reader_params = params.pop("held_out_dataset_reader", None)
+    fully_labelled_threshold = params['dataset_reader']['fully_labelled_threshold']
+    dataset_reader = DatasetReader.from_params(params.pop("dataset_reader", None))
     validation_dataset_reader_params = params.pop("validation_dataset_reader", None)
-
-    held_out_dataset_reader: DatasetReader = dataset_reader
-    if held_out_dataset_reader_params is not None:
-        logger.info("Using a separate dataset reader to load held-out training set.")
-        held_out_dataset_reader = DatasetReader.from_params(held_out_dataset_reader_params)
 
     validation_and_test_dataset_reader: DatasetReader = dataset_reader
     if validation_dataset_reader_params is not None:
@@ -49,13 +44,12 @@ def datasets_from_params(params: Params) -> Dict[str, Iterable[Instance]]:
     # Split train data into held out/not held out, initializing to 10% non-held-out
     # non-held-out training data will have 100% of labels (using dataset_reader)
     # held-out training data will have only 50% of labels (using held_out_dataset_reader)
-    fully_labelled_train_data_path = params.pop('fully_labelled_train_data_path')
-    logger.info("Reading training data from %s", fully_labelled_train_data_path)
-    train_data = dataset_reader.read(fully_labelled_train_data_path)
+    train_data_path = params.pop('train_data_path')
+    logger.info("Reading training data from %s", train_data_path)
+    train_data = dataset_reader.read(train_data_path)
 
-    held_out_train_data_path = params.pop('held_out_train_data_path')
-    logger.info("Reading training data from %s", held_out_train_data_path)
-    held_out_train_data = held_out_dataset_reader.read(held_out_train_data_path)
+    held_out_train_data = train_data[fully_labelled_threshold:]     # after threshold
+    train_data = train_data[:fully_labelled_threshold]      # before threshold
 
     datasets: Dict[str, Iterable[Instance]] = {"train": train_data, "held_out_train": held_out_train_data}
 

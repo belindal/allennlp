@@ -865,7 +865,7 @@ class Trainer(Registrable):
 
                         # Get clusters
                         batch_model_output_clusters = self.model.decode(output_dict)['clusters']
-                        # batch_model_output_clusters = [[[(14, 14)], [], [(2, 18)],[(2, 18)]]]
+                        # batch_model_output_clusters = [[[(18, 18), (1, 1)], [(9, 9)]]]
 
                         batch_size = len(batch_model_output_clusters)
                         # Verify clusters

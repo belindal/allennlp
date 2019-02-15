@@ -77,11 +77,14 @@ class ConllCorefReader(DatasetReader):
                  max_span_width: int,
                  token_indexers: Dict[str, TokenIndexer] = None,
                  simulate_user_inputs: bool = False,
+                 fully_labelled_threshold: int = 1000,
                  lazy: bool = False) -> None:
         super().__init__(lazy)
         self._max_span_width = max_span_width
         self._token_indexers = token_indexers or {"tokens": SingleIdTokenIndexer()}
         self._simulate_user_inputs = simulate_user_inputs
+        # threshold for how many documents should be fully labelled (all remaining documents are half-labelled)
+        self._fully_labelled_threshold = fully_labelled_threshold
 
     @overrides
     def _read(self, file_path: str):
@@ -89,6 +92,7 @@ class ConllCorefReader(DatasetReader):
         file_path = cached_path(file_path)
 
         ontonotes_reader = Ontonotes()
+        i = 0
         for sentences in ontonotes_reader.dataset_document_iterator(file_path):
             clusters: DefaultDict[int, List[Tuple[int, int]]] = collections.defaultdict(list)
 
@@ -105,13 +109,19 @@ class ConllCorefReader(DatasetReader):
 
             canonical_clusters = canonicalize_clusters(clusters)
 
-            yield self.text_to_instance([s.words for s in sentences], canonical_clusters)
+            percent_user_spans = 0.0
+            if self._simulate_user_inputs and i >= self._fully_labelled_threshold:
+                percent_user_spans = 0.5
+
+            i += 1
+
+            yield self.text_to_instance([s.words for s in sentences], canonical_clusters, percent_user_spans)
 
     @overrides
     def text_to_instance(self,  # type: ignore
                          sentences: List[List[str]],
-                         gold_clusters: Optional[List[List[Tuple[int, int]]]] = None) -> Instance:
-                         # user_threshold: Optional[float] = 0.0) -> Instance:
+                         gold_clusters: Optional[List[List[Tuple[int, int]]]] = None,
+                         user_threshold: Optional[float] = 0.0) -> Instance:
         # pylint: disable=arguments-differ
         """
         Parameters
@@ -123,7 +133,7 @@ class ConllCorefReader(DatasetReader):
             contains some number of spans, which can be nested and overlap, but will never
             exactly match between clusters.
         user_threshold: ``Optional[float]``, optional (default = 0.0)
-            % of gold labels to label to hold out as user input.
+            approximate % of gold labels to label to hold out as user input.
             EX = 0.5, 0.33, 0.25, 0.125
 
         Returns
@@ -150,9 +160,7 @@ class ConllCorefReader(DatasetReader):
 
         text_field = TextField([Token(word) for word in flattened_sentences], self._token_indexers)
 
-        # approximate % of gold labels to use as simulated user labels
-        user_threshold = 0.5
-        user_threshold_mod = int(1 / user_threshold) if self._simulate_user_inputs else 0
+        user_threshold_mod = int(1 / user_threshold) if self._simulate_user_inputs and user_threshold > 0 else 0
         cluster_dict = {}
         simulated_user_cluster_dict = {}
 
@@ -169,8 +177,11 @@ class ConllCorefReader(DatasetReader):
         # Note cluster_dict and simulated_user_cluster_dict are mutually exclusive.
         # Consequently span_labels and user_labels are as well
         spans: List[Field] = []
-        span_labels: Optional[List[int]] = [] if gold_clusters is not None else None
-        user_labels: Optional[List[int]] = [] if self._simulate_user_inputs and gold_clusters is not None else None
+        if gold_clusters is not None:
+            span_labels: Optional[List[int]] = []
+            user_labels: Optional[List[int]] = [] if self._simulate_user_inputs and user_threshold > 0 else None
+        else:
+            span_labels = user_labels = None
 
         # our must-link and cannot-link constraints, derived from user labels
         # using gold_clusters being None as an indicator of whether we're running training or not
@@ -188,7 +199,7 @@ class ConllCorefReader(DatasetReader):
                         span_labels.append(cluster_dict[(start, end)])
                     else:
                         span_labels.append(-1)
-                    if self._simulate_user_inputs:
+                    if self._simulate_user_inputs and user_threshold > 0:
                         if (start, end) in simulated_user_cluster_dict:
                             user_labels.append(simulated_user_cluster_dict[(start, end)])
                         else:
