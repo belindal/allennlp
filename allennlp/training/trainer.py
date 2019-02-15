@@ -841,8 +841,8 @@ class Trainer(Registrable):
                 # take a subset of training data to evaluate on, and add to actual training set
                 # TODO: currently arbitrarily choosing next 1 instance (by order in file), perhaps change this future(?)
 
-                train_data_to_add = self._held_out_train_data[:1]
-                self._held_out_train_data = self._held_out_train_data[1:]
+                train_data_to_add = self._held_out_train_data[:70]
+                self._held_out_train_data = self._held_out_train_data[70:]
 
                 with torch.no_grad():
                     logger.info("Held-Out Training")
@@ -898,12 +898,12 @@ class Trainer(Registrable):
                                     # span has been labelled (by 'user_labels'), directly transfer label of
                                     # 'user_labels' to 'span_labels'
                                     # TODO: revise using gold label thing in TODO
-                                    pdb.set_trace()
                                     user_cluster_label = batch['user_labels'][i, span_idx]
                                     if user_cluster_label != -1:
                                         # copy label from user_labels to span_labels
                                         train_data_to_add[instance_idx].fields['span_labels'].labels[span_idx] = \
                                             user_cluster_label
+                                        pdb.set_trace()
 
                         if output_dict['loss'] is not None:
                             num_batches += 1
