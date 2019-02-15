@@ -2,6 +2,7 @@
 //   Lee, Kenton et al. “End-to-end Neural Coreference Resolution.” EMNLP (2017).
 {
   // Separate dataset reader for holding out labels in training data as user labels
+  /*
   "held_out_dataset_reader": {
     "type": "coref",
     "token_indexers": {
@@ -16,6 +17,7 @@
     "max_span_width": 10,
     "simulate_user_inputs": true,  // Sampled from training data
   },
+  */
   "dataset_reader": {
     "type": "coref",
     "token_indexers": {
@@ -28,9 +30,25 @@
       }
     },
     "max_span_width": 10,
+    "simulate_user_inputs": true,  // Sampled from training data
+    "fully_labelled_threshold": 1,
   },
-  "fully_labelled_train_data_path": "../data/coref_ontonotes/sample_train_full",
-  "held_out_train_data_path": "../data/coref_ontonotes/sample_train_held",
+  "validation_dataset_reader": {
+    "type": "coref",
+    "token_indexers": {
+      "tokens": {
+        "type": "single_id",
+        "lowercase_tokens": false
+      },
+      "token_characters": {
+        "type": "characters"
+      }
+    },
+    "max_span_width": 10,
+  },
+  //"fully_labelled_train_data_path": "../data/coref_ontonotes/sample_train_full",
+  //"held_out_train_data_path": "../data/coref_ontonotes/sample_train_held",
+  "train_data_path": "../data/coref_ontonotes/sample",
   "validation_data_path": "../data/coref_ontonotes/sample",
   "test_data_path": "../data/coref_ontonotes/sample",
   "model": {
