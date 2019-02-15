@@ -207,6 +207,12 @@ def train_model(params: Params,
         validation_iterator.index_with(vocab)
     else:
         validation_iterator = None
+    held_out_iterator_params = params.pop("held_out_iterator", None)
+    if held_out_iterator_params:
+        held_out_iterator = DataIterator.from_params(held_out_iterator_params)
+        held_out_iterator.index_with(vocab)
+    else:
+        held_out_iterator = None
 
     train_data = all_datasets['train']
     held_out_train_data = all_datasets.get('held_out_train')
@@ -238,7 +244,8 @@ def train_model(params: Params,
                                                           held_out_train_data=held_out_train_data,
                                                           validation_data=validation_data,
                                                           params=trainer_params,
-                                                          validation_iterator=validation_iterator)
+                                                          validation_iterator=validation_iterator,
+                                                          held_out_iterator=held_out_iterator)
 
     evaluate_on_test = params.pop_bool("evaluate_on_test", False)
     params.assert_empty('base train command')

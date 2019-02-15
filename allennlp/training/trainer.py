@@ -169,6 +169,7 @@ class Trainer(Registrable):
                  train_dataset: Iterable[Instance],
                  held_out_train_dataset: Optional[Iterable[Instance]] = None,
                  validation_dataset: Optional[Iterable[Instance]] = None,
+                 held_out_iterator: DataIterator = None,
                  patience: Optional[int] = None,
                  validation_metric: str = "-loss",
                  validation_iterator: DataIterator = None,
@@ -276,6 +277,7 @@ class Trainer(Registrable):
         """
         self.model = model
         self.iterator = iterator
+        self._held_out_iterator = held_out_iterator
         self._validation_iterator = validation_iterator
         self.shuffle = shuffle
         self.optimizer = optimizer
@@ -849,9 +851,9 @@ class Trainer(Registrable):
                     # Run model on held out training data
                     self.model.eval()
 
-                    held_out_generator = self.iterator(train_data_to_add,
-                                                       num_epochs=1,
-                                                       shuffle=False)
+                    held_out_generator = self._held_out_iterator(train_data_to_add,
+                                                                 num_epochs=1,
+                                                                 shuffle=False)
                     num_held_out_batches = self.iterator.get_num_batches(train_data_to_add)
                     held_out_generator_tqdm = Tqdm.tqdm(held_out_generator, total=num_held_out_batches)
                     num_batches = 0
@@ -872,6 +874,7 @@ class Trainer(Registrable):
                         for i in range(batch_size):
                             model_output_clusters = batch_model_output_clusters[i]
                             instance_idx = num_batches * batch_size + i
+                            pdb.set_trace() # check instance_idx gives right idx
                             for j in range(len(model_output_clusters)):
                                 cluster = model_output_clusters[j]
                                 # gold label for the cluster--identify this by checking whether any span in the cluster
@@ -1189,7 +1192,8 @@ class Trainer(Registrable):
                     held_out_train_data:  Optional[Iterable[Instance]],
                     validation_data: Optional[Iterable[Instance]],
                     params: Params,
-                    validation_iterator: DataIterator = None) -> 'Trainer':
+                    validation_iterator: DataIterator = None,
+                    held_out_iterator: DataIterator = None) -> 'Trainer':
         # pylint: disable=arguments-differ
         patience = params.pop_int("patience", None)
         validation_metric = params.pop("validation_metric", "-loss")
@@ -1222,6 +1226,7 @@ class Trainer(Registrable):
         params.assert_empty(cls.__name__)
         return cls(model, optimizer, iterator,
                    train_data, held_out_train_data, validation_data,
+                   held_out_iterator=held_out_iterator,
                    patience=patience,
                    validation_metric=validation_metric,
                    validation_iterator=validation_iterator,
