@@ -169,10 +169,10 @@ class Trainer(Registrable):
                  train_dataset: Iterable[Instance],
                  held_out_train_dataset: Optional[Iterable[Instance]] = None,
                  validation_dataset: Optional[Iterable[Instance]] = None,
-                 held_out_iterator: DataIterator = None,
                  patience: Optional[int] = None,
                  validation_metric: str = "-loss",
                  validation_iterator: DataIterator = None,
+                 held_out_iterator: DataIterator = None,
                  shuffle: bool = True,
                  num_epochs: int = 20,
                  serialization_dir: Optional[str] = None,
@@ -865,16 +865,83 @@ class Trainer(Registrable):
                             batch = util.move_to_device(batch, self._cuda_devices[0])
                             output_dict = self.model(**batch)
 
+                        pdb.set_trace()
+
+                        # keeps track of which edges/clusters we've added, so we can update metadata later
+                        added_clusters_dict = {'top_spans': output_dict['top_spans'],
+                                               'antecedent_indices': output_dict['antecedent_indices'],
+                                               'predicted_antecedents': -torch.ones(
+                                                   output_dict['predicted_antecedents'].size(), dtype=torch.int)}
+
+                        predicted_scores = output_dict['coreference_scores'].max(2)[0]
+                        exist_edge_scores = predicted_scores[predicted_scores != 0]
+                        min_exist_edge_scores, ind_min_exist_edge_scores = exist_edge_scores.topk(
+                            min(K,len(exist_edge_scores)), largest=False)
+                        ind_chosen_proforms = (output_dict['predicted_antecedents'] != -1).nonzero()[
+                            ind_min_exist_edge_scores]
+                        # iterate through edges (batch doesn't matter here)
+                        for batch_ind_proform in ind_chosen_proforms:
+                            ind_instance = batch_ind_proform[0]
+                            ind_proform = batch_ind_proform[1]  # index in top-100 spans
+                            ind_antecedent = output_dict['antecedent_indices'][
+                                ind_instance, ind_proform, output_dict['predicted_antecedents'][
+                                    ind_instance, ind_proform]]  # index in top-100 spans
+
+                            chosen_proform_span = output_dict['top_spans'][ind_instance, ind_proform]
+                            chosen_antecedent_span = output_dict['top_spans'][ind_instance, ind_antecedent]
+
+                            # verify from simulated user whether chosen proform and antecedent are coreferent
+                            # (whether this edge really belongs)
+                            # find span in batch that matches chosen proform
+                            ind_proform_in_batch = ((batch['spans'][i, :, 0] == chosen_proform_span[0]) * (
+                                        batch['spans'][i, :, 1] == chosen_proform_span[1])).nonzero().squeeze()
+                            # find span in batch that matches chosen antecedent
+                            ind_antecedent_in_batch = ((batch['spans'][i, :, 0] == chosen_antecedent_span[0]) * (
+                                        batch['spans'][i, :, 1] == chosen_antecedent_span[1])).nonzero().squeeze()
+                            # get current cluster labels
+                            current_proform_label = batch['span_labels'][ind_instance, ind_proform_in_batch]
+                            current_antecedent_label = batch['span_labels'][ind_instance, ind_antecedent_in_batch]
+
+                            # otherwise, get user cluster labels and see whether they are equivalent
+                            # TODO: mechanism for printing chosen_proform_span and chosen_antecedent_span to user and getting user input
+                            user_proform_label = batch['user_labels'][ind_instance, ind_proform_in_batch]
+                            user_antecedent_label = batch['user_labels'][ind_instance, ind_antecedent_in_batch]
+                            pdb.set_trace()
+                            if user_proform_label == user_antecedent_label:
+                                # both are clusters (and different if we get to this point)
+                                if current_proform_label != -1 and current_antecedent_label != -1:
+
+                                # coreferent
+                                cluster_label = current_antecedent_label if current_antecedent_label != -1 else current_proform_label
+                                # neither are in clusters
+                                if cluster_label == -1:
+
+                                added_clusters_dict['predicted_antecedents'][ind_instance, ind_proform] = \
+                                    output_dict['predicted_antecedents'][ind_instance, ind_proform]
+                            else:
+                                # not coreferent (TODO: Question 4), remove edge from `output_dict`
+                                output_dict['predicted_antecedents'][ind_instance, ind_proform] = -1
+
+                        # update metadata
+                        # create clusters based on corrected output_dict
+                        batch_model_output_clusters = self.model.decode(added_clusters_dict)['clusters']
+                        # add all model output clusters to span_label data in train_data_to_add
+                        for i, instance in enumerate(batch_model_output_clusters):
+                            instance_idx = num_batches * len(batch_model_output_clusters) + i
+                            train_data_to_add[instance_idx].fields['metadata'].metadata['added_clusters'] = instance
+
+                        ''' CLUSTER-BASED APPROACH
                         # Get clusters
                         batch_model_output_clusters = self.model.decode(output_dict)['clusters']
                         # batch_model_output_clusters = [[[(18, 18), (1, 1)], [(9, 9)]]]
-
+                        pdb.set_trace()
+                        
                         batch_size = len(batch_model_output_clusters)
                         # Verify clusters
                         for i in range(batch_size):
                             model_output_clusters = batch_model_output_clusters[i]
                             instance_idx = num_batches * batch_size + i
-                            pdb.set_trace() # check instance_idx gives right idx
+                            pdb.set_trace()  # check instance_idx gives right idx
                             for j in range(len(model_output_clusters)):
                                 cluster = model_output_clusters[j]
                                 # gold label for the cluster--identify this by checking whether any span in the cluster
@@ -907,6 +974,7 @@ class Trainer(Registrable):
                                         train_data_to_add[instance_idx].fields['span_labels'].labels[span_idx] = \
                                             user_cluster_label
                                         pdb.set_trace()
+                        '''
 
                         if output_dict['loss'] is not None:
                             num_batches += 1
@@ -1189,10 +1257,10 @@ class Trainer(Registrable):
                     serialization_dir: str,
                     iterator: DataIterator,
                     train_data: Iterable[Instance],
-                    held_out_train_data:  Optional[Iterable[Instance]],
                     validation_data: Optional[Iterable[Instance]],
                     params: Params,
                     validation_iterator: DataIterator = None,
+                    held_out_train_data: Optional[Iterable[Instance]] = None,
                     held_out_iterator: DataIterator = None) -> 'Trainer':
         # pylint: disable=arguments-differ
         patience = params.pop_int("patience", None)
@@ -1224,12 +1292,13 @@ class Trainer(Registrable):
         active_learning = params.pop("active_learning", None)
 
         params.assert_empty(cls.__name__)
+
         return cls(model, optimizer, iterator,
                    train_data, held_out_train_data, validation_data,
-                   held_out_iterator=held_out_iterator,
                    patience=patience,
                    validation_metric=validation_metric,
                    validation_iterator=validation_iterator,
+                   held_out_iterator=held_out_iterator,
                    shuffle=shuffle,
                    num_epochs=num_epochs,
                    serialization_dir=serialization_dir,
