@@ -169,13 +169,12 @@ class ConllCorefReader(DatasetReader):
                 for i in range(len(cluster)):
                     # use modulo to have a relatively even distribution of user labels across length of document,
                     # (since clusters are sorted)--so user simulated clusters are spread evenly across document
-                    if user_threshold_mod != 0 and i % user_threshold_mod == user_threshold_mod - 1:
-                        simulated_user_cluster_dict[tuple(cluster[i])] = cluster_id
-                    else:
+                    if user_threshold_mod == 0 or i % user_threshold_mod != user_threshold_mod - 1:
                         cluster_dict[tuple(cluster[i])] = cluster_id
+                    simulated_user_cluster_dict[tuple(cluster[i])] = cluster_id
 
-        # Note cluster_dict and simulated_user_cluster_dict are mutually exclusive.
-        # Consequently span_labels and user_labels are as well
+        # Note simulated_user_cluster_dict encompasses ALL gold labels, including those in cluster_dict
+        # Consequently user_labels encompasses all gold labels
         spans: List[Field] = []
         if gold_clusters is not None:
             span_labels: Optional[List[int]] = []
