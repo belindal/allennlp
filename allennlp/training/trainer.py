@@ -859,13 +859,12 @@ class Trainer(Registrable):
                     num_batches = 0
                     held_out_loss = 0
                     for batch in held_out_generator_tqdm:
+                        batch['get_scores'] = True
                         if self._multiple_gpu:
                             output_dict = self._data_parallel(batch)
                         else:
                             batch = util.move_to_device(batch, self._cuda_devices[0])
                             output_dict = self.model(**batch)
-
-                        pdb.set_trace()
 
                         # keeps track of which edges/clusters we've added, so we can update metadata later
                         added_clusters_dict = {'top_spans': output_dict['top_spans'],
@@ -875,6 +874,8 @@ class Trainer(Registrable):
 
                         predicted_scores = output_dict['coreference_scores'].max(2)[0]
                         exist_edge_scores = predicted_scores[predicted_scores != 0]
+                        # TODO: specify this in config
+                        K = 3
                         min_exist_edge_scores, ind_min_exist_edge_scores = exist_edge_scores.topk(
                             min(K,len(exist_edge_scores)), largest=False)
                         ind_chosen_proforms = (output_dict['predicted_antecedents'] != -1).nonzero()[
@@ -893,11 +894,13 @@ class Trainer(Registrable):
                             # verify from simulated user whether chosen proform and antecedent are coreferent
                             # (whether this edge really belongs)
                             # find span in batch that matches chosen proform
-                            ind_proform_in_batch = ((batch['spans'][i, :, 0] == chosen_proform_span[0]) * (
-                                        batch['spans'][i, :, 1] == chosen_proform_span[1])).nonzero().squeeze()
+                            ind_proform_in_batch = ((batch['spans'][ind_instance, :, 0] == chosen_proform_span[0]) *
+                                                    (batch['spans'][ind_instance, :, 1] == chosen_proform_span[1])
+                                                    ).nonzero().squeeze()
                             # find span in batch that matches chosen antecedent
-                            ind_antecedent_in_batch = ((batch['spans'][i, :, 0] == chosen_antecedent_span[0]) * (
-                                        batch['spans'][i, :, 1] == chosen_antecedent_span[1])).nonzero().squeeze()
+                            ind_antecedent_in_batch = ((batch['spans'][ind_instance, :, 0] == chosen_antecedent_span[0])
+                                                       * (batch['spans'][ind_instance, :, 1] ==
+                                                          chosen_antecedent_span[1])).nonzero().squeeze()
                             # get current cluster labels
                             current_proform_label = batch['span_labels'][ind_instance, ind_proform_in_batch]
                             current_antecedent_label = batch['span_labels'][ind_instance, ind_antecedent_in_batch]
@@ -909,12 +912,12 @@ class Trainer(Registrable):
                             pdb.set_trace()
                             if user_proform_label == user_antecedent_label:
                                 # both are clusters (and different if we get to this point)
-                                if current_proform_label != -1 and current_antecedent_label != -1:
+                                # if current_proform_label != -1 and current_antecedent_label != -1:
 
                                 # coreferent
                                 cluster_label = current_antecedent_label if current_antecedent_label != -1 else current_proform_label
                                 # neither are in clusters
-                                if cluster_label == -1:
+                                # if cluster_label == -1:
 
                                 added_clusters_dict['predicted_antecedents'][ind_instance, ind_proform] = \
                                     output_dict['predicted_antecedents'][ind_instance, ind_proform]
