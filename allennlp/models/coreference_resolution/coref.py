@@ -123,7 +123,8 @@ class CoreferenceResolver(Model):
                 user_labels: torch.IntTensor = None,
                 must_link: torch.IntTensor = None,
                 cannot_link: torch.IntTensor = None,
-                metadata: List[Dict[str, Any]] = None) -> Dict[str, torch.Tensor]:
+                metadata: List[Dict[str, Any]] = None,
+                get_scores: bool = False) -> Dict[str, torch.Tensor]:
         # pylint: disable=arguments-differ
         """
         Parameters
@@ -282,6 +283,8 @@ class CoreferenceResolver(Model):
         output_dict = {"top_spans": top_spans,
                        "antecedent_indices": valid_antecedent_indices,
                        "predicted_antecedents": predicted_antecedents}
+        if get_scores:
+            output_dict["coreference_scores"] = coreference_scores
         if span_labels is not None:
             # Find the gold labels for the spans which we kept.
             pruned_gold_labels = util.batched_index_select(span_labels.unsqueeze(-1),
