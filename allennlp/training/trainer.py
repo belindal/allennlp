@@ -879,6 +879,9 @@ class Trainer(Registrable):
                         # get all edges in indB form
                         clustered_spans_mask = (output_dict['predicted_antecedents'] != -1)
                         batch_indB_proforms = clustered_spans_mask.nonzero()
+                        if batch_indB_proforms.size()[0] == 0:
+                            # model outputted no edges for in this instance; nothing to check/add
+                            continue
                         indC_antecedents = output_dict['predicted_antecedents'][clustered_spans_mask]
                         indB_antecedents = output_dict['antecedent_indices'][batch_indB_proforms[:, 0],
                                                                              batch_indB_proforms[:, 1],
@@ -934,8 +937,10 @@ class Trainer(Registrable):
                                 continue
                             ind_instance = edge[0]  # index of instance in batch
 
-                            chosen_proform_span = batch['spans'][ind_instance, edge[1]].tolist()
-                            chosen_antecedent_span = batch['spans'][ind_instance, edge[2]].tolist()
+                            chosen_proform_span_tuple = (batch['spans'][ind_instance, edge[1]][0].item(),
+                                                         batch['spans'][ind_instance, edge[1]][1].item())
+                            chosen_antecedent_span_tuple = (batch['spans'][ind_instance, edge[2]][0].item(),
+                                                            batch['spans'][ind_instance, edge[2]][1].item())
                             proform_label = batch['span_labels'][ind_instance, edge[1]]
                             antecedent_label = batch['span_labels'][ind_instance, edge[2]]
 
@@ -946,18 +951,19 @@ class Trainer(Registrable):
                                 # Case 1: antecedent in cluster, proform not (update proform's label,
                                 # add proform to cluster)
                                 batch['span_labels'][ind_instance, edge[1]] = antecedent_label
-                                batch['metadata'][ind_instance]['clusters'][antecedent_label].append(chosen_proform_span)
+                                batch['metadata'][ind_instance]['clusters'][antecedent_label].append(chosen_proform_span_tuple)
                             elif proform_label != -1:
                                 # Case 2: proform in cluster, antecedent not (update antecedent's label,
                                 # add antecedent to cluster)
                                 batch['span_labels'][ind_instance, edge[2]] = proform_label
-                                batch['metadata'][ind_instance]['clusters'][proform_label].append(chosen_antecedent_span)
+                                batch['metadata'][ind_instance]['clusters'][proform_label].append(chosen_antecedent_span_tuple)
                             else:
                                 # Case 3: neither in cluster (create new cluster with both)
                                 cluster_id = batch['span_labels'].max() + 1
                                 batch['span_labels'][ind_instance, edge[2]] = cluster_id
                                 batch['span_labels'][ind_instance, edge[1]] = cluster_id
-                                batch['metadata'][ind_instance]['clusters'].append([chosen_antecedent_span, chosen_proform_span])
+                                batch['metadata'][ind_instance]['clusters'].append(
+                                    [chosen_antecedent_span_tuple, chosen_proform_span_tuple])
 
                             ind_instance_overall = num_batches * batch_size + ind_instance  # index in entire train data
                             # update train data itself
@@ -965,6 +971,7 @@ class Trainer(Registrable):
                                 ind_instance].tolist()
                             train_data_to_add[ind_instance_overall].fields['metadata'].metadata['clusters'] = \
                                 batch['metadata'][ind_instance]['clusters']
+                            #pdb.set_trace()
 
                         ''' CLUSTER-BASED APPROACH
                         # Get clusters
