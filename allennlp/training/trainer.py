@@ -839,7 +839,8 @@ class Trainer(Registrable):
             # 1. evaluate on held-out training data
             # 2. use active learning/gold labels to confirm/deny labels on held-out training data
             # 3. add correct instances in held-out training data to actual train data, then re-train
-            if self._held_out_train_data is not None:
+            if self._do_active_learning and epoch % self._active_learning_epoch_interval == (
+                    self._active_learning_epoch_interval - 1) and self._held_out_train_data is not None:
                 # take a subset of training data to evaluate on, and add to actual training set
                 # TODO: currently arbitrarily choosing next 1 instance (by order in file), perhaps change this future(?)
 
@@ -899,19 +900,25 @@ class Trainer(Registrable):
                         predicted_scores = output_dict['coreference_scores'].max(2)[0]
                         model_pred_edge_scores = predicted_scores[predicted_scores != 0]
                         K = 100  # TODO: specify this in config
-                        K = min(K, len(model_pred_edge_scores))  # ensure K not out-of-bounds
-                        min_exist_edge_scores, ind_min_exist_edge_scores = model_pred_edge_scores.topk(K, largest=False)
+                        min_exist_edge_scores, ind_min_exist_edge_scores = model_pred_edge_scores.sort()
                         # iterate through chosen edges
-                        for i in ind_min_exist_edge_scores:
-                            edge = batch_indA_edges[i]
+                        for i, ind_edge in enumerate(ind_min_exist_edge_scores):
+                            if i >= K:
+                                break
+                            edge = batch_indA_edges[ind_edge]
                             ind_instance = edge[0]  # index in batch
+
+                            # check if both are in clusters already, meaning there's no need to ask user about it
+                            proform_label = batch['span_labels'][ind_instance, edge[1]]
+                            antecedent_label = batch['span_labels'][ind_instance, edge[2]]
+                            if proform_label != -1 and antecedent_label != -1:
+                                K += 1
 
                             # verify from simulated user whether chosen proform and antecedent are coreferent
                             if self._sample_from_training:
                                 # get user cluster labels and see whether they are equivalent
                                 user_proform_label = batch['user_labels'][ind_instance, edge[1]]
                                 user_antecedent_label = batch['user_labels'][ind_instance, edge[2]]
-
                                 coreferent = (user_proform_label == user_antecedent_label and user_proform_label != -1)
                             else:
                                 # TODO: mechanism for printing chosen_proform_span and chosen_antecedent_span to user and getting user input
@@ -919,7 +926,7 @@ class Trainer(Registrable):
 
                             if not coreferent:
                                 # delete edge in batch_indB_edges (equivalent to setting all values to -1)
-                                batch_indA_edges[i, :] = -1
+                                batch_indA_edges[ind_edge, :] = -1
 
                         pdb.set_trace()
                         # Update gold clusters based on (corrected) model edges, in both span_labels and metadata
@@ -932,42 +939,27 @@ class Trainer(Registrable):
                             chosen_proform_span = batch['spans'][ind_instance, edge[1]]
                             chosen_antecedent_span = batch['spans'][ind_instance, edge[2]]
 
-                            proform_label = batch['span_labels'][ind_instance, ind_instance, edge[1]]
-                            antecedent_label = batch['span_labels'][ind_instance, ind_instance, edge[2]]
+                            proform_label = batch['span_labels'][ind_instance, edge[1]]
+                            antecedent_label = batch['span_labels'][ind_instance, edge[2]]
 
                             pdb.set_trace()
 
+                            # Skip this case
                             if proform_label != -1 and antecedent_label != -1:
-                                if proform_label == antecedent_label:
-                                    # Case 1: both were same cluster (do nothing)
-                                    continue
-                                else:
-                                    # Case 2: both were different clusters (merge clusters)
-                                    # choose cluster to add to as minimum of 2 labels
-                                    cluster_id = min(proform_label, antecedent_label)
-                                    # cluster that will be "merged" and "deleted" (AKA emptied)
-                                    cluster_id_to_merge = max(proform_label, antecedent_label)
-                                    ind_spans_to_merge = (batch['span_labels'][ind_instance] == cluster_id_to_merge).nonzero().squeeze(-1)
-                                    # set spans with index ind_spans_to_merge to have label cluster_id
-                                    batch['span_labels'][ind_instance, ind_spans_to_merge] = cluster_id
-
-                                    # update metadata (empty cluster)
-                                    batch['metadata'][ind_instance]['clusters'][cluster_id].extend(
-                                        batch['metadata'][ind_instance]['clusters'][cluster_id_to_merge])
-                                    batch['metadata'][ind_instance]['clusters'][cluster_id_to_merge] = []
+                                continue
 
                             elif antecedent_label != -1:
-                                # Case 3: antecedent in cluster, proform not (update proform's label,
+                                # Case 1: antecedent in cluster, proform not (update proform's label,
                                 # add proform to cluster)
                                 batch['span_labels'][ind_instance, edge[1]] = antecedent_label
                                 batch['metadata'][ind_instance]['clusters'][antecedent_label].append(chosen_proform_span)
                             elif proform_label != -1:
-                                # Case 4: proform in cluster, antecedent not (update antecedent's label,
+                                # Case 2: proform in cluster, antecedent not (update antecedent's label,
                                 # add antecedent to cluster)
                                 batch['span_labels'][ind_instance, edge[2]] = proform_label
                                 batch['metadata'][ind_instance]['clusters'][proform_label].append(chosen_antecedent_span)
                             else:
-                                # Case 5: neither in cluster (create new cluster with both)
+                                # Case 3: neither in cluster (create new cluster with both)
                                 # NOTE: relies on cluster's metadata being consistent w/ span_labels
                                 # TODO: test this case
                                 cluster_id = len(batch['metadata'][ind_instance]['clusters'])
