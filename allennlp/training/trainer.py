@@ -901,11 +901,10 @@ class Trainer(Registrable):
                         # get scores of edges, and check most uncertain subset of edges
                         predicted_scores = output_dict['coreference_scores'].max(2)[0]
                         model_pred_edge_scores = predicted_scores[predicted_scores != 0]
-                        K = 100  # TODO: specify this in config
                         min_exist_edge_scores, ind_min_exist_edge_scores = model_pred_edge_scores.sort()
                         # iterate through chosen edges
                         for i, ind_edge in enumerate(ind_min_exist_edge_scores):
-                            if i >= K:
+                            if i >= self._active_learning_num_labels:
                                 break
                             edge = batch_indA_edges[ind_edge]
                             ind_instance = edge[0]  # index in batch
@@ -914,7 +913,7 @@ class Trainer(Registrable):
                             proform_label = batch['span_labels'][ind_instance, edge[1]]
                             antecedent_label = batch['span_labels'][ind_instance, edge[2]]
                             if proform_label != -1 and antecedent_label != -1:
-                                K += 1
+                                self._active_learning_num_labels += 1
 
                             # verify from simulated user whether chosen proform and antecedent are coreferent
                             if self._sample_from_training:
@@ -951,12 +950,14 @@ class Trainer(Registrable):
                                 # Case 1: antecedent in cluster, proform not (update proform's label,
                                 # add proform to cluster)
                                 batch['span_labels'][ind_instance, edge[1]] = antecedent_label
-                                batch['metadata'][ind_instance]['clusters'][antecedent_label].append(chosen_proform_span_tuple)
+                                batch['metadata'][ind_instance]['clusters'][antecedent_label].append(
+                                    chosen_proform_span_tuple)
                             elif proform_label != -1:
                                 # Case 2: proform in cluster, antecedent not (update antecedent's label,
                                 # add antecedent to cluster)
                                 batch['span_labels'][ind_instance, edge[2]] = proform_label
-                                batch['metadata'][ind_instance]['clusters'][proform_label].append(chosen_antecedent_span_tuple)
+                                batch['metadata'][ind_instance]['clusters'][proform_label].append(
+                                    chosen_antecedent_span_tuple)
                             else:
                                 # Case 3: neither in cluster (create new cluster with both)
                                 cluster_id = batch['span_labels'].max() + 1
@@ -971,7 +972,6 @@ class Trainer(Registrable):
                                 ind_instance].tolist()
                             train_data_to_add[ind_instance_overall].fields['metadata'].metadata['clusters'] = \
                                 batch['metadata'][ind_instance]['clusters']
-                            #pdb.set_trace()
 
                         ''' CLUSTER-BASED APPROACH
                         # Get clusters
