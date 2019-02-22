@@ -867,6 +867,8 @@ class Trainer(Registrable):
                             batch = util.move_to_device(batch, self._cuda_devices[0])
                             output_dict = self.model(**batch)
 
+                        batch_size = len(output_dict['predicted_antecedents'])
+
                         # NOTE in below code-- each span has 3 indices, will refer to them as A,B,C respectively:
                         #   indA. index in all spans (i.e. in the training data)
                         #   indB. index in output_dict['top_spans']
@@ -874,9 +876,7 @@ class Trainer(Registrable):
                         # note output_dict['antecedent_indices'] translates indB <-> indC by:
                         # indB = output_dict['antecedent_indices'][instance, proform idx, indC]
 
-                        batch_size = len(output_dict['predicted_antecedents'])
-
-                        # get all edges, and translate their indices
+                        # get all edges in indB form
                         clustered_spans_mask = (output_dict['predicted_antecedents'] != -1)
                         batch_indB_proforms = clustered_spans_mask.nonzero()
                         indC_antecedents = output_dict['predicted_antecedents'][clustered_spans_mask]
