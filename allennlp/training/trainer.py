@@ -894,7 +894,6 @@ class Trainer(Registrable):
                         # NOTE: represents edges we will eventually add to cluster, initialized to model output
                         batch_indA_edges = torch.stack([batch_indB_proforms[:, 0], indA_proforms, indA_antecedents],
                                                        dim=-1)
-                        pdb.set_trace()
 
                         # get scores of edges, and check most uncertain subset of edges
                         predicted_scores = output_dict['coreference_scores'].max(2)[0]
@@ -928,7 +927,6 @@ class Trainer(Registrable):
                                 # delete edge in batch_indB_edges (equivalent to setting all values to -1)
                                 batch_indA_edges[ind_edge, :] = -1
 
-                        pdb.set_trace()
                         # Update gold clusters based on (corrected) model edges, in both span_labels and metadata
                         for edge in batch_indA_edges:
                             if edge[0] == -1:
@@ -936,18 +934,14 @@ class Trainer(Registrable):
                                 continue
                             ind_instance = edge[0]  # index of instance in batch
 
-                            chosen_proform_span = batch['spans'][ind_instance, edge[1]]
-                            chosen_antecedent_span = batch['spans'][ind_instance, edge[2]]
-
+                            chosen_proform_span = batch['spans'][ind_instance, edge[1]].tolist()
+                            chosen_antecedent_span = batch['spans'][ind_instance, edge[2]].tolist()
                             proform_label = batch['span_labels'][ind_instance, edge[1]]
                             antecedent_label = batch['span_labels'][ind_instance, edge[2]]
-
-                            pdb.set_trace()
 
                             # Skip this case
                             if proform_label != -1 and antecedent_label != -1:
                                 continue
-
                             elif antecedent_label != -1:
                                 # Case 1: antecedent in cluster, proform not (update proform's label,
                                 # add proform to cluster)
@@ -960,14 +954,10 @@ class Trainer(Registrable):
                                 batch['metadata'][ind_instance]['clusters'][proform_label].append(chosen_antecedent_span)
                             else:
                                 # Case 3: neither in cluster (create new cluster with both)
-                                # NOTE: relies on cluster's metadata being consistent w/ span_labels
-                                # TODO: test this case
-                                cluster_id = len(batch['metadata'][ind_instance]['clusters'])
+                                cluster_id = batch['span_labels'].max() + 1
                                 batch['span_labels'][ind_instance, edge[2]] = cluster_id
                                 batch['span_labels'][ind_instance, edge[1]] = cluster_id
                                 batch['metadata'][ind_instance]['clusters'].append([chosen_antecedent_span, chosen_proform_span])
-
-                            pdb.set_trace()
 
                             ind_instance_overall = num_batches * batch_size + ind_instance  # index in entire train data
                             # update train data itself
