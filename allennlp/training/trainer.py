@@ -929,12 +929,16 @@ class Trainer(Registrable):
                                 # delete edge in batch_indB_edges (equivalent to setting all values to -1)
                                 batch_indA_edges[ind_edge, :] = -1
 
+                        # keep track of which instances we have to update in training data
+                        train_instances_to_update = []
+
                         # Update gold clusters based on (corrected) model edges, in both span_labels and metadata
                         for edge in batch_indA_edges:
                             if edge[0] == -1:
                                 # skip if has been "deleted"
                                 continue
                             ind_instance = edge[0]  # index of instance in batch
+                            train_instances_to_update.append(ind_instance)
 
                             chosen_proform_span_tuple = (batch['spans'][ind_instance, edge[1]][0].item(),
                                                          batch['spans'][ind_instance, edge[1]][1].item())
@@ -943,9 +947,26 @@ class Trainer(Registrable):
                             proform_label = batch['span_labels'][ind_instance, edge[1]]
                             antecedent_label = batch['span_labels'][ind_instance, edge[2]]
 
-                            # Skip this case
                             if proform_label != -1 and antecedent_label != -1:
-                                continue
+                                # Case 0: both in clusters (merge clusters iff were newly created, non-gold clusters)
+                                if proform_label == antecedent_label:
+                                    # If already in same clusters, no need to merge
+                                    continue
+                                ind_instance_overall = num_batches * batch_size + ind_instance
+                                num_gold_clusters = len(train_data_to_add[ind_instance_overall].fields[
+                                                            'metadata'].metadata['clusters'])
+                                if proform_label < num_gold_clusters and antecedent_label < num_gold_clusters:
+                                    # If both in separate *gold* clusters, no need to merge
+                                    continue
+                                # Otherwise, merge clusters: merge larger cluster id into smaller cluster id
+                                min_cluster_id = min(proform_label, antecedent_label)
+                                max_cluster_id = max(proform_label, antecedent_label)
+
+                                batch['span_labels'][ind_instance][batch['span_labels'][ind_instance] ==
+                                                                   max_cluster_id] = min_cluster_id
+                                batch['metadata'][ind_instance]['clusters'][min_cluster_id].extend(
+                                    batch['metadata'][ind_instance]['clusters'][max_cluster_id])
+                                batch['metadata'][ind_instance]['clusters'][max_cluster_id] = []
                             elif antecedent_label != -1:
                                 # Case 1: antecedent in cluster, proform not (update proform's label,
                                 # add proform to cluster)
@@ -960,14 +981,15 @@ class Trainer(Registrable):
                                     chosen_antecedent_span_tuple)
                             else:
                                 # Case 3: neither in cluster (create new cluster with both)
-                                cluster_id = batch['span_labels'].max() + 1
+                                cluster_id = len(batch['metadata'][ind_instance]['clusters'])
                                 batch['span_labels'][ind_instance, edge[2]] = cluster_id
                                 batch['span_labels'][ind_instance, edge[1]] = cluster_id
                                 batch['metadata'][ind_instance]['clusters'].append(
                                     [chosen_antecedent_span_tuple, chosen_proform_span_tuple])
 
+                        # update train data itself
+                        for ind_instance in train_instances_to_update:
                             ind_instance_overall = num_batches * batch_size + ind_instance  # index in entire train data
-                            # update train data itself
                             train_data_to_add[ind_instance_overall].fields['span_labels'].labels = batch['span_labels'][
                                 ind_instance].tolist()
                             train_data_to_add[ind_instance_overall].fields['metadata'].metadata['clusters'] = \
