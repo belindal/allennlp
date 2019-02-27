@@ -930,8 +930,7 @@ class Trainer(Registrable):
                                 batch_indA_edges[ind_edge, :] = -1
 
                         # get scores of non-edges, and check most uncertain (least negative) subset of non-edges
-                        # output_dict['coreference_scores'][output_dict['coreference_scores'] < 0]
-
+                        output_dict['coreference_scores'][output_dict['coreference_scores'] < 0]
 
                         # keep track of which instances we have to update in training data
                         train_instances_to_update = {}
@@ -942,9 +941,6 @@ class Trainer(Registrable):
                                 # skip if has been "deleted"
                                 continue
                             ind_instance = edge[0].item()  # index of instance in batch
-                            if ind_instance not in train_instances_to_update:
-                                train_instances_to_update[ind_instance] = 0
-                            train_instances_to_update[ind_instance] += 1
                             pdb.set_trace()
 
                             chosen_proform_span_tuple = (batch['spans'][ind_instance, edge[1]][0].item(),
@@ -954,14 +950,14 @@ class Trainer(Registrable):
                             proform_label = batch['span_labels'][ind_instance, edge[1]]
                             antecedent_label = batch['span_labels'][ind_instance, edge[2]]
 
+                            # NOTE: Do not modify num_gold_clusters field in metadata, which is used to keep track of
+                            # the original, gold clusters
                             if proform_label != -1 and antecedent_label != -1:
                                 # Case 0: both in clusters (merge clusters iff were newly created, non-gold clusters)
                                 if proform_label == antecedent_label:
                                     # If already in same clusters, no need to merge
                                     continue
-                                ind_instance_overall = num_batches * batch_size + ind_instance
-                                num_gold_clusters = len(train_data_to_add[ind_instance_overall].fields[
-                                                            'metadata'].metadata['clusters'])
+                                num_gold_clusters = batch['metadata']['num_gold_clusters']
                                 if proform_label < num_gold_clusters and antecedent_label < num_gold_clusters:
                                     # If both in separate *gold* clusters, no need to merge
                                     continue
@@ -994,6 +990,10 @@ class Trainer(Registrable):
                                 batch['metadata'][ind_instance]['clusters'].append(
                                     [chosen_antecedent_span_tuple, chosen_proform_span_tuple])
 
+                            if ind_instance not in train_instances_to_update:
+                                train_instances_to_update[ind_instance] = 0
+                            train_instances_to_update[ind_instance] += 1
+
                         # update train data itself
                         for ind_instance in train_instances_to_update:
                             ind_instance_overall = num_batches * batch_size + ind_instance  # index in entire train data
@@ -1001,7 +1001,8 @@ class Trainer(Registrable):
                                 ind_instance].tolist()
                             train_data_to_add[ind_instance_overall].fields['metadata'].metadata['clusters'] = \
                                 batch['metadata'][ind_instance]['clusters']
-                        train_instances_to_update = {}
+                            train_data_to_add[ind_instance_overall].fields['metadata'].metadata['num_gold_clusters'] = \
+                                batch['metadata'][ind_instance]['num_gold_clusters']
 
                         ''' CLUSTER-BASED APPROACH
                         # Get clusters

@@ -157,6 +157,7 @@ class ConllCorefReader(DatasetReader):
         metadata: Dict[str, Any] = {"original_text": flattened_sentences}
         if gold_clusters is not None:
             metadata["clusters"] = gold_clusters
+            metadata["num_gold_clusters"] = len(gold_clusters)
 
         text_field = TextField([Token(word) for word in flattened_sentences], self._token_indexers)
 
