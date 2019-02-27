@@ -929,16 +929,23 @@ class Trainer(Registrable):
                                 # delete edge in batch_indB_edges (equivalent to setting all values to -1)
                                 batch_indA_edges[ind_edge, :] = -1
 
+                        # get scores of non-edges, and check most uncertain (least negative) subset of non-edges
+                        # output_dict['coreference_scores'][output_dict['coreference_scores'] < 0]
+
+
                         # keep track of which instances we have to update in training data
-                        train_instances_to_update = []
+                        train_instances_to_update = {}
 
                         # Update gold clusters based on (corrected) model edges, in both span_labels and metadata
                         for edge in batch_indA_edges:
                             if edge[0] == -1:
                                 # skip if has been "deleted"
                                 continue
-                            ind_instance = edge[0]  # index of instance in batch
-                            train_instances_to_update.append(ind_instance)
+                            ind_instance = edge[0].item()  # index of instance in batch
+                            if ind_instance not in train_instances_to_update:
+                                train_instances_to_update[ind_instance] = 0
+                            train_instances_to_update[ind_instance] += 1
+                            pdb.set_trace()
 
                             chosen_proform_span_tuple = (batch['spans'][ind_instance, edge[1]][0].item(),
                                                          batch['spans'][ind_instance, edge[1]][1].item())
@@ -994,6 +1001,7 @@ class Trainer(Registrable):
                                 ind_instance].tolist()
                             train_data_to_add[ind_instance_overall].fields['metadata'].metadata['clusters'] = \
                                 batch['metadata'][ind_instance]['clusters']
+                        train_instances_to_update = {}
 
                         ''' CLUSTER-BASED APPROACH
                         # Get clusters
