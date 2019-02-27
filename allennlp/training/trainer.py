@@ -902,18 +902,21 @@ class Trainer(Registrable):
                         predicted_scores = output_dict['coreference_scores'].max(2)[0]
                         model_pred_edge_scores = predicted_scores[predicted_scores != 0]
                         min_exist_edge_scores, ind_min_exist_edge_scores = model_pred_edge_scores.sort()
+                        last_ind_to_query = self._active_learning_num_labels
                         # iterate through chosen edges
                         for i, ind_edge in enumerate(ind_min_exist_edge_scores):
-                            if i >= self._active_learning_num_labels:
+                            if i >= last_ind_to_query:
                                 break
                             edge = batch_indA_edges[ind_edge]
                             ind_instance = edge[0]  # index in batch
 
-                            # check if both are in clusters already, meaning there's no need to ask user about it
-                            proform_label = batch['span_labels'][ind_instance, edge[1]]
-                            antecedent_label = batch['span_labels'][ind_instance, edge[2]]
+                            # check if both are in gold clusters already, meaning there's no need to ask user about it
+                            # TODO: modify if iteration
+                            proform_label = batch['span_labels'][ind_instance, edge[1]].item()
+                            antecedent_label = batch['span_labels'][ind_instance, edge[2]].item()
                             if proform_label != -1 and antecedent_label != -1:
-                                self._active_learning_num_labels += 1
+                                last_ind_to_query += 1
+                                continue
 
                             # verify from simulated user whether chosen proform and antecedent are coreferent
                             if self._sample_from_training:
@@ -930,7 +933,8 @@ class Trainer(Registrable):
                                 batch_indA_edges[ind_edge, :] = -1
 
                         # get scores of non-edges, and check most uncertain (least negative) subset of non-edges
-                        output_dict['coreference_scores'][output_dict['coreference_scores'] < 0]
+                        # non_edges_inds = (output_dict['coreference_scores'] < 0 * output_dict['coreference_scores'] != -float("inf")).nonzero()
+                        # output_dict['coreference_scores'][output_dict['coreference_scores'] < 0]
 
                         # keep track of which instances we have to update in training data
                         train_instances_to_update = {}
@@ -947,8 +951,8 @@ class Trainer(Registrable):
                                                          batch['spans'][ind_instance, edge[1]][1].item())
                             chosen_antecedent_span_tuple = (batch['spans'][ind_instance, edge[2]][0].item(),
                                                             batch['spans'][ind_instance, edge[2]][1].item())
-                            proform_label = batch['span_labels'][ind_instance, edge[1]]
-                            antecedent_label = batch['span_labels'][ind_instance, edge[2]]
+                            proform_label = batch['span_labels'][ind_instance, edge[1]].item()
+                            antecedent_label = batch['span_labels'][ind_instance, edge[2]].item()
 
                             # NOTE: Do not modify num_gold_clusters field in metadata, which is used to keep track of
                             # the original, gold clusters
@@ -957,7 +961,7 @@ class Trainer(Registrable):
                                 if proform_label == antecedent_label:
                                     # If already in same clusters, no need to merge
                                     continue
-                                num_gold_clusters = batch['metadata']['num_gold_clusters']
+                                num_gold_clusters = batch['metadata'][ind_instance]['num_gold_clusters']
                                 if proform_label < num_gold_clusters and antecedent_label < num_gold_clusters:
                                     # If both in separate *gold* clusters, no need to merge
                                     continue
