@@ -920,7 +920,6 @@ class Trainer(Registrable):
                             if proform_label != -1 and antecedent_label != -1:
                                 continue
 
-                            num_queried += 1
                             # verify from simulated user whether chosen proform and antecedent are coreferent
                             if self._sample_from_training:
                                 # get user cluster labels and see whether they are equivalent
@@ -934,6 +933,8 @@ class Trainer(Registrable):
                             if not coreferent:
                                 # delete edge in batch_indA_edges (equivalent to setting all values to -1)
                                 batch_indA_edges[i, :] = -1
+
+                            num_queried += 1
 
                         # TODO modularize code: Beginning of non-existing edges querying portion
                         # get scores of non-edges, and check most uncertain (least negative) subset of non-edges
@@ -984,22 +985,21 @@ class Trainer(Registrable):
                                 # TODO: mechanism for printing chosen_proform_span and chosen_antecedent_span to user and getting user input
                                 coreferent = True
 
-                            num_queried += 1
                             if coreferent:
                                 # add edge to batch_indA_non_edges
                                 batch_indA_non_edges[num_queried] = edge
+
+                            num_queried += 1
 
                         # keep track of which instances we have to update in training data
                         train_instances_to_update = {}
 
                         # edges to add
                         edges_to_add = torch.cat([batch_indA_edges, batch_indA_non_edges], dim=0)
+                        edges_to_add = edges_to_add[edges_to_add[:, 0] != -1]
 
                         # Update gold clusters based on (corrected) model edges, in both span_labels and metadata
                         for edge in edges_to_add:
-                            if edge[0] == -1:
-                                # skip if has been "deleted"
-                                continue
                             ind_instance = edge[0].item()  # index of instance in batch
                             pdb.set_trace()
 
