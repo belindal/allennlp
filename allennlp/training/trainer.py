@@ -744,6 +744,34 @@ class Trainer(Registrable):
 
         return val_loss, batches_this_epoch
 
+    @staticmethod
+    def _translate_to_indA(self, edges, output_dict, all_spans):
+        """
+        :param edges: Tensor (Nx3) of N edges, each of form [instance in batch, indB of proform, indC of antecedent]
+        output_dict: holds information for translation
+        :return: Tensor (Nx3) of N edges, which indices translated to indA. Each edge has form
+        [instance in batch, indA of proform, indA of antecedent]
+        """
+
+        # NOTE in below code-- each span has 3 indices, will refer to them as A,B,C respectively:
+        #   indA. index in all spans (i.e. in the training data)
+        #   indB. index in output_dict['top_spans']
+        #   indC. index in output_dict['predicted_antecedents'] (antecedents only)
+        # note output_dict['antecedent_indices'] translates indB <-> indC by:
+        # indB = output_dict['antecedent_indices'][instance, proform idx, indC]
+        instances = edges[:, 0]
+        indB_proforms = edges[:, 1]
+        indC_antecedents = edges[:, 2]
+
+        indB_antecedents = output_dict['antecedent_indices'][instances, indB_proforms, indC_antecedents]
+
+        proform_spans = output_dict['top_spans'][instances, indB_proforms]
+        antecedent_spans = output_dict['top_spans'][instances, indB_antecedents]
+        indA_proforms = ((proform_spans.unsqueeze(1) - all_spans[instances]).abs().sum(-1) == 0).nonzero()[:, 1]
+        indA_antecedents = ((antecedent_spans.unsqueeze(1) - all_spans[instances]).abs().sum(-1) == 0).nonzero()[:, 1]
+        batch_indA_edges = torch.stack([instances, indA_proforms, indA_antecedents], dim=-1)
+        return batch_indA_edges
+
     def train(self) -> Dict[str, Any]:
         """
         Trains the supplied model with the supplied parameters.
@@ -869,13 +897,7 @@ class Trainer(Registrable):
 
                         batch_size = len(output_dict['predicted_antecedents'])
 
-                        # NOTE in below code-- each span has 3 indices, will refer to them as A,B,C respectively:
-                        #   indA. index in all spans (i.e. in the training data)
-                        #   indB. index in output_dict['top_spans']
-                        #   indC. index in output_dict['predicted_antecedents'] (antecedents only)
-                        # note output_dict['antecedent_indices'] translates indB <-> indC by:
-                        # indB = output_dict['antecedent_indices'][instance, proform idx, indC]
-
+                        # get edges outputted by model
                         # get all edges in indB form
                         # TODO modularize code: Beginning of existing edges querying portion
                         clustered_spans_mask = (output_dict['predicted_antecedents'] != -1)
@@ -884,25 +906,23 @@ class Trainer(Registrable):
                             # model outputted no edges for in this instance; nothing to check/add
                             continue
                         indC_antecedents = output_dict['predicted_antecedents'][clustered_spans_mask]
-                        indB_antecedents = output_dict['antecedent_indices'][batch_indB_proforms[:, 0],
-                                                                             batch_indB_proforms[:, 1],
-                                                                             indC_antecedents]
-                        # translate edges to indA
-                        proform_spans = output_dict['top_spans'][batch_indB_proforms[:, 0], batch_indB_proforms[:, 1]]
-                        antecedent_spans = output_dict['top_spans'][batch_indB_proforms[:, 0], indB_antecedents]
-                        indA_proforms = ((proform_spans.unsqueeze(1) - batch['spans'][batch_indB_proforms[:, 0]]
-                                          ).abs().sum(-1) == 0).nonzero()[:, 1]
-                        indA_antecedents = ((antecedent_spans.unsqueeze(1) - batch['spans'][batch_indB_proforms[:, 0]]
-                                             ).abs().sum(-1) == 0).nonzero()[:, 1]
-                        # [[instance, ind of proform, ind of antecedent]]
-                        # NOTE: represents edges we will eventually add to cluster, initialized to model output
-                        batch_indA_edges = torch.stack([batch_indB_proforms[:, 0], indA_proforms, indA_antecedents],
-                                                       dim=-1)
+                        batch_indC_edges = torch.cat([batch_indB_proforms, indC_antecedents.unsqueeze(-1)], dim=-1)
+                        batch_indA_edges = self._translate_to_indA(batch_indC_edges, output_dict, batch['spans'])
 
-                        pdb.set_trace()
+                        # get all > 0 edges (to know which to assign next)
+                        larger_than_zero_mask = (output_dict['coreference_scores'] > 0)
+                        larger_than_zero_inds = larger_than_zero_mask.nonzero()
+                        larger_than_zero_inds[:, 2] -= 1
+                        larger_than_zero_scores = output_dict['coreference_scores'][larger_than_zero_mask]
+                        sorted_larger_than_zero_inds = \
+                            larger_than_zero_inds[larger_than_zero_scores.sort(descending=True)[1]]
+                        # translate to indA
+                        sorted_larger_than_zero_inds = \
+                            self._translate_to_indA(sorted_larger_than_zero_inds, output_dict, batch['spans'])
+
                         # get scores of edges, and check most uncertain subset of edges
                         predicted_scores = output_dict['coreference_scores'].max(2)[0]
-                        model_pred_edge_scores = predicted_scores[predicted_scores != 0]
+                        model_pred_edge_scores = predicted_scores[predicted_scores != 0]  # scores of edges
                         min_exist_edge_scores, ind_min_exist_edge_scores = model_pred_edge_scores.sort()
                         batch_indA_edges = batch_indA_edges[ind_min_exist_edge_scores]
                         num_queried = 0     # keep track of # of queries from user so far
@@ -931,39 +951,31 @@ class Trainer(Registrable):
                                 coreferent = True
 
                             if not coreferent:
-                                # delete edge in batch_indA_edges (equivalent to setting all values to -1)
-                                batch_indA_edges[i, :] = -1
+                                pdb.set_trace()
+                                # if :
+                                    # add next largest positive edge from antecedent (if there is one)
+                                    # batch_indA_non_edges[i, ]
+                                # else:
+                                    # otherwise delete edge (equivalent to setting all values to -1)
+                                    # batch_indA_edges[i, :] = -1
 
                             num_queried += 1
 
                         # TODO modularize code: Beginning of non-existing edges querying portion
                         # get scores of non-edges, and check most uncertain (least negative) subset of non-edges
-                        non_edge_inds_mask = (output_dict['coreference_scores'] < 0) * (output_dict['coreference_scores'] != -float("inf"))
+                        non_edge_inds_mask = (output_dict['coreference_scores'] < 0) * \
+                                             (output_dict['coreference_scores'] != -float("inf"))
                         non_edge_inds = non_edge_inds_mask.nonzero()
                         non_edge_scores = output_dict['coreference_scores'][non_edge_inds_mask]
                         # get top k least negative scores
                         max_non_edge_scores, ind_max_non_edge_scores = non_edge_scores.sort(descending=True)
-                        # translate chosen non-edges (proform->antecedent) inds to indA
-                        non_instances = non_edge_inds[ind_max_non_edge_scores][:, 0]
-                        non_indB_proforms = non_edge_inds[ind_max_non_edge_scores][:, 1]
-                        # subtract 1 to make indC line up with antecedent_indices (cutting out the epsilon at index 0)
-                        non_indC_antecedents = non_edge_inds[ind_max_non_edge_scores][:, 2] - 1
-                        non_indB_antecedents = output_dict['antecedent_indices'][non_instances, non_indB_proforms,
-                                                                                 non_indC_antecedents]
-                        non_proform_spans = output_dict['top_spans'][non_instances, non_indB_proforms]
-                        non_antecedent_spans = output_dict['top_spans'][non_instances, non_indB_antecedents]
-                        non_indA_proforms = ((non_proform_spans.unsqueeze(1) - batch['spans'][non_instances]
-                                              ).abs().sum(-1) == 0).nonzero()[:, 1]
-                        non_indA_antecedents = ((non_antecedent_spans.unsqueeze(1) - batch['spans'][non_instances]
-                                                 ).abs().sum(-1) == 0).nonzero()[:, 1]
-                        # [[instance, ind of proform, ind of antecedent]]
-                        all_batch_indA_non_edges = torch.stack([non_instances, non_indA_proforms, non_indA_antecedents],
-                                                               dim=-1)
-                        batch_indA_non_edges = -torch.ones([self._active_learning_num_labels, 3], dtype=torch.long,
-                                                           device=batch_indA_edges.device)
+                        sorted_non_edges = non_edge_inds[ind_max_non_edge_scores]
+                        sorted_non_edges = self._translate_to_indA(sorted_non_edges, output_dict, batch['spans'])
+                        chosen_non_edges = -torch.ones([self._active_learning_num_labels, 3], dtype=torch.long,
+                                                       device=batch_indA_edges.device)
                         num_queried = 0     # keep track of # of queries from user so far
-                        # iterate through chosen non-existent edges, add to `batch_indA_non_edges`
-                        for i, edge in enumerate(all_batch_indA_non_edges):
+                        # iterate through chosen non-existent edges, add to `chosen_non_edges`
+                        for i, edge in enumerate(sorted_non_edges):
                             if num_queried >= self._active_learning_num_labels:
                                 break
                             ind_instance = edge[0]
@@ -986,8 +998,8 @@ class Trainer(Registrable):
                                 coreferent = True
 
                             if coreferent:
-                                # add edge to batch_indA_non_edges
-                                batch_indA_non_edges[num_queried] = edge
+                                # add edge to chosen_non_edges
+                                chosen_non_edges[num_queried] = edge
 
                             num_queried += 1
 
@@ -995,7 +1007,7 @@ class Trainer(Registrable):
                         train_instances_to_update = {}
 
                         # edges to add
-                        edges_to_add = torch.cat([batch_indA_edges, batch_indA_non_edges], dim=0)
+                        edges_to_add = torch.cat([batch_indA_edges, chosen_non_edges], dim=0)
                         edges_to_add = edges_to_add[edges_to_add[:, 0] != -1]
 
                         # Update gold clusters based on (corrected) model edges, in both span_labels and metadata
