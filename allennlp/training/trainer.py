@@ -745,7 +745,7 @@ class Trainer(Registrable):
         return val_loss, batches_this_epoch
 
     @staticmethod
-    def _translate_to_indA(self, edges, output_dict, all_spans):
+    def _translate_to_indA(edges, output_dict, all_spans):
         """
         :param edges: Tensor (Nx3) of N edges, each of form [instance in batch, indB of proform, indC of antecedent]
         output_dict: holds information for translation
@@ -914,11 +914,11 @@ class Trainer(Registrable):
                         larger_than_zero_inds = larger_than_zero_mask.nonzero()
                         larger_than_zero_inds[:, 2] -= 1
                         larger_than_zero_scores = output_dict['coreference_scores'][larger_than_zero_mask]
-                        sorted_larger_than_zero_inds = \
+                        sorted_larger_than_zero_edges = \
                             larger_than_zero_inds[larger_than_zero_scores.sort(descending=True)[1]]
                         # translate to indA
-                        sorted_larger_than_zero_inds = \
-                            self._translate_to_indA(sorted_larger_than_zero_inds, output_dict, batch['spans'])
+                        sorted_larger_than_zero_edges = \
+                            self._translate_to_indA(sorted_larger_than_zero_edges, output_dict, batch['spans'])
 
                         # get scores of edges, and check most uncertain subset of edges
                         predicted_scores = output_dict['coreference_scores'].max(2)[0]
@@ -952,12 +952,16 @@ class Trainer(Registrable):
 
                             if not coreferent:
                                 pdb.set_trace()
-                                # if :
-                                    # add next largest positive edge from antecedent (if there is one)
-                                    # batch_indA_non_edges[i, ]
-                                # else:
+                                alternate_edges = sorted_larger_than_zero_edges[
+                                    (sorted_larger_than_zero_edges[:, 0] == ind_instance) *
+                                    (sorted_larger_than_zero_edges[:,1] == edge[1]) *
+                                    (sorted_larger_than_zero_edges[:,2] != edge[2])]
+                                if alternate_edges.size()[0] > 0:
+                                    # exists at least 1 alternate edge, add next largest positive edge from antecedent
+                                    batch_indA_edges[i] = alternate_edges[0]
+                                else:
                                     # otherwise delete edge (equivalent to setting all values to -1)
-                                    # batch_indA_edges[i, :] = -1
+                                    batch_indA_edges[i, :] = -1
 
                             num_queried += 1
 
