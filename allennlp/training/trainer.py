@@ -912,6 +912,9 @@ class Trainer(Registrable):
                         # get all > 0 edges (to know which to assign next)
                         larger_than_zero_mask = (output_dict['coreference_scores'] > 0)
                         larger_than_zero_inds = larger_than_zero_mask.nonzero()
+                        # Subtract one here because index 0 is the "no antecedent" class,
+                        # so this makes the indices line up with actual spans if the prediction
+                        # is greater than -1.
                         larger_than_zero_inds[:, 2] -= 1
                         larger_than_zero_scores = output_dict['coreference_scores'][larger_than_zero_mask]
                         sorted_larger_than_zero_edges = \
@@ -966,20 +969,25 @@ class Trainer(Registrable):
                             num_queried += 1
 
                         # TODO modularize code: Beginning of non-existing edges querying portion
-                        # get scores of non-edges, and check most uncertain (least negative) subset of non-edges
-                        non_edge_inds_mask = (output_dict['coreference_scores'] < 0) * \
+                        # get scores of all possible edges originating from nodes not predicted to have any proform, and
+                        # check most uncertain (least negative) subset of these "negative edges"
+                        neg_edge_inds_mask = (output_dict['coreference_scores'] < 0) * \
                                              (output_dict['coreference_scores'] != -float("inf"))
-                        non_edge_inds = non_edge_inds_mask.nonzero()
-                        non_edge_scores = output_dict['coreference_scores'][non_edge_inds_mask]
+                        neg_edge_inds = neg_edge_inds_mask.nonzero()
+                        # Subtract one here because index 0 is the "no antecedent" class,
+                        # so this makes the indices line up with actual spans if the prediction
+                        # is greater than -1.
+                        neg_edge_inds[:, 2] -= 1
+                        neg_edge_scores = output_dict['coreference_scores'][neg_edge_inds_mask]
                         # get top k least negative scores
-                        max_non_edge_scores, ind_max_non_edge_scores = non_edge_scores.sort(descending=True)
-                        sorted_non_edges = non_edge_inds[ind_max_non_edge_scores]
-                        sorted_non_edges = self._translate_to_indA(sorted_non_edges, output_dict, batch['spans'])
-                        chosen_non_edges = -torch.ones([self._active_learning_num_labels, 3], dtype=torch.long,
-                                                       device=batch_indA_edges.device)
+                        max_neg_edge_scores, ind_max_neg_edge_scores = neg_edge_scores.sort(descending=True)
+                        sorted_neg_edges = neg_edge_inds[ind_max_neg_edge_scores]
+                        sorted_neg_edges = self._translate_to_indA(sorted_neg_edges, output_dict, batch['spans'])
+                        chosen_neg_edges = -torch.ones([min(self._active_learning_num_labels, sorted_neg_edges.size(0)),
+                                                        3], dtype=torch.long, device=batch_indA_edges.device)
                         num_queried = 0     # keep track of # of queries from user so far
-                        # iterate through chosen non-existent edges, add to `chosen_non_edges`
-                        for i, edge in enumerate(sorted_non_edges):
+                        # iterate through chosen non-existent edges, add to `chosen_neg_edges`
+                        for i, edge in enumerate(sorted_neg_edges):
                             if num_queried >= self._active_learning_num_labels:
                                 break
                             ind_instance = edge[0]
@@ -1002,8 +1010,8 @@ class Trainer(Registrable):
                                 coreferent = True
 
                             if coreferent:
-                                # add edge to chosen_non_edges
-                                chosen_non_edges[num_queried] = edge
+                                # add edge to chosen_neg_edges
+                                chosen_neg_edges[num_queried] = edge
 
                             num_queried += 1
 
@@ -1011,7 +1019,7 @@ class Trainer(Registrable):
                         train_instances_to_update = {}
 
                         # edges to add
-                        edges_to_add = torch.cat([batch_indA_edges, chosen_non_edges], dim=0)
+                        edges_to_add = torch.cat([batch_indA_edges, chosen_neg_edges], dim=0)
                         edges_to_add = edges_to_add[edges_to_add[:, 0] != -1]
 
                         # Update gold clusters based on (corrected) model edges, in both span_labels and metadata
