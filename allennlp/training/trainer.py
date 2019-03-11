@@ -798,6 +798,7 @@ class Trainer(Registrable):
         for epoch in range(epoch_counter, self._num_epochs):
             epoch_start_time = time.time()
             train_metrics = self._train_epoch(epoch)
+            patience_ran_out = False
 
             if self._validation_data is not None:
                 with torch.no_grad():
@@ -812,8 +813,13 @@ class Trainer(Registrable):
                     is_best_so_far = self._is_best_so_far(this_epoch_val_metric, validation_metric_per_epoch)
                     validation_metric_per_epoch.append(this_epoch_val_metric)
                     if self._should_stop_early(validation_metric_per_epoch):
-                        logger.info("Ran out of patience.  Stopping training.")
-                        break
+                        if self._do_active_learning and self._held_out_train_data is not None:
+                            # still have more data to add
+                            patience_ran_out = True
+                            logger.info("Ran out of patience.  Adding more data.")
+                        else:
+                            logger.info("Ran out of patience.  Stopping training.")
+                            break
 
             else:
                 # No validation set, so just assume it's the best so far.
@@ -867,8 +873,7 @@ class Trainer(Registrable):
             # 1. evaluate on held-out training data
             # 2. use active learning/gold labels to confirm/deny labels on held-out training data
             # 3. add correct instances in held-out training data to actual train data, then re-train
-            if self._do_active_learning and epoch % self._active_learning_epoch_interval == (
-                    self._active_learning_epoch_interval - 1) and self._held_out_train_data is not None:
+            if self._do_active_learning and patience_ran_out:
                 # take a subset of training data to evaluate on, and add to actual training set
                 # TODO: currently arbitrarily choosing next 1 instance (by order in file), perhaps change this future(?)
 
