@@ -29,6 +29,7 @@ from allennlp.common.util import dump_metrics, gpu_memory_mb, parse_cuda_device,
 from allennlp.common.tqdm import Tqdm
 from allennlp.data.instance import Instance
 from allennlp.data.iterators.data_iterator import DataIterator
+from allennlp.data.fields import SequenceLabelField
 from allennlp.models.model import Model
 from allennlp.nn import util
 from allennlp.training.learning_rate_schedulers import LearningRateScheduler
@@ -794,11 +795,12 @@ class Trainer(Registrable):
         metrics: Dict[str, Any] = {}
         epochs_trained = 0
         training_start_time = time.time()
+        last_queried_epoch = -1
 
         for epoch in range(epoch_counter, self._num_epochs):
             epoch_start_time = time.time()
             train_metrics = self._train_epoch(epoch)
-            patience_ran_out = False
+            query_this_epoch = False
 
             if self._validation_data is not None:
                 with torch.no_grad():
@@ -813,9 +815,10 @@ class Trainer(Registrable):
                     is_best_so_far = self._is_best_so_far(this_epoch_val_metric, validation_metric_per_epoch)
                     validation_metric_per_epoch.append(this_epoch_val_metric)
                     if self._should_stop_early(validation_metric_per_epoch):
-                        if self._do_active_learning and self._held_out_train_data is not None:
+                        if self._do_active_learning and self._held_out_train_data is not None and \
+                                (epoch - last_queried_epoch >= self._active_learning_epoch_interval):
                             # still have more data to add
-                            patience_ran_out = True
+                            query_this_epoch = True
                             logger.info("Ran out of patience.  Adding more data.")
                         else:
                             logger.info("Ran out of patience.  Stopping training.")
@@ -873,7 +876,7 @@ class Trainer(Registrable):
             # 1. evaluate on held-out training data
             # 2. use active learning/gold labels to confirm/deny labels on held-out training data
             # 3. add correct instances in held-out training data to actual train data, then re-train
-            if self._do_active_learning and patience_ran_out:
+            if self._do_active_learning and query_this_epoch:
                 # take a subset of training data to evaluate on, and add to actual training set
                 # TODO: currently arbitrarily choosing next 1 instance (by order in file), perhaps change this future(?)
 
@@ -959,7 +962,6 @@ class Trainer(Registrable):
                                 coreferent = True
 
                             if not coreferent:
-                                pdb.set_trace()
                                 alternate_edges = sorted_larger_than_zero_edges[
                                     (sorted_larger_than_zero_edges[:, 0] == ind_instance) *
                                     (sorted_larger_than_zero_edges[:,1] == edge[1]) *
@@ -984,7 +986,7 @@ class Trainer(Registrable):
                         # is greater than -1.
                         neg_edge_inds[:, 2] -= 1
                         neg_edge_scores = output_dict['coreference_scores'][neg_edge_inds_mask]
-                        # get top k least negative scores
+                        # get sorted least negative scores
                         max_neg_edge_scores, ind_max_neg_edge_scores = neg_edge_scores.sort(descending=True)
                         sorted_neg_edges = neg_edge_inds[ind_max_neg_edge_scores]
                         sorted_neg_edges = self._translate_to_indA(sorted_neg_edges, output_dict, batch['spans'])
@@ -1030,7 +1032,6 @@ class Trainer(Registrable):
                         # Update gold clusters based on (corrected) model edges, in both span_labels and metadata
                         for edge in edges_to_add:
                             ind_instance = edge[0].item()  # index of instance in batch
-                            pdb.set_trace()
 
                             chosen_proform_span_tuple = (batch['spans'][ind_instance, edge[1]][0].item(),
                                                          batch['spans'][ind_instance, edge[1]][1].item())
@@ -1086,8 +1087,10 @@ class Trainer(Registrable):
                         # update train data itself
                         for ind_instance in train_instances_to_update:
                             ind_instance_overall = num_batches * batch_size + ind_instance  # index in entire train data
-                            train_data_to_add[ind_instance_overall].fields['span_labels'].labels = batch['span_labels'][
-                                ind_instance].tolist()
+                            train_data_to_add[ind_instance_overall].fields['span_labels'] = SequenceLabelField(
+                                batch['span_labels'][ind_instance].tolist(),
+                                train_data_to_add[ind_instance_overall].fields['span_labels'].sequence_field
+                            )
                             train_data_to_add[ind_instance_overall].fields['metadata'].metadata['clusters'] = \
                                 batch['metadata'][ind_instance]['clusters']
                             train_data_to_add[ind_instance_overall].fields['metadata'].metadata['num_gold_clusters'] = \
@@ -1152,6 +1155,8 @@ class Trainer(Registrable):
                     # above)
                     for instance in train_data_to_add:
                         self.train_data.append(instance)
+
+                last_queried_epoch = epoch
 
             ''' TRADITIONAL ACTIVE LEARNING: BY SELECTING RANDOM CLUSTER AND SPAN AND ASKING IF COREFERENT
             # Active learning: query user for self._active_learning_num_labels data after each
