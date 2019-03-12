@@ -29,6 +29,7 @@ from allennlp.common.util import dump_metrics, gpu_memory_mb, parse_cuda_device,
 from allennlp.common.tqdm import Tqdm
 from allennlp.data.instance import Instance
 from allennlp.data.iterators.data_iterator import DataIterator
+from allennlp.data.fields import SequenceLabelField
 from allennlp.models.model import Model
 from allennlp.nn import util
 from allennlp.training.learning_rate_schedulers import LearningRateScheduler
@@ -745,7 +746,7 @@ class Trainer(Registrable):
         return val_loss, batches_this_epoch
 
     @staticmethod
-    def _translate_to_indA(self, edges, output_dict, all_spans):
+    def _translate_to_indA(edges, output_dict, all_spans):
         """
         :param edges: Tensor (Nx3) of N edges, each of form [instance in batch, indB of proform, indC of antecedent]
         output_dict: holds information for translation
@@ -794,10 +795,12 @@ class Trainer(Registrable):
         metrics: Dict[str, Any] = {}
         epochs_trained = 0
         training_start_time = time.time()
+        last_queried_epoch = -1
 
         for epoch in range(epoch_counter, self._num_epochs):
             epoch_start_time = time.time()
             train_metrics = self._train_epoch(epoch)
+            query_this_epoch = False
 
             if self._validation_data is not None:
                 with torch.no_grad():
@@ -812,8 +815,13 @@ class Trainer(Registrable):
                     is_best_so_far = self._is_best_so_far(this_epoch_val_metric, validation_metric_per_epoch)
                     validation_metric_per_epoch.append(this_epoch_val_metric)
                     if self._should_stop_early(validation_metric_per_epoch):
-                        logger.info("Ran out of patience.  Stopping training.")
-                        break
+                        if self._do_active_learning and self._held_out_train_data is not None:
+                            # still have more data to add
+                            query_this_epoch = True
+                            logger.info("Ran out of patience.  Adding more data.")
+                        else:
+                            logger.info("Ran out of patience.  Stopping training.")
+                            break
 
             else:
                 # No validation set, so just assume it's the best so far.
@@ -867,8 +875,8 @@ class Trainer(Registrable):
             # 1. evaluate on held-out training data
             # 2. use active learning/gold labels to confirm/deny labels on held-out training data
             # 3. add correct instances in held-out training data to actual train data, then re-train
-            if self._do_active_learning and epoch % self._active_learning_epoch_interval == (
-                    self._active_learning_epoch_interval - 1) and self._held_out_train_data is not None:
+            if self._do_active_learning and (query_this_epoch or
+                                             epoch - last_queried_epoch >= self._active_learning_epoch_interval):
                 # take a subset of training data to evaluate on, and add to actual training set
                 # TODO: currently arbitrarily choosing next 1 instance (by order in file), perhaps change this future(?)
 
@@ -912,13 +920,16 @@ class Trainer(Registrable):
                         # get all > 0 edges (to know which to assign next)
                         larger_than_zero_mask = (output_dict['coreference_scores'] > 0)
                         larger_than_zero_inds = larger_than_zero_mask.nonzero()
+                        # Subtract one here because index 0 is the "no antecedent" class,
+                        # so this makes the indices line up with actual spans if the prediction
+                        # is greater than -1.
                         larger_than_zero_inds[:, 2] -= 1
                         larger_than_zero_scores = output_dict['coreference_scores'][larger_than_zero_mask]
-                        sorted_larger_than_zero_inds = \
+                        sorted_larger_than_zero_edges = \
                             larger_than_zero_inds[larger_than_zero_scores.sort(descending=True)[1]]
                         # translate to indA
-                        sorted_larger_than_zero_inds = \
-                            self._translate_to_indA(sorted_larger_than_zero_inds, output_dict, batch['spans'])
+                        sorted_larger_than_zero_edges = \
+                            self._translate_to_indA(sorted_larger_than_zero_edges, output_dict, batch['spans'])
 
                         # get scores of edges, and check most uncertain subset of edges
                         predicted_scores = output_dict['coreference_scores'].max(2)[0]
@@ -951,31 +962,77 @@ class Trainer(Registrable):
                                 coreferent = True
 
                             if not coreferent:
-                                pdb.set_trace()
-                                # if :
-                                    # add next largest positive edge from antecedent (if there is one)
-                                    # batch_indA_non_edges[i, ]
-                                # else:
+                                alternate_edges = sorted_larger_than_zero_edges[
+                                    (sorted_larger_than_zero_edges[:, 0] == ind_instance) *
+                                    (sorted_larger_than_zero_edges[:,1] == edge[1]) *
+                                    (sorted_larger_than_zero_edges[:,2] != edge[2])]
+                                if alternate_edges.size()[0] > 0:
+                                    # exists at least 1 alternate edge, add next largest positive edge from antecedent
+                                    batch_indA_edges[i] = alternate_edges[0]
+                                else:
                                     # otherwise delete edge (equivalent to setting all values to -1)
-                                    # batch_indA_edges[i, :] = -1
+                                    batch_indA_edges[i, :] = -1
 
                             num_queried += 1
 
                         # TODO modularize code: Beginning of non-existing edges querying portion
-                        # get scores of non-edges, and check most uncertain (least negative) subset of non-edges
-                        non_edge_inds_mask = (output_dict['coreference_scores'] < 0) * \
+                        # get scores of all possible edges originating from nodes not predicted to have any proform, and
+                        # check most uncertain (least negative) subset of these "negative edges"
+                        neg_edge_inds_mask = (output_dict['coreference_scores'] < 0) * \
                                              (output_dict['coreference_scores'] != -float("inf"))
-                        non_edge_inds = non_edge_inds_mask.nonzero()
-                        non_edge_scores = output_dict['coreference_scores'][non_edge_inds_mask]
-                        # get top k least negative scores
-                        max_non_edge_scores, ind_max_non_edge_scores = non_edge_scores.sort(descending=True)
-                        sorted_non_edges = non_edge_inds[ind_max_non_edge_scores]
-                        sorted_non_edges = self._translate_to_indA(sorted_non_edges, output_dict, batch['spans'])
-                        chosen_non_edges = -torch.ones([self._active_learning_num_labels, 3], dtype=torch.long,
-                                                       device=batch_indA_edges.device)
+                        neg_edge_inds = neg_edge_inds_mask.nonzero()
+                        # Subtract one here because index 0 is the "no antecedent" class,
+                        # so this makes the indices line up with actual spans if the prediction
+                        # is greater than -1.
+                        neg_edge_inds[:, 2] -= 1
+                        neg_edge_scores = output_dict['coreference_scores'][neg_edge_inds_mask]
+                        # get sorted least negative scores
+                        max_neg_edge_scores, ind_max_neg_edge_scores = neg_edge_scores.sort(descending=True)
+                        sorted_neg_edges = neg_edge_inds[ind_max_neg_edge_scores]
+
+                        # TODO: delete once no longer using incredibly large number of edges
+                        chosen_neg_edges = -torch.ones([min(self._active_learning_num_labels, sorted_neg_edges.size(0)),
+                                                        3], dtype=torch.long, device=batch_indA_edges.device)
                         num_queried = 0     # keep track of # of queries from user so far
-                        # iterate through chosen non-existent edges, add to `chosen_non_edges`
-                        for i, edge in enumerate(sorted_non_edges):
+                        user_labels_to_iterate = (batch['user_labels'] != -1).nonzero()
+                        for i, span_indA in enumerate(user_labels_to_iterate):
+                            # iterate through user spans, checking to see if they are in "sorted neg edges"
+                            # (AKA make opposite conversion from indA -> indC)
+                            user_label = batch['user_labels'][span_indA[0], span_indA[1]]
+                            span = batch['spans'][span_indA[0], span_indA[1]]
+                            span_indC = ((span.unsqueeze(0).unsqueeze(1) - output_dict['top_spans'][span_indA[0]]
+                                          ).abs().sum(-1) == 0).nonzero()
+                            if span_indC.size(0) > 0:
+                                # span is in top_spans
+                                span_indC = span_indC[:, 1][0]
+                                edges_with_span_proform_indC = sorted_neg_edges[sorted_neg_edges[:, 2] == span_indC]
+                                edges_with_span_proform = self._translate_to_indA(edges_with_span_proform_indC, output_dict, batch['spans'])
+                                edges_with_span_antecedent_indC = sorted_neg_edges[sorted_neg_edges[:, 1] == span_indC]
+                                edges_with_span_antecedent = self._translate_to_indA(edges_with_span_antecedent_indC, output_dict, batch['spans'])
+
+                                # now check labels of (other span of) reduced set of edges, whether any = user_label
+                                # equivalent to checking through sorted_neg_edges and finding all of the ones have same
+                                # labels. If there is any, then we can add all of the edges
+                                span_proform_mask = (batch['user_labels'][edges_with_span_proform[:, 0], edges_with_span_proform[:, 1]] == user_label)
+                                span_antecedent_mask = (batch['user_labels'][edges_with_span_antecedent[:, 0], edges_with_span_antecedent[:, 1]] == user_label)
+                                if span_proform_mask.nonzero().size(0) > 0:
+                                    chosen_neg_edges[num_queried:num_queried + span_proform_mask.nonzero().size(0)] = edges_with_span_proform[span_proform_mask]
+                                    num_queried += span_proform_mask.nonzero().size(0)
+                                if span_antecedent_mask.nonzero().size(0) > 0:
+                                    chosen_neg_edges[num_queried:num_queried + span_antecedent_mask.nonzero().size(0)] = edges_with_span_antecedent[span_antecedent_mask]
+                                    num_queried += span_antecedent_mask.nonzero().size(0)
+                            else:
+                                continue
+
+                        # TODO: uncomment once no longer using incredibly large number of edges
+
+                        '''
+                        sorted_neg_edges = self._translate_to_indA(sorted_neg_edges, output_dict, batch['spans'])
+                        chosen_neg_edges = -torch.ones([min(self._active_learning_num_labels, sorted_neg_edges.size(0)),
+                                                        3], dtype=torch.long, device=batch_indA_edges.device)
+                        num_queried = 0     # keep track of # of queries from user so far
+                        # iterate through chosen non-existent edges, add to `chosen_neg_edges`
+                        for i, edge in enumerate(sorted_neg_edges):
                             if num_queried >= self._active_learning_num_labels:
                                 break
                             ind_instance = edge[0]
@@ -998,22 +1055,22 @@ class Trainer(Registrable):
                                 coreferent = True
 
                             if coreferent:
-                                # add edge to chosen_non_edges
-                                chosen_non_edges[num_queried] = edge
+                                # add edge to chosen_neg_edges
+                                chosen_neg_edges[num_queried] = edge
 
                             num_queried += 1
+                        # '''
 
                         # keep track of which instances we have to update in training data
                         train_instances_to_update = {}
 
                         # edges to add
-                        edges_to_add = torch.cat([batch_indA_edges, chosen_non_edges], dim=0)
+                        edges_to_add = torch.cat([batch_indA_edges, chosen_neg_edges], dim=0)
                         edges_to_add = edges_to_add[edges_to_add[:, 0] != -1]
 
                         # Update gold clusters based on (corrected) model edges, in both span_labels and metadata
                         for edge in edges_to_add:
                             ind_instance = edge[0].item()  # index of instance in batch
-                            pdb.set_trace()
 
                             chosen_proform_span_tuple = (batch['spans'][ind_instance, edge[1]][0].item(),
                                                          batch['spans'][ind_instance, edge[1]][1].item())
@@ -1069,8 +1126,10 @@ class Trainer(Registrable):
                         # update train data itself
                         for ind_instance in train_instances_to_update:
                             ind_instance_overall = num_batches * batch_size + ind_instance  # index in entire train data
-                            train_data_to_add[ind_instance_overall].fields['span_labels'].labels = batch['span_labels'][
-                                ind_instance].tolist()
+                            train_data_to_add[ind_instance_overall].fields['span_labels'] = SequenceLabelField(
+                                batch['span_labels'][ind_instance].tolist(),
+                                train_data_to_add[ind_instance_overall].fields['span_labels'].sequence_field
+                            )
                             train_data_to_add[ind_instance_overall].fields['metadata'].metadata['clusters'] = \
                                 batch['metadata'][ind_instance]['clusters']
                             train_data_to_add[ind_instance_overall].fields['metadata'].metadata['num_gold_clusters'] = \
@@ -1135,6 +1194,8 @@ class Trainer(Registrable):
                     # above)
                     for instance in train_data_to_add:
                         self.train_data.append(instance)
+
+                last_queried_epoch = epoch
 
             ''' TRADITIONAL ACTIVE LEARNING: BY SELECTING RANDOM CLUSTER AND SPAN AND ASKING IF COREFERENT
             # Active learning: query user for self._active_learning_num_labels data after each
