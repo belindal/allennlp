@@ -19,6 +19,7 @@ from allennlp.data.dataset_readers.dataset_reader import DatasetReader
 from allennlp.data.iterators.data_iterator import DataIterator
 from allennlp.models.archival import archive_model, CONFIG_NAME
 from allennlp.models.model import Model, _DEFAULT_WEIGHTS
+from allennlp.predictors.coref import CorefPredictor
 from allennlp.training.trainer import Trainer
 import tempfile
 
@@ -27,6 +28,7 @@ import pdb
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 torch.manual_seed(1)
+
 
 def datasets_from_params(params: Params) -> Dict[str, Iterable[Instance]]:
     """
@@ -298,23 +300,17 @@ def main():
     # model = Model.load(params, serialization_dir, os.path.join(serialization_dir, "weights.th"))
 
     # Make prediction
-    predictor = CorefPredictor(best_model)
-    ''' # Make predicting happen
-    # Make predictions
-    predictor = Predictor.from_path("../models")
-    # '''
-    docs = [{"document": "The woman reading a newspaper sat on the bench with her dog."},
-            {"document": "The man looked at himself."}]
-    output = predictor.predict_batch_json(
-        inputs=docs,
-    )
-    print("output: ")
-    for i in range(len(docs)):
-        for item in output[i]:
-            print(str(item) + ": " + str(output[i][item]))
-        print()
-
-    # '''
+    # predictor = CorefPredictor(best_model)
+    # docs = [{"document": "The woman reading a newspaper sat on the bench with her dog."},
+    #         {"document": "The man looked at himself."}]
+    # output = predictor.predict_batch_json(
+    #     inputs=docs,
+    # )
+    # print("output: ")
+    # for i in range(len(docs)):
+    #     for item in output[i]:
+    #         print(str(item) + ": " + str(output[i][item]))
+    #     print()
 
 
 if __name__ == "__main__":
