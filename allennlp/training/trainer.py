@@ -815,7 +815,7 @@ class Trainer(Registrable):
                     is_best_so_far = self._is_best_so_far(this_epoch_val_metric, validation_metric_per_epoch)
                     validation_metric_per_epoch.append(this_epoch_val_metric)
                     if self._should_stop_early(validation_metric_per_epoch):
-                        if self._do_active_learning and self._held_out_train_data is not None:
+                        if self._do_active_learning and len(self._held_out_train_data) > 0:
                             # still have more data to add
                             query_this_epoch = True
                             logger.info("Ran out of patience.  Adding more data.")
@@ -882,7 +882,6 @@ class Trainer(Registrable):
 
                 train_data_to_add = self._held_out_train_data[:70]
                 self._held_out_train_data = self._held_out_train_data[70:]
-                pdb.set_trace()
 
                 if self._sample_from_gold:
                     with torch.no_grad():
