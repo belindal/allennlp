@@ -110,7 +110,7 @@
   "trainer": {
     "num_epochs": 300,
     "grad_norm": 5.0,
-    "patience" : 10,
+    "patience" : 5,
     "cuda_device" : 0,
     "validation_metric": "+coref_f1",
     /*
@@ -126,7 +126,7 @@
     },
     "active_learning": {
       "model_type": "coref",
-      "epoch_interval": 1,
+      "epoch_interval": 20,
       "num_labels": 5,
       "simulate_user_inputs": false, // have to update in 2 places
     }
