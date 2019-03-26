@@ -14,7 +14,7 @@
       }
     },
     "max_span_width": 10,
-    "simulate_user_inputs": false,  // Sampled from training data
+    "simulate_user_inputs": true,  // Sampled from training data
     "fully_labelled_threshold": 700,
   },
   "validation_dataset_reader": {
@@ -111,7 +111,7 @@
     "num_epochs": 150, //60,
     "grad_norm": 5.0,
     "patience" : 5,
-    "cuda_device" : 1,
+    "cuda_device" : 2,
     "validation_metric": "+coref_f1",
     /*
     "learning_rate_scheduler": {
@@ -127,8 +127,8 @@
     "active_learning": {
       "model_type": "coref",
       "epoch_interval": 20,
-      "num_labels": 5,
-      "simulate_user_inputs": false, // have to update in 2 places
+      "num_labels": 9999999999,
+      "simulate_user_inputs": true, // have to update in 2 places
     }
   }
 }

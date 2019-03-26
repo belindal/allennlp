@@ -880,8 +880,8 @@ class Trainer(Registrable):
                 # take a subset of training data to evaluate on, and add to actual training set
                 # TODO: currently arbitrarily choosing next 1 instance (by order in file), perhaps change this future(?)
 
-                train_data_to_add = self._held_out_train_data[:70]
-                self._held_out_train_data = self._held_out_train_data[70:]
+                train_data_to_add = self._held_out_train_data[:140]
+                self._held_out_train_data = self._held_out_train_data[140:]
 
                 with torch.no_grad():
                     logger.info("Held-Out Training")
