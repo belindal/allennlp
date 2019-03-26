@@ -108,7 +108,7 @@
     "batch_size": 1
   },
   "trainer": {
-    "num_epochs": 150, //60,
+    "num_epochs": 300, //60,
     "grad_norm": 5.0,
     "patience" : 5,
     "cuda_device" : 2,
