@@ -897,8 +897,10 @@ class Trainer(Registrable):
                     num_held_out_batches = self.iterator.get_num_batches(train_data_to_add)
                     held_out_generator_tqdm = Tqdm.tqdm(held_out_generator, total=num_held_out_batches)
                     held_out_post_update_tqdm = Tqdm.tqdm(total=num_held_out_batches)
+                    conll_coref = ConllCorefScores()
                     num_batches = 0
                     held_out_loss = 0
+                    pbar_ind = 0
                     for batch_ind, batch in enumerate(held_out_generator_tqdm):
                         batch['get_scores'] = True
                         if self._multiple_gpu:
@@ -914,70 +916,70 @@ class Trainer(Registrable):
                         # TODO modularize code: Beginning of existing edges querying portion
                         clustered_spans_mask = (output_dict['predicted_antecedents'] != -1)
                         batch_indB_proforms = clustered_spans_mask.nonzero()
-                        if batch_indB_proforms.size()[0] == 0:
-                            # model outputted no edges for in this instance; nothing to check/add
-                            continue
-                        indC_antecedents = output_dict['predicted_antecedents'][clustered_spans_mask]
-                        batch_indC_edges = torch.cat([batch_indB_proforms, indC_antecedents.unsqueeze(-1)], dim=-1)
-                        batch_indA_edges = self._translate_to_indA(batch_indC_edges, output_dict, batch['spans'])
+                        batch_indA_edges = torch.tensor([], dtype=torch.long, device=batch_indB_proforms.device)
+                        if batch_indB_proforms.size()[0] != 0:
+                            # model outputted at least 1 edge for this instance
+                            indC_antecedents = output_dict['predicted_antecedents'][clustered_spans_mask]
+                            batch_indC_edges = torch.cat([batch_indB_proforms, indC_antecedents.unsqueeze(-1)], dim=-1)
+                            batch_indA_edges = self._translate_to_indA(batch_indC_edges, output_dict, batch['spans'])
 
-                        # get all > 0 edges (to know which to assign next)
-                        larger_than_zero_mask = (output_dict['coreference_scores'] > 0)
-                        larger_than_zero_inds = larger_than_zero_mask.nonzero()
-                        # Subtract one here because index 0 is the "no antecedent" class,
-                        # so this makes the indices line up with actual spans if the prediction
-                        # is greater than -1.
-                        larger_than_zero_inds[:, 2] -= 1
-                        larger_than_zero_scores = output_dict['coreference_scores'][larger_than_zero_mask]
-                        sorted_larger_than_zero_edges = \
-                            larger_than_zero_inds[larger_than_zero_scores.sort(descending=True)[1]]
-                        # translate to indA
-                        sorted_larger_than_zero_edges = \
-                            self._translate_to_indA(sorted_larger_than_zero_edges, output_dict, batch['spans'])
+                            # get all > 0 edges (to know which to assign next)
+                            larger_than_zero_mask = (output_dict['coreference_scores'] > 0)
+                            larger_than_zero_inds = larger_than_zero_mask.nonzero()
+                            # Subtract one here because index 0 is the "no antecedent" class,
+                            # so this makes the indices line up with actual spans if the prediction
+                            # is greater than -1.
+                            larger_than_zero_inds[:, 2] -= 1
+                            larger_than_zero_scores = output_dict['coreference_scores'][larger_than_zero_mask]
+                            sorted_larger_than_zero_edges = \
+                                larger_than_zero_inds[larger_than_zero_scores.sort(descending=True)[1]]
+                            # translate to indA
+                            sorted_larger_than_zero_edges = \
+                                self._translate_to_indA(sorted_larger_than_zero_edges, output_dict, batch['spans'])
 
-                        # get scores of edges, and check most uncertain subset of edges
-                        predicted_scores = output_dict['coreference_scores'].max(2)[0]
-                        model_pred_edge_scores = predicted_scores[predicted_scores != 0]  # scores of edges
-                        min_exist_edge_scores, ind_min_exist_edge_scores = model_pred_edge_scores.sort()
-                        batch_indA_edges = batch_indA_edges[ind_min_exist_edge_scores]
-                        num_queried = 0     # keep track of # of queries from user so far
-                        # iterate through chosen edges (note iterating through inds given by ind_min_exist_edge_scores)
-                        for i, edge in enumerate(batch_indA_edges):
-                            if num_queried >= self._active_learning_num_labels:
-                                break
-                            ind_instance = edge[0]  # index in batch
+                            # get scores of edges, and check most uncertain subset of edges
+                            predicted_scores = output_dict['coreference_scores'].max(2)[0]
+                            model_pred_edge_scores = predicted_scores[predicted_scores != 0]  # scores of edges
+                            min_exist_edge_scores, ind_min_exist_edge_scores = model_pred_edge_scores.sort()
+                            batch_indA_edges = batch_indA_edges[ind_min_exist_edge_scores]
+                            num_queried = 0     # keep track of # of queries from user so far
+                            # iterate through chosen edges (note iterating through inds given by ind_min_exist_edge_scores)
+                            for i, edge in enumerate(batch_indA_edges):
+                                if num_queried >= self._active_learning_num_labels:
+                                    break
+                                ind_instance = edge[0]  # index in batch
 
-                            # check if both are in gold clusters already, meaning there's no need to ask user about it
-                            # TODO: modify if iteration--even then, what if something already asked before?
-                            # (so maybe should just take as gold each iteration?)
-                            proform_label = batch['span_labels'][ind_instance, edge[1]].item()
-                            antecedent_label = batch['span_labels'][ind_instance, edge[2]].item()
-                            if proform_label != -1 and antecedent_label != -1:
-                                continue
+                                # check if both are in gold clusters already, meaning there's no need to ask user about it
+                                # TODO: modify if iteration--even then, what if something already asked before?
+                                # (so maybe should just take as gold each iteration?)
+                                proform_label = batch['span_labels'][ind_instance, edge[1]].item()
+                                antecedent_label = batch['span_labels'][ind_instance, edge[2]].item()
+                                if proform_label != -1 and antecedent_label != -1:
+                                    continue
 
-                            # verify from simulated user whether chosen proform and antecedent are coreferent
-                            if self._sample_from_training:
-                                # get user cluster labels and see whether they are equivalent
-                                user_proform_label = batch['user_labels'][ind_instance, edge[1]]
-                                user_antecedent_label = batch['user_labels'][ind_instance, edge[2]]
-                                coreferent = (user_proform_label == user_antecedent_label and user_proform_label != -1)
-                            else:
-                                # TODO: mechanism for printing chosen_proform_span and chosen_antecedent_span to user and getting user input
-                                coreferent = True
-
-                            if not coreferent:
-                                alternate_edges = sorted_larger_than_zero_edges[
-                                    (sorted_larger_than_zero_edges[:, 0] == ind_instance) *
-                                    (sorted_larger_than_zero_edges[:,1] == edge[1]) *
-                                    (sorted_larger_than_zero_edges[:,2] != edge[2])]
-                                if alternate_edges.size()[0] > 0:
-                                    # exists at least 1 alternate edge, add next largest positive edge from antecedent
-                                    batch_indA_edges[i] = alternate_edges[0]
+                                # verify from simulated user whether chosen proform and antecedent are coreferent
+                                if self._sample_from_training:
+                                    # get user cluster labels and see whether they are equivalent
+                                    user_proform_label = batch['user_labels'][ind_instance, edge[1]]
+                                    user_antecedent_label = batch['user_labels'][ind_instance, edge[2]]
+                                    coreferent = (user_proform_label == user_antecedent_label and user_proform_label != -1)
                                 else:
-                                    # otherwise delete edge (equivalent to setting all values to -1)
-                                    batch_indA_edges[i, :] = -1
+                                    # TODO: mechanism for printing chosen_proform_span and chosen_antecedent_span to user and getting user input
+                                    coreferent = True
 
-                            num_queried += 1
+                                if not coreferent:
+                                    alternate_edges = sorted_larger_than_zero_edges[
+                                        (sorted_larger_than_zero_edges[:, 0] == ind_instance) *
+                                        (sorted_larger_than_zero_edges[:,1] == edge[1]) *
+                                        (sorted_larger_than_zero_edges[:,2] != edge[2])]
+                                    if alternate_edges.size()[0] > 0:
+                                        # exists at least 1 alternate edge, add next largest positive edge from antecedent
+                                        batch_indA_edges[i] = alternate_edges[0]
+                                    else:
+                                        # otherwise delete edge (equivalent to setting all values to -1)
+                                        batch_indA_edges[i, :] = -1
+
+                                num_queried += 1
 
                         # TODO modularize code: Beginning of non-existing edges querying portion
                         # get scores of all possible edges originating from nodes not predicted to have any proform, and
@@ -1027,7 +1029,6 @@ class Trainer(Registrable):
                                 chosen_neg_edges[num_queried] = edge
 
                             num_queried += 1
-                        # '''
 
                         # keep track of which instances we have to update in training data
                         train_instances_to_update = {}
@@ -1101,13 +1102,10 @@ class Trainer(Registrable):
                         # update train data itself
                         for ind_instance in train_instances_to_update:
                             ind_instance_overall = batch_ind * batch_size + ind_instance  # index in entire train data
-                            try:
-                                train_data_to_add[ind_instance_overall].fields['span_labels'] = SequenceLabelField(
-                                    batch['span_labels'][ind_instance].tolist(),
-                                    train_data_to_add[ind_instance_overall].fields['span_labels'].sequence_field
-                                )
-                            except ConfigurationError:
-                                pdb.set_trace()
+                            train_data_to_add[ind_instance_overall].fields['span_labels'] = SequenceLabelField(
+                                batch['span_labels'][ind_instance].tolist(),
+                                train_data_to_add[ind_instance_overall].fields['span_labels'].sequence_field
+                            )
                             train_data_to_add[ind_instance_overall].fields['metadata'].metadata['clusters'] = \
                                 batch['metadata'][ind_instance]['clusters']
                             train_data_to_add[ind_instance_overall].fields['metadata'].metadata['num_gold_clusters'] = \
@@ -1119,7 +1117,6 @@ class Trainer(Registrable):
 
                         # Update the description with the latest metrics
                         held_out_metrics = self._get_metrics(held_out_loss, num_batches)
-                        conll_coref = ConllCorefScores()
                         post_update_held_out_metrics = {}
                         for i, metadata in enumerate(batch['metadata']):
                             predicted_clusters = []
@@ -1138,6 +1135,9 @@ class Trainer(Registrable):
                         held_out_generator_tqdm.set_description(description, refresh=False)
                         held_out_post_update_tqdm.set_description(post_update_description, refresh=False)
                         held_out_post_update_tqdm.update(1)
+                        if pbar_ind != batch_ind:
+                            pdb.set_trace()
+                        pbar_ind += 1
 
                     # add instance(s) from held-out training dataset to actual dataset (already removed from held-out
                     # above)
