@@ -523,7 +523,8 @@ class Trainer(Registrable):
 
             # This does nothing if batch_num_total is None or you are using an
             # LRScheduler which doesn't update per batch.
-            if self._learning_rate_scheduler:
+            if self._learning_rate_scheduler and (self._held_out_train_data is None or
+                                                  len(self._held_out_train_data) == 0):
                 self._learning_rate_scheduler.step_batch(batch_num_total)
 
             if self._log_histograms_this_batch:
@@ -855,7 +856,8 @@ class Trainer(Registrable):
             if self._serialization_dir:
                 dump_metrics(os.path.join(self._serialization_dir, f'metrics_epoch_{epoch}.json'), metrics)
 
-            if self._learning_rate_scheduler:
+            if self._learning_rate_scheduler and (self._held_out_train_data is None or
+                                                  len(self._held_out_train_data) == 0):
                 # The LRScheduler API is agnostic to whether your schedule requires a validation metric -
                 # if it doesn't, the validation metric passed here is ignored.
                 self._learning_rate_scheduler.step(this_epoch_val_metric, epoch)
