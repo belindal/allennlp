@@ -879,7 +879,7 @@ class Trainer(Registrable):
             # 2. use active learning/gold labels to confirm/deny labels on held-out training data
             # 3. add correct instances in held-out training data to actual train data, then re-train
             if self._do_active_learning and (query_this_epoch or
-                                             epoch - last_queried_epoch > self._active_learning_epoch_interval):
+                                             epoch - last_queried_epoch >= self._active_learning_epoch_interval):
                 # take a subset of training data to evaluate on, and add to actual training set
                 # TODO: currently arbitrarily choosing next 1 instance (by order in file), perhaps change this future(?)
 
@@ -899,7 +899,6 @@ class Trainer(Registrable):
                     conll_coref = ConllCorefScores()
                     num_batches = 0
                     held_out_loss = 0
-                    pbar_ind = 0
                     for batch_ind, batch in enumerate(held_out_generator_tqdm):
                         batch['get_scores'] = True
                         if self._multiple_gpu:
@@ -996,13 +995,13 @@ class Trainer(Registrable):
                         sorted_neg_edges = neg_edge_inds[ind_max_neg_edge_scores]
 
                         # sorted_neg_edges = self._translate_to_indA(sorted_neg_edges, output_dict, batch['spans'])
-                        chosen_neg_edges = -torch.ones([min(self._active_learning_num_labels + num_queried_pos, sorted_neg_edges.size(0)),
+                        chosen_neg_edges = -torch.ones([min(2 * self._active_learning_num_labels - num_queried_pos, sorted_neg_edges.size(0)),
                                                         3], dtype=torch.long, device=batch_indA_edges.device)
                         num_queried_neg = 0  # number of user labels queried for negative edges
                         # iterate through chosen non-existent edges, add to `chosen_neg_edges`
                         for i, edge in enumerate(sorted_neg_edges):
                             edge = self._translate_to_indA(edge.unsqueeze(0), output_dict, batch['spans']).squeeze(0)
-                            if num_queried_neg >= self._active_learning_num_labels + num_queried_pos:
+                            if num_queried_neg >= 2 * self._active_learning_num_labels - num_queried_pos:
                                 break
                             ind_instance = edge[0]
 
@@ -1134,9 +1133,6 @@ class Trainer(Registrable):
                         description = self._description_from_metrics(description_display)
                         description += ' # labels: ' + str(num_queried_pos + num_queried_neg) + ' ||'
                         held_out_generator_tqdm.set_description(description, refresh=False)
-                        if pbar_ind != batch_ind:
-                            pdb.set_trace()
-                        pbar_ind += 1
 
                     # add instance(s) from held-out training dataset to actual dataset (already removed from held-out
                     # above)
