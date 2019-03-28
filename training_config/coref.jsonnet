@@ -42,9 +42,9 @@
       "token_embedders": {
         "tokens": {
             "type": "embedding",
-            "pretrained_file": "https://s3-us-west-2.amazonaws.com/allennlp/datasets/glove/glove.6B.300d.txt.gz",
+            //"pretrained_file": "https://s3-us-west-2.amazonaws.com/allennlp/datasets/glove/glove.6B.300d.txt.gz",
             "embedding_dim": 300,
-            "trainable": false
+            //"trainable": false
         },
         "token_characters": {
             "type": "character_encoding",
@@ -113,20 +113,18 @@
     "patience" : 5,
     "cuda_device" : 2,
     "validation_metric": "+coref_f1",
-    /*
     "learning_rate_scheduler": {
       "type": "reduce_on_plateau",
       "factor": 0.5,
       "mode": "max",
       "patience": 2
     },
-    */
     "optimizer": {
       "type": "adam"
     },
     "active_learning": {
       "model_type": "coref",
-      "epoch_interval": 20,
+      "epoch_interval": 1, //20,
       "num_labels": 9999999999,
       "simulate_user_inputs": true, // have to update in 2 places
     }

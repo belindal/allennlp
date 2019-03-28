@@ -111,7 +111,7 @@ class ConllCorefReader(DatasetReader):
 
             percent_user_spans = 0.0
             if self._simulate_user_inputs and i >= self._fully_labelled_threshold:
-                percent_user_spans = 0.5
+                percent_user_spans = 1.0
 
             i += 1
 
