@@ -896,7 +896,6 @@ class Trainer(Registrable):
                                                                  shuffle=False)
                     num_held_out_batches = self.iterator.get_num_batches(train_data_to_add)
                     held_out_generator_tqdm = Tqdm.tqdm(held_out_generator, total=num_held_out_batches)
-                    held_out_post_update_tqdm = Tqdm.tqdm(total=num_held_out_batches)
                     conll_coref = ConllCorefScores()
                     num_batches = 0
                     held_out_loss = 0
@@ -942,10 +941,10 @@ class Trainer(Registrable):
                             model_pred_edge_scores = predicted_scores[predicted_scores != 0]  # scores of edges
                             min_exist_edge_scores, ind_min_exist_edge_scores = model_pred_edge_scores.sort()
                             batch_indA_edges = batch_indA_edges[ind_min_exist_edge_scores]
-                            num_queried = 0     # keep track of # of queries from user so far
+                            num_queried_pos = 0     # keep track of # of queries from user so far
                             # iterate through chosen edges (note iterating through inds given by ind_min_exist_edge_scores)
                             for i, edge in enumerate(batch_indA_edges):
-                                if num_queried >= self._active_learning_num_labels:
+                                if num_queried_pos >= self._active_learning_num_labels:
                                     break
                                 ind_instance = edge[0]  # index in batch
 
@@ -979,7 +978,7 @@ class Trainer(Registrable):
                                         # otherwise delete edge (equivalent to setting all values to -1)
                                         batch_indA_edges[i, :] = -1
 
-                                num_queried += 1
+                                num_queried_pos += 1
 
                         # TODO modularize code: Beginning of non-existing edges querying portion
                         # get scores of all possible edges originating from nodes not predicted to have any proform, and
@@ -997,13 +996,13 @@ class Trainer(Registrable):
                         sorted_neg_edges = neg_edge_inds[ind_max_neg_edge_scores]
 
                         # sorted_neg_edges = self._translate_to_indA(sorted_neg_edges, output_dict, batch['spans'])
-                        chosen_neg_edges = -torch.ones([min(self._active_learning_num_labels, sorted_neg_edges.size(0)),
+                        chosen_neg_edges = -torch.ones([min(self._active_learning_num_labels + num_queried_pos, sorted_neg_edges.size(0)),
                                                         3], dtype=torch.long, device=batch_indA_edges.device)
-                        num_queried = 0     # keep track of # of queries from user so far
+                        num_queried_neg = 0  # number of user labels queried for negative edges
                         # iterate through chosen non-existent edges, add to `chosen_neg_edges`
                         for i, edge in enumerate(sorted_neg_edges):
                             edge = self._translate_to_indA(edge.unsqueeze(0), output_dict, batch['spans']).squeeze(0)
-                            if num_queried >= self._active_learning_num_labels:
+                            if num_queried_neg >= self._active_learning_num_labels + num_queried_pos:
                                 break
                             ind_instance = edge[0]
 
@@ -1026,9 +1025,9 @@ class Trainer(Registrable):
 
                             if coreferent:
                                 # add edge to chosen_neg_edges
-                                chosen_neg_edges[num_queried] = edge
+                                chosen_neg_edges[num_queried_neg] = edge
 
-                            num_queried += 1
+                            num_queried_neg += 1
 
                         # keep track of which instances we have to update in training data
                         train_instances_to_update = {}
@@ -1127,14 +1126,14 @@ class Trainer(Registrable):
                             gold_clusters, mention_to_gold = conll_coref.get_gold_clusters(batch['metadata'][i]['clusters'])
                             for scorer in conll_coref.scorers:
                                 scorer.update(predicted_clusters, gold_clusters, mention_to_predicted, mention_to_gold) 
-                        post_update_held_out_metrics['coref_precision_post_update'], post_update_held_out_metrics[
-                            'coref_recall_post_update'], post_update_held_out_metrics[
-                            'coref_f1_post_update'] = conll_coref.get_metric()
-                        description = self._description_from_metrics(held_out_metrics)
-                        post_update_description = self._description_from_metrics(post_update_held_out_metrics)
+                        new_P, new_R, new_F1 = conll_coref.get_metric()
+                        description_display = {'coref_P': held_out_metrics['coref_precision'], 'new_P': new_P,
+                                               'coref_R': held_out_metrics['coref_recall'], 'new_R': new_R,
+                                               'coref_F1': held_out_metrics['coref_f1'], 'new_F1': new_F1,
+                                               'MR': held_out_metrics['mention_recall'], 'loss': held_out_metrics['loss']}
+                        description = self._description_from_metrics(description_display)
+                        description += ' # labels: ' + str(num_queried_pos + num_queried_neg) + ' ||'
                         held_out_generator_tqdm.set_description(description, refresh=False)
-                        held_out_post_update_tqdm.set_description(post_update_description, refresh=False)
-                        held_out_post_update_tqdm.update(1)
                         if pbar_ind != batch_ind:
                             pdb.set_trace()
                         pbar_ind += 1
