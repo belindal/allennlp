@@ -797,7 +797,7 @@ class Trainer(Registrable):
         metrics: Dict[str, Any] = {}
         epochs_trained = 0
         training_start_time = time.time()
-        last_queried_epoch = -1
+        last_queried_epoch = 0
 
         for epoch in range(epoch_counter, self._num_epochs):
             epoch_start_time = time.time()
@@ -816,11 +816,11 @@ class Trainer(Registrable):
                     # Check validation metric to see if it's the best so far
                     is_best_so_far = self._is_best_so_far(this_epoch_val_metric, validation_metric_per_epoch)
                     validation_metric_per_epoch.append(this_epoch_val_metric)
-                    if self._should_stop_early(validation_metric_per_epoch):
+                    if self._should_stop_early(validation_metric_per_epoch[last_queried_epoch:]):
                         if self._do_active_learning and len(self._held_out_train_data) > 0:
-                            # still have more data to add
-                            query_this_epoch = True
-                            logger.info("Ran out of patience.  Adding more data.")
+                                # still have more data to add
+                                query_this_epoch = True
+                                logger.info("Ran out of patience.  Adding more data.")
                         else:
                             logger.info("Ran out of patience.  Stopping training.")
                             break
@@ -879,7 +879,7 @@ class Trainer(Registrable):
             # 2. use active learning/gold labels to confirm/deny labels on held-out training data
             # 3. add correct instances in held-out training data to actual train data, then re-train
             if self._do_active_learning and (query_this_epoch or
-                                             epoch - last_queried_epoch >= self._active_learning_epoch_interval):
+                                             epoch - last_queried_epoch > self._active_learning_epoch_interval):
                 # take a subset of training data to evaluate on, and add to actual training set
                 # TODO: currently arbitrarily choosing next 1 instance (by order in file), perhaps change this future(?)
 

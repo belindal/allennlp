@@ -115,11 +115,14 @@ class ConllCorefReader(DatasetReader):
 
             i += 1
 
-            yield self.text_to_instance([s.words for s in sentences], canonical_clusters, percent_user_spans)
+            yield self.text_to_instance([s.words for s in sentences], sentences[0].document_id, sentences[0].sentence_id,
+                                        canonical_clusters, percent_user_spans)
 
     @overrides
     def text_to_instance(self,  # type: ignore
                          sentences: List[List[str]],
+                         document_id: str,
+                         sentence_id: int,
                          gold_clusters: Optional[List[List[Tuple[int, int]]]] = None,
                          user_threshold: Optional[float] = 0.0) -> Instance:
         # pylint: disable=arguments-differ
@@ -128,6 +131,10 @@ class ConllCorefReader(DatasetReader):
         ----------
         sentences : ``List[List[str]]``, required.
             A list of lists representing the tokenised words and sentences in the document.
+        document_id : ``str``, required.
+            A string representing the document ID.
+        sentence_id : ``int``, required.
+            An int representing the sentence ID.
         gold_clusters : ``Optional[List[List[Tuple[int, int]]]]``, optional (default = None)
             A list of all clusters in the document, represented as word spans. Each cluster
             contains some number of spans, which can be nested and overlap, but will never
@@ -154,7 +161,7 @@ class ConllCorefReader(DatasetReader):
                                for sentence in sentences
                                for word in sentence]
 
-        metadata: Dict[str, Any] = {"original_text": flattened_sentences}
+        metadata: Dict[str, Any] = {"original_text": flattened_sentences, "ID": document_id + ";" + str(sentence_id)}
         if gold_clusters is not None:
             metadata["clusters"] = gold_clusters
             metadata["num_gold_clusters"] = len(gold_clusters)
