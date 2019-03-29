@@ -361,6 +361,7 @@ class Trainer(Registrable):
             self._active_learning_epoch_interval = active_learning['epoch_interval']
             self._active_learning_num_labels = active_learning['num_labels']
             self._sample_from_training = active_learning['simulate_user_inputs']
+            self._active_learning_patience = active_learning['patience']
 
     def _enable_gradient_clipping(self) -> None:
         if self._grad_clipping is not None:
@@ -574,19 +575,19 @@ class Trainer(Registrable):
 
         return self._get_metrics(train_loss, batches_this_epoch, reset=True)
 
-    def _should_stop_early(self, metric_history: List[float]) -> bool:
+    def _should_stop_early(self, metric_history: List[float], patience: int) -> bool:
         """
         uses patience and the validation metric to determine if training should stop early
         """
-        if self._patience and self._patience < len(metric_history):
+        if patience and patience < len(metric_history):
             # Pylint can't figure out that in this branch `self._patience` is an int.
             # pylint: disable=invalid-unary-operand-type
 
             # Is the best score in the past N epochs worse than or equal the best score overall?
             if self._validation_metric_decreases:
-                return min(metric_history[-self._patience:]) >= min(metric_history[:-self._patience])
+                return min(metric_history[-patience:]) >= min(metric_history[:-patience])
             else:
-                return max(metric_history[-self._patience:]) <= max(metric_history[:-self._patience])
+                return max(metric_history[-patience:]) <= max(metric_history[:-patience])
 
         return False
 
@@ -816,12 +817,14 @@ class Trainer(Registrable):
                     # Check validation metric to see if it's the best so far
                     is_best_so_far = self._is_best_so_far(this_epoch_val_metric, validation_metric_per_epoch)
                     validation_metric_per_epoch.append(this_epoch_val_metric)
-                    if self._should_stop_early(validation_metric_per_epoch[last_queried_epoch:]):
-                        if self._do_active_learning and len(self._held_out_train_data) > 0:
-                                # still have more data to add
-                                query_this_epoch = True
-                                logger.info("Ran out of patience.  Adding more data.")
-                        else:
+                    if self._do_active_learning and len(self._held_out_train_data) > 0:
+                        if self._should_stop_early(validation_metric_per_epoch[last_queried_epoch:],
+                                                   self._active_learning_patience):
+                            # still have more data to add
+                            query_this_epoch = True
+                            logger.info("Ran out of patience.  Adding more data.")
+                    else:
+                        if self._should_stop_early(validation_metric_per_epoch[last_queried_epoch:], self._patience):
                             logger.info("Ran out of patience.  Stopping training.")
                             break
 
