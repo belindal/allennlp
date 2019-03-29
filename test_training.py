@@ -32,7 +32,7 @@ def datasets_from_params(params: Params) -> Dict[str, Iterable[Instance]]:
     """
     Load all the datasets specified by the config.
     """
-    fully_labelled_threshold = params['dataset_reader']['fully_labelled_threshold']
+    fully_labelled_threshold = 3000 if 'fully_labelled_threshold' not in params['dataset_reader'] else params['dataset_reader']['fully_labelled_threshold']
     dataset_reader = DatasetReader.from_params(params.pop("dataset_reader", None))
     validation_dataset_reader_params = params.pop("validation_dataset_reader", None)
 
@@ -298,11 +298,10 @@ def main():
     # model = Model.load(params, serialization_dir, os.path.join(serialization_dir, "weights.th"))
 
     # Make prediction
-    predictor = CorefPredictor(best_model)
     ''' # Make predicting happen
     # Make predictions
+    # predictor = CorefPredictor(best_model)
     predictor = Predictor.from_path("../models")
-    # '''
     docs = [{"document": "The woman reading a newspaper sat on the bench with her dog."},
             {"document": "The man looked at himself."}]
     output = predictor.predict_batch_json(

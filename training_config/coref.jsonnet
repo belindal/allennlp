@@ -30,8 +30,6 @@
     },
     "max_span_width": 10,
   },
-  //"fully_labelled_train_data_path": "../data/coref_ontonotes/sample_train_full",
-  //"held_out_train_data_path": "../data/coref_ontonotes/sample_train_held",
   "train_data_path": "../data/coref_ontonotes/train.english.v4_gold_conll",
   "validation_data_path": "../data/coref_ontonotes/dev.english.v4_gold_conll",
   "test_data_path": "../data/coref_ontonotes/test.english.v4_gold_conll",
@@ -108,10 +106,10 @@
     "batch_size": 1
   },
   "trainer": {
-    "num_epochs": 300, //60,
+    "num_epochs": 300,
     "grad_norm": 5.0,
-    "patience" : 5,
-    "cuda_device" : 1,
+    "patience" : 10,
+    "cuda_device" : 2,
     "validation_metric": "+coref_f1",
     "learning_rate_scheduler": {
       "type": "reduce_on_plateau",
@@ -125,8 +123,9 @@
     "active_learning": {
       "model_type": "coref",
       "epoch_interval": 20,
-      "num_labels": 9999999999,
+      "num_labels": 10,
       "simulate_user_inputs": true, // have to update in 2 places
+      "patience": 2,
     }
   }
 }
