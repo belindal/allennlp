@@ -1003,9 +1003,9 @@ class Trainer(Registrable):
                         num_queried_neg = 0  # number of user labels queried for negative edges
                         # iterate through chosen non-existent edges, add to `chosen_neg_edges`
                         for i, edge in enumerate(sorted_neg_edges):
-                            edge = self._translate_to_indA(edge.unsqueeze(0), output_dict, batch['spans']).squeeze(0)
                             if num_queried_neg >= 2 * self._active_learning_num_labels - num_queried_pos:
                                 break
+                            edge = self._translate_to_indA(edge.unsqueeze(0), output_dict, batch['spans']).squeeze(0)
                             ind_instance = edge[0]
 
                             # check if both are in gold clusters already, meaning there's no need to ask user about it
@@ -1036,7 +1036,8 @@ class Trainer(Registrable):
 
                         # edges to add
                         edges_to_add = torch.cat([batch_indA_edges, chosen_neg_edges], dim=0)
-                        edges_to_add = edges_to_add[edges_to_add[:, 0] != -1]
+                        if edges_to_add.size()[0] > 0:
+                            edges_to_add = edges_to_add[edges_to_add[:, 0] != -1]
 
                         # Update gold clusters based on (corrected) model edges, in both span_labels and metadata
                         for edge in edges_to_add:
