@@ -902,6 +902,7 @@ class Trainer(Registrable):
                     conll_coref = ConllCorefScores()
                     num_batches = 0
                     held_out_loss = 0
+                    total_num_queried = 0
                     for batch_ind, batch in enumerate(held_out_generator_tqdm):
                         batch['get_scores'] = True
                         if self._multiple_gpu:
@@ -1134,7 +1135,8 @@ class Trainer(Registrable):
                                                'coref_F1': held_out_metrics['coref_f1'], 'new_F1': new_F1,
                                                'MR': held_out_metrics['mention_recall'], 'loss': held_out_metrics['loss']}
                         description = self._description_from_metrics(description_display)
-                        description += ' # labels: ' + str(num_queried_pos + num_queried_neg) + ' ||'
+                        total_num_queried += num_queried_pos + num_queried_neg
+                        description += ' # labels: ' + str(total_num_queried) + ' ||'
                         held_out_generator_tqdm.set_description(description, refresh=False)
 
                     # add instance(s) from held-out training dataset to actual dataset (already removed from held-out
