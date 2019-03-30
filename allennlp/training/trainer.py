@@ -1059,9 +1059,11 @@ class Trainer(Registrable):
                                     # If already in same clusters, no need to merge
                                     continue
                                 num_gold_clusters = batch['metadata'][ind_instance]['num_gold_clusters']
+                                '''
                                 if proform_label < num_gold_clusters and antecedent_label < num_gold_clusters:
                                     # If both in separate *gold* clusters, no need to merge
                                     continue
+                                '''
                                 # Otherwise, merge clusters: merge larger cluster id into smaller cluster id
                                 min_cluster_id = min(proform_label, antecedent_label)
                                 max_cluster_id = max(proform_label, antecedent_label)
@@ -1123,7 +1125,7 @@ class Trainer(Registrable):
                         post_update_held_out_metrics = {}
                         for i, metadata in enumerate(batch['metadata']):
                             predicted_clusters = []
-                            for cluster in range(batch['span_labels'][i].max()):
+                            for cluster in range(batch['span_labels'][i].max() + 1):
                                 # convert spans to tuples
                                 predicted_clusters.append(batch['spans'][i][batch['span_labels'][i] == cluster].tolist())
                             predicted_clusters, mention_to_predicted = conll_coref.get_gold_clusters(predicted_clusters)
@@ -1135,6 +1137,14 @@ class Trainer(Registrable):
                                                'coref_R': held_out_metrics['coref_recall'], 'new_R': new_R,
                                                'coref_F1': held_out_metrics['coref_f1'], 'new_F1': new_F1,
                                                'MR': held_out_metrics['mention_recall'], 'loss': held_out_metrics['loss']}
+                        if self._active_learning_num_labels == 0:
+                            try:
+                                assert(new_P - held_out_metrics['coref_precision'] < 0.01)
+                                assert(new_R - held_out_metrics['coref_recall'] < 0.01)
+                                assert(new_F1 - held_out_metrics['coref_f1'] < 0.01)
+                            except:
+                                output_dict = self.model.decode(output_dict)
+                                pdb.set_trace()
                         description = self._description_from_metrics(description_display)
                         total_num_queried += num_queried_pos + num_queried_neg
                         description += ' # labels: ' + str(total_num_queried) + ' ||'
