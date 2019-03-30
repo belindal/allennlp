@@ -126,6 +126,9 @@
       "num_labels": 10,
       "simulate_user_inputs": true, // have to update in 2 places
       "patience": 2,
+      "percent_label_experiments": {
+        "percent_labels": 0.2
+      }
     }
   }
 }
