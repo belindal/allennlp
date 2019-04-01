@@ -892,6 +892,11 @@ class Trainer(Registrable):
 
                 train_data_to_add = self._held_out_train_data[:140]
                 self._held_out_train_data = self._held_out_train_data[140:]
+                held_out_generator = self._held_out_iterator(train_data_to_add, num_epochs=1, shuffle=False)
+                num_held_out_batches = self.iterator.get_num_batches(train_data_to_add)
+                held_out_generator_tqdm = Tqdm.tqdm(held_out_generator, total=num_held_out_batches)
+                conll_coref = ConllCorefScores()
+                total_num_queried = 0
 
                 if not self._percent_label_experiments:
                     with torch.no_grad():
@@ -899,13 +904,8 @@ class Trainer(Registrable):
                         # Run model on held out training data
                         self.model.eval()
 
-                        held_out_generator = self._held_out_iterator(train_data_to_add, num_epochs=1, shuffle=False)
-                        num_held_out_batches = self.iterator.get_num_batches(train_data_to_add)
-                        held_out_generator_tqdm = Tqdm.tqdm(held_out_generator, total=num_held_out_batches)
-                        conll_coref = ConllCorefScores()
                         num_batches = 0
                         held_out_loss = 0
-                        total_num_queried = 0
                         for batch_ind, batch in enumerate(held_out_generator_tqdm):
                             batch['get_scores'] = True
                             if self._multiple_gpu:
@@ -1047,10 +1047,10 @@ class Trainer(Registrable):
                             for edge in edges_to_add:
                                 ind_instance = edge[0].item()  # index of instance in batch
 
-                                chosen_proform_span_tuple = (batch['spans'][ind_instance, edge[1]][0].item(),
-                                                             batch['spans'][ind_instance, edge[1]][1].item())
-                                chosen_antecedent_span_tuple = (batch['spans'][ind_instance, edge[2]][0].item(),
-                                                                batch['spans'][ind_instance, edge[2]][1].item())
+                                # chosen_proform_span_tuple = (batch['spans'][ind_instance, edge[1]][0].item(),
+                                #                              batch['spans'][ind_instance, edge[1]][1].item())
+                                # chosen_antecedent_span_tuple = (batch['spans'][ind_instance, edge[2]][0].item(),
+                                #                                 batch['spans'][ind_instance, edge[2]][1].item())
                                 proform_label = batch['span_labels'][ind_instance, edge[1]].item()
                                 antecedent_label = batch['span_labels'][ind_instance, edge[2]].item()
 
@@ -1061,8 +1061,8 @@ class Trainer(Registrable):
                                     if proform_label == antecedent_label:
                                         # If already in same clusters, no need to merge
                                         continue
-                                    num_gold_clusters = batch['metadata'][ind_instance]['num_gold_clusters']
                                     '''
+                                    num_gold_clusters = batch['metadata'][ind_instance]['num_gold_clusters']
                                     if proform_label < num_gold_clusters and antecedent_label < num_gold_clusters:
                                         # If both in separate *gold* clusters, no need to merge
                                         continue
@@ -1073,35 +1073,22 @@ class Trainer(Registrable):
 
                                     batch['span_labels'][ind_instance][batch['span_labels'][ind_instance] ==
                                                                        max_cluster_id] = min_cluster_id
-                                    '''
-                                    batch['metadata'][ind_instance]['clusters'][min_cluster_id].extend(
-                                        batch['metadata'][ind_instance]['clusters'][max_cluster_id])
-                                    # delete the max_cluster in metadata
-                                    batch['metadata'][ind_instance]['clusters'].pop(max_cluster_id)
-                                    '''
                                     # decrease by 1 the index of all clusters > removed max_cluster in span_labels
                                     decrement_mask = -(batch['span_labels'][ind_instance] > max_cluster_id).type(torch.long)
                                     batch['span_labels'][ind_instance] += decrement_mask
-
                                 elif antecedent_label != -1:
                                     # Case 1: antecedent in cluster, proform not (update proform's label,
                                     # add proform to cluster)
                                     batch['span_labels'][ind_instance, edge[1]] = antecedent_label
-                                    #batch['metadata'][ind_instance]['clusters'][antecedent_label].append(
-                                    #    chosen_proform_span_tuple)
                                 elif proform_label != -1:
                                     # Case 2: proform in cluster, antecedent not (update antecedent's label,
                                     # add antecedent to cluster)
                                     batch['span_labels'][ind_instance, edge[2]] = proform_label
-                                    #batch['metadata'][ind_instance]['clusters'][proform_label].append(
-                                    #    chosen_antecedent_span_tuple)
                                 else:
                                     # Case 3: neither in cluster (create new cluster with both)
                                     cluster_id = batch['span_labels'].max() + 1
                                     batch['span_labels'][ind_instance, edge[2]] = cluster_id
                                     batch['span_labels'][ind_instance, edge[1]] = cluster_id
-                                    #batch['metadata'][ind_instance]['clusters'].append(
-                                    #    [chosen_antecedent_span_tuple, chosen_proform_span_tuple])
 
                                 if ind_instance not in train_instances_to_update:
                                     train_instances_to_update[ind_instance] = 0
@@ -1114,10 +1101,6 @@ class Trainer(Registrable):
                                     batch['span_labels'][ind_instance].tolist(),
                                     train_data_to_add[ind_instance_overall].fields['span_labels'].sequence_field
                                 )
-                                train_data_to_add[ind_instance_overall].fields['metadata'].metadata['clusters'] = \
-                                    batch['metadata'][ind_instance]['clusters']
-                                train_data_to_add[ind_instance_overall].fields['metadata'].metadata['num_gold_clusters'] = \
-                                    batch['metadata'][ind_instance]['num_gold_clusters']
 
                             if output_dict['loss'] is not None:
                                 num_batches += 1
@@ -1144,11 +1127,6 @@ class Trainer(Registrable):
                             description += ' # labels: ' + str(total_num_queried) + ' ||'
                             held_out_generator_tqdm.set_description(description, refresh=False)
                 else:
-                    held_out_generator = self._held_out_iterator(train_data_to_add, num_epochs=1, shuffle=False)
-                    num_held_out_batches = self.iterator.get_num_batches(train_data_to_add)
-                    held_out_generator_tqdm = Tqdm.tqdm(held_out_generator, total=num_held_out_batches)
-                    conll_coref = ConllCorefScores()
-                    total_num_queried = 0
                     total_labels = 0
                     for batch_ind, batch in enumerate(held_out_generator_tqdm):
                         for i, metadata in enumerate(batch['metadata']):
@@ -1163,7 +1141,7 @@ class Trainer(Registrable):
                                 batch['user_labels'][i, user_cluster_idx] = -1
                             # labelled in user_labels to not in span_labels
                             possible_mentions_idx = ((batch['user_labels'][i] >= 0) * (batch['span_labels'][i] == -1)).nonzero().squeeze(-1)
-                            num_labels = len(possible_mentions_idx) 
+                            num_labels = len(possible_mentions_idx)
                             num_labels_to_pick = int(self._percent_labels * num_labels)
                             ''' Try to avoid singletons 
                             # uniformly choose in possible_labels_idx, without replacement
@@ -1221,6 +1199,7 @@ class Trainer(Registrable):
                 # add instance(s) from held-out training dataset to actual dataset (already removed from held-out
                 # above)
                 self.train_data.extend(train_data_to_add)
+                pdb.set_trace()
 
                 last_data_added_epoch = epoch
 
