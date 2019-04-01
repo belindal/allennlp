@@ -272,20 +272,13 @@ def train_model(params: Params,
 def main():
     serialization_dir = "temp"
 
-    params = Params.from_file("./training_config/coref.jsonnet", "")
-    all_f1s = []
-    all_ps = []
-    all_rs = []
-    for percent in range(1, 100, 20):  # [20, 40, 60, 80]
+    for percent in [100, 80, 60, 40]:  # [20, 40, 60, 80]
+        params = Params.from_file("./training_config/coref.jsonnet", "")
+        print(str(percent) + "% of labels")
         params.params["trainer"]["active_learning"]["percent_label_experiments"] = {'percent_labels': round(percent * 0.01, 2)}
+        os.system("rm -rf " + serialization_dir)
         best_model, metrics = train_model(params, serialization_dir, str(percent) + ".json")
         print("  Best Epoch = " + str(metrics['best_epoch']) + " with F1 = " + str(metrics['best_validation_coref_f1']))
-        all_f1s.append(metrics['best_validation_coref_f1'])
-        all_ps.append(metrics['best_validation_coref_precision'])
-        all_rs.append(metrics['best_validation_coref_recall'])
-
-    with open(results_dir + "/all_f1s.json", 'w') as outfile:
-        json.dump({"F1": all_f1s, "Precision": all_ps, "Recall": all_rs}, outfile)
 
 
 if __name__ == "__main__":

@@ -899,9 +899,7 @@ class Trainer(Registrable):
                         # Run model on held out training data
                         self.model.eval()
 
-                        held_out_generator = self._held_out_iterator(train_data_to_add,
-                                                                     num_epochs=1,
-                                                                     shuffle=False)
+                        held_out_generator = self._held_out_iterator(train_data_to_add, num_epochs=1, shuffle=False)
                         num_held_out_batches = self.iterator.get_num_batches(train_data_to_add)
                         held_out_generator_tqdm = Tqdm.tqdm(held_out_generator, total=num_held_out_batches)
                         conll_coref = ConllCorefScores()
@@ -1127,7 +1125,6 @@ class Trainer(Registrable):
 
                             # Update the description with the latest metrics
                             held_out_metrics = self._get_metrics(held_out_loss, num_batches)
-                            post_update_held_out_metrics = {}
                             for i, metadata in enumerate(batch['metadata']):
                                 predicted_clusters = []
                                 for cluster in range(batch['span_labels'][i].max() + 1):
@@ -1147,15 +1144,79 @@ class Trainer(Registrable):
                             description += ' # labels: ' + str(total_num_queried) + ' ||'
                             held_out_generator_tqdm.set_description(description, refresh=False)
                 else:
-                    # add self._percent_labels of user labels
-                    for instance in train_data_to_add:
-                        instance = instance.as_tensor_dict(instance.get_padding_lengths())
-                        pdb.set_trace()
-                        labels_mask = instance['span_labels'] >= 0
-                        # determine how many labels to pick
-                        # bookmark
-                        num_labels_to_pick = self._percent_labels * len(labels_mask.nonzero())
+                    held_out_generator = self._held_out_iterator(train_data_to_add, num_epochs=1, shuffle=False)
+                    num_held_out_batches = self.iterator.get_num_batches(train_data_to_add)
+                    held_out_generator_tqdm = Tqdm.tqdm(held_out_generator, total=num_held_out_batches)
+                    conll_coref = ConllCorefScores()
+                    total_num_queried = 0
+                    total_labels = 0
+                    for batch_ind, batch in enumerate(held_out_generator_tqdm):
+                        for i, metadata in enumerate(batch['metadata']):
+                            # eliminate singletons
+                            user_clusters_mask = batch['user_labels'][i] >= 0
+                            if len(user_clusters_mask.nonzero()) > 0:
+                                singleton_clusters = (batch['user_labels'][i][user_clusters_mask].bincount() == 1).nonzero().squeeze(-1)
+                            else:
+                                singleton_clusters = user_clusters_mask.nonzero()
+                            for cluster in singleton_clusters:
+                                user_cluster_idx = (batch['user_labels'][i] == cluster).nonzero()
+                                batch['user_labels'][i, user_cluster_idx] = -1
+                            # labelled in user_labels to not in span_labels
+                            possible_mentions_idx = ((batch['user_labels'][i] >= 0) * (batch['span_labels'][i] == -1)).nonzero().squeeze(-1)
+                            num_labels = len(possible_mentions_idx) 
+                            num_labels_to_pick = int(self._percent_labels * num_labels)
+                            ''' Try to avoid singletons 
+                            # uniformly choose in possible_labels_idx, without replacement
+                            chosen_labels_idx = possible_labels_idx[
+                                torch.multinomial(torch.ones(len(possible_labels_idx)), num_labels_to_pick, replacement=False)
+                            ]
+                            batch['span_labels'][i, chosen_labels_idx] = batch['user_labels'][i, chosen_labels_idx]
+                            '''
+                            seen_clusters = {}
+                            labels = 0
+                            while labels < num_labels_to_pick:
+                                chosen_cluster_mention = possible_mentions_idx[torch.randint(len(possible_mentions_idx), (), dtype=torch.long)]
+                                chosen_cluster = batch['user_labels'][i][chosen_cluster_mention].item()
+                                if chosen_cluster not in seen_clusters:
+                                    possible_cluster_mentions = ((batch['user_labels'][i] == chosen_cluster) * (
+                                                batch['span_labels'][i] != chosen_cluster)).nonzero().squeeze(-1)
+                                    num_mentions_to_pick = min(2, len(possible_cluster_mentions))
+                                else:
+                                    num_mentions_to_pick = 1
+                                    possible_cluster_mentions = seen_clusters[chosen_cluster]
+                                for m in range(num_mentions_to_pick):
+                                    # possible_cluster_mentions can't be empty at this point
+                                    chosen_mention = possible_cluster_mentions[torch.randint(len(possible_cluster_mentions), (), dtype=torch.long)]
+                                    possible_cluster_mentions = possible_cluster_mentions[possible_cluster_mentions != chosen_mention]
+                                    batch['span_labels'][i, chosen_mention] = chosen_cluster
+                                    labels += 1
+                                    possible_mentions_idx = possible_mentions_idx[possible_mentions_idx != chosen_mention]
+                                seen_clusters[chosen_cluster] = possible_cluster_mentions
+                            # add to train_data_to_add
+                            ind_instance_overall = batch_ind * len(batch['metadata']) + i  # index in entire train data
+                            train_data_to_add[ind_instance_overall].fields['span_labels'] = SequenceLabelField(
+                                batch['span_labels'][i].tolist(),
+                                train_data_to_add[ind_instance_overall].fields['span_labels'].sequence_field
+                            )
 
+                            # create & evaluate clusters
+                            chosen_clusters = []
+                            for cluster in range(max(batch['span_labels'][i]) + 1):
+                                if len((batch['span_labels'][i] == cluster).nonzero()) <= 0:
+                                    continue
+                                # convert spans to tuples
+                                chosen_clusters.append(batch['spans'][i][batch['span_labels'][i] == cluster].tolist())
+                            chosen_clusters, mention_to_predicted = conll_coref.get_gold_clusters(chosen_clusters)
+                            gold_clusters, mention_to_gold = conll_coref.get_gold_clusters(batch['metadata'][i]['clusters'])
+                            for scorer in conll_coref.scorers:
+                                scorer.update(chosen_clusters, gold_clusters, mention_to_predicted, mention_to_gold)
+                        new_P, new_R, new_F1 = conll_coref.get_metric()
+                        description_display = {'coref_precision': new_P, 'coref_recall': new_R, 'coref_f1': new_F1}
+                        description = self._description_from_metrics(description_display)
+                        total_num_queried += num_labels_to_pick
+                        total_labels += num_labels
+                        description += ' # chosen labels: ' + str(total_num_queried) + ', total labels: ' + str(total_labels) + ' ||'
+                        held_out_generator_tqdm.set_description(description, refresh=False)
 
                 # add instance(s) from held-out training dataset to actual dataset (already removed from held-out
                 # above)
