@@ -290,10 +290,14 @@ def train_model(params: Params,
 # In practice you'd probably do this from the command line:
 #   $ allennlp train tutorials/tagger/experiment.jsonnet -s /tmp/serialization_dir
 #
-def main():
+def main(cuda_device, testing=False):
     # ''' Make training happen
     params = Params.from_file('training_config/coref.jsonnet')
     serialization_dir = tempfile.mkdtemp()
+    params.params['trainer']['cuda_device'] = cuda_device
+    if testing:
+        params.params['trainer']['active_learning']['epoch_interval'] = 0
+        params.params['model']['text_field_embedder']['token_embedders']['tokens'] = {'type': 'embedding', 'embedding_dim': 300}
     best_model = train_model(params, serialization_dir)
     # model = Model.load(params, serialization_dir, os.path.join(serialization_dir, "weights.th"))
 
@@ -317,4 +321,13 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description='Run setting')
+    parser.add_argument('cuda_device', type=int,
+                        help='which cuda device to run on')
+    parser.add_argument('-t', '--testing',
+                        action='store_true',
+                        default=False,
+                        help='run testing configuration')
+    
+    args = parser.parse_args()
+    main(vars(args)['cuda_device'], vars(args)['testing'])
