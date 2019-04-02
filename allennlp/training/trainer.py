@@ -956,7 +956,7 @@ class Trainer(Registrable):
                                 antecedent_gold_labels = batch['span_labels'][chosen_pos_edges[:, 0], chosen_pos_edges[:, 2]]
                                 edges_both_ends_in_gold_clusters_mask = (proform_gold_labels != -1) * (antecedent_gold_labels != -1)
                                 # TODO: only query (self._percent_to_query)% of labels
-                                chosen_pos_edges = chosen_pos_edges[1 - edges_both_ends_in_gold_clusters_mask][:int(self._active_learning_num_labels)/2]
+                                chosen_pos_edges = chosen_pos_edges[1 - edges_both_ends_in_gold_clusters_mask][:int(self._active_learning_num_labels/2)]
                                 num_queried_pos = len(chosen_pos_edges)
                                 if num_queried_pos > 0:
                                     if self._sample_from_training:
