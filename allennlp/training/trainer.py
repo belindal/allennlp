@@ -831,12 +831,15 @@ class Trainer(Registrable):
         return sorted_edges
 
     def _query_user_labels(self, chosen_edges, span_labels, user_labels, num_labels_to_query,
+                           return_all_edges,
                            use_alt_edges=False, all_candidate_alt_edges=None) -> torch.LongTensor:
         """
         :param chosen_edges: should be sorted
         :param span_labels: from batch['span_labels']
         :param user_labels: from batch['user_labels']
         :param num_labels_to_query:
+        :param return_all_edges: returns all deemed coreferent edges, regardless of num_labels_to_query,
+                                 if False, returns only up to num_labels_to_query edges
         :param use_alt_edges:
         :param all_candidate_alt_edges:
         :return:
@@ -849,25 +852,25 @@ class Trainer(Registrable):
         chosen_edges = chosen_edges[1 - edges_both_ends_in_gold_clusters_mask]
         total_possible_queries = len(chosen_edges)
         if self._use_percent_labels:
-            chosen_edges = chosen_edges[:int(num_labels_to_query * total_possible_queries)]
+            num_queried = int(num_labels_to_query * total_possible_queries)
         else:
-            chosen_edges = chosen_edges[:num_labels_to_query]
-        num_queried = len(chosen_edges)
+            num_queried = num_labels_to_query
+        edges_to_query = chosen_edges[:num_queried]
         if num_queried > 0:
             if self._sample_from_training:
-                proform_user_labels = user_labels[chosen_edges[:, 0], chosen_edges[:, 1]]
-                antecedent_user_labels = user_labels[chosen_edges[:, 0], chosen_edges[:, 2]]
+                proform_user_labels = user_labels[edges_to_query[:, 0], edges_to_query[:, 1]]
+                antecedent_user_labels = user_labels[edges_to_query[:, 0], edges_to_query[:, 2]]
                 coreferent_mask = (proform_user_labels == antecedent_user_labels) * (proform_user_labels != -1)
             else:
                 # iterate through chosen edges (note iterating through inds given by ind_min_exist_edge_scores)
-                for i, edge in enumerate(chosen_edges):
+                for i, edge in enumerate(edges_to_query):
                     ind_instance = edge[0]  # index in batch
                     # TODO: mechanism for printing chosen_proform_span and chosen_antecedent_span to user and getting user input
                     coreferent = True
             if use_alt_edges:
                 assert all_candidate_alt_edges is not None
                 # replace non-coreferent edges with alternate edges (same proform, next largest antecedent)
-                non_coreferent_edges = chosen_edges[1 - coreferent_mask]
+                non_coreferent_edges = edges_to_query[1 - coreferent_mask]
                 alternate_edges = -torch.ones(non_coreferent_edges.size(), dtype=torch.long,
                                               device=non_coreferent_edges.device)
                 for i, edge in enumerate(non_coreferent_edges):
@@ -878,11 +881,15 @@ class Trainer(Registrable):
                     if possible_alts.size()[0] > 0:
                         # exists at least 1 alternate edge, add next largest positive edge from antecedent
                         alternate_edges[i] = possible_alts[0]
-                chosen_edges[1 - coreferent_mask] = alternate_edges
+                edges_to_query[1 - coreferent_mask] = alternate_edges
                 # filter -1s
-                chosen_edges = chosen_edges[chosen_edges[:, 0] >= 0]
+                edges_to_query = edges_to_query[edges_to_query[:, 0] >= 0]
             else:
-                chosen_edges = chosen_edges[coreferent_mask]
+                edges_to_query = edges_to_query[coreferent_mask]
+        if return_all_edges:
+            chosen_edges = torch.cat([edges_to_query, chosen_edges[num_queried:]]) 
+        else:
+            chosen_edges = edges_to_query
         return chosen_edges, num_queried, total_possible_queries
 
     def train(self) -> Dict[str, Any]:
@@ -1052,7 +1059,7 @@ class Trainer(Registrable):
                                     num_to_query = int(self._active_learning_num_labels / 2)
                                 chosen_pos_edges, num_queried_pos, total_possible_pos_queries = \
                                     self._query_user_labels(chosen_pos_edges, batch['span_labels'], batch['user_labels'],
-                                                            num_to_query,
+                                                            num_to_query, True,
                                                             self._replace_with_next_pos_edge, sorted_larger_than_zero_edges)
 
                             # TODO modularize code: Beginning of non-existing edges querying portion
@@ -1069,7 +1076,7 @@ class Trainer(Registrable):
                                 num_to_query = self._active_learning_num_labels - num_queried_pos
                             chosen_neg_edges, num_queried_neg, total_possible_neg_queries = \
                                 self._query_user_labels(chosen_neg_edges, batch['span_labels'], batch['user_labels'],
-                                                        num_to_query)
+                                                        num_to_query, False)
 
                             # keep track of which instances we have to update in training data
                             train_instances_to_update = {}
