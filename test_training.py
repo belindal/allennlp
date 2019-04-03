@@ -284,21 +284,35 @@ def train_model(params: Params,
 
     dump_metrics(os.path.join(serialization_dir, "metrics.json"), metrics, log=True)
 
-    return best_model
+    return best_model, metrics
 
 
 # In practice you'd probably do this from the command line:
 #   $ allennlp train tutorials/tagger/experiment.jsonnet -s /tmp/serialization_dir
 #
-def main(cuda_device, testing=False):
+def main(cuda_device, testing=False, experiments=False):
     # ''' Make training happen
-    params = Params.from_file('training_config/coref.jsonnet')
-    serialization_dir = tempfile.mkdtemp()
-    params.params['trainer']['cuda_device'] = cuda_device
-    if testing:
-        params.params['trainer']['active_learning']['epoch_interval'] = 0
-        params.params['model']['text_field_embedder']['token_embedders']['tokens'] = {'type': 'embedding', 'embedding_dim': 300}
-    best_model = train_model(params, serialization_dir)
+    if experiments:
+        save_dir = "percent_labels_experiment_2"
+        for x in range(0, 100, 10):
+            print("Running with " + str(x) + "% of labels")
+            serialization_dir = "temp_" + str(cuda_device)
+            os.system('rm -rf ' + serialization_dir)
+            params = Params.from_file('training_config/coref.jsonnet')
+            params.params['trainer']['cuda_device'] = cuda_device
+            params.params['trainer']['active_learning']['use_percent'] = True
+            params.params['trainer']['active_learning']['num_labels'] = round(0.1 * x, 2)
+            best_model, metrics = train_model(params, serialization_dir)
+            dump_metrics(os.path.join(save_dir, str(x) + ".json"), metrics, log=True)
+    else:
+        params = Params.from_file('training_config/coref.jsonnet')
+        if testing:
+            params.params['trainer']['active_learning']['epoch_interval'] = 0
+            params.params['model']['text_field_embedder']['token_embedders']['tokens'] = {'type': 'embedding', 'embedding_dim': 300}
+        serialization_dir = tempfile.mkdtemp()
+        params.params['trainer']['cuda_device'] = cuda_device
+        best_model, metrics = train_model(params, serialization_dir)
+
     # model = Model.load(params, serialization_dir, os.path.join(serialization_dir, "weights.th"))
 
     # Make prediction
@@ -328,6 +342,10 @@ if __name__ == "__main__":
                         action='store_true',
                         default=False,
                         help='run testing configuration')
+    parser.add_argument('-e', '--experiments',
+                        action='store_true',
+                        default=False,
+                        help='run x% of labels experiments')
     
     args = parser.parse_args()
     main(vars(args)['cuda_device'], vars(args)['testing'])
