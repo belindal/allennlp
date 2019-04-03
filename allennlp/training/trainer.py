@@ -776,15 +776,15 @@ class Trainer(Registrable):
         proform_spans = output_dict['top_spans'][instances, indB_proforms]
         antecedent_spans = output_dict['top_spans'][instances, indB_antecedents]
         if len(proform_spans) > 10000:
-            pdb.set_trace()
-            indA_proforms = torch.Tensor(instances.size(), dtype=torch.long, device=instances.device)
-            indA_antecedents = torch.Tensor(instances.size(), dtype=torch.long, device=instances.device)
+            indA_proforms = torch.empty(instances.size(), dtype=torch.long, device=instances.device)
+            indA_antecedents = torch.empty(instances.size(), dtype=torch.long, device=instances.device)
             # too big for cuda, break into chunks
-            for i in range(len(proform_spans), 10000):
+            for i in range(0, len(proform_spans), 10000):
+                instances_chunk = instances[i:i+10000]
                 proform_span_chunk = proform_spans[i:i+10000]
                 antecedent_span_chunk = antecedent_spans[i:i+10000]
-                indA_proform_chunk = ((proform_span_chunk.unsqueeze(1) - all_spans[instances]).abs().sum(-1) == 0).nonzero()[:, 1]
-                indA_antecedent_chunk = ((antecedent_span_chunk.unsqueeze(1) - all_spans[instances]).abs().sum(-1) == 0).nonzero()[:, 1]
+                indA_proform_chunk = ((proform_span_chunk.unsqueeze(1) - all_spans[instances_chunk]).abs().sum(-1) == 0).nonzero()[:, 1]
+                indA_antecedent_chunk = ((antecedent_span_chunk.unsqueeze(1) - all_spans[instances_chunk]).abs().sum(-1) == 0).nonzero()[:, 1]
                 indA_proforms[i:i+10000] = indA_proform_chunk
                 indA_antecedents[i:i+10000] = indA_antecedent_chunk
         else:
@@ -804,11 +804,11 @@ class Trainer(Registrable):
         # so this makes the indices line up with actual spans if the prediction
         # is greater than -1.
         masked_edge_inds[:, 2] -= 1
-        neg_edge_scores = output_dict['coreference_scores'][masked_edge_inds]
+        edge_scores = output_dict['coreference_scores'][coreference_mask]
         # get sorted least negative scores
-        max_neg_edge_scores, ind_max_neg_edge_scores = neg_edge_scores.sort(descending=True)
-        sorted_neg_edges = masked_edge_inds[ind_max_neg_edge_scores]
-        return self._translate_to_indA(sorted_neg_edges, output_dict, all_spans)
+        _, ind_max_edge_scores = edge_scores.sort(descending=True)
+        sorted_edges = masked_edge_inds[ind_max_edge_scores]
+        return self._translate_to_indA(sorted_edges, output_dict, all_spans)
 
     def _query_user_labels(self, chosen_edges, span_labels, user_labels, num_labels_to_query,
                            use_alt_edges=False, all_candidate_alt_edges=None) -> torch.LongTensor:
@@ -840,7 +840,7 @@ class Trainer(Registrable):
                     # TODO: mechanism for printing chosen_proform_span and chosen_antecedent_span to user and getting user input
                     coreferent = True
             if use_alt_edges:
-                assert all_candidate_alt_edges
+                assert all_candidate_alt_edges is not None
                 # replace non-coreferent edges with alternate edges (same proform, next largest antecedent)
                 non_coreferent_edges = chosen_edges[1 - coreferent_mask]
                 alternate_edges = -torch.ones(non_coreferent_edges.size(), dtype=torch.long,
