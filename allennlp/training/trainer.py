@@ -359,7 +359,11 @@ class Trainer(Registrable):
                 raise ConfigurationError("Active learning only compatible with coreference model (for now)")
             self._do_active_learning = True
             self._active_learning_epoch_interval = active_learning['epoch_interval']
-            self._active_learning_num_labels = active_learning['num_labels']
+            self._use_percent_labels = active_learning['use_percent'] is not None and active_learning['use_percent']
+            if self._use_percent_labels:
+                self._active_learning_percent_labels = active_learning['num_labels']
+            else:
+                self._active_learning_num_labels = active_learning['num_labels']
             self._sample_from_training = active_learning['simulate_user_inputs']
             self._active_learning_patience = active_learning['patience']
             self._percent_label_experiments = True if 'percent_label_experiments' in active_learning else False
@@ -768,30 +772,46 @@ class Trainer(Registrable):
         # note output_dict['antecedent_indices'] translates indB <-> indC by:
         # indB = output_dict['antecedent_indices'][instance, proform idx, indC]
         instances = edges[:, 0]
-        indB_proforms = edges[:, 1]
-        indC_antecedents = edges[:, 2]
+        ind_proforms = edges[:, 1]
+        ind_antecedents = edges[:, 2]
+        ind_antecedents = output_dict['antecedent_indices'][instances, ind_proforms, ind_antecedents] #indB
 
-        indB_antecedents = output_dict['antecedent_indices'][instances, indB_proforms, indC_antecedents]
-
-        proform_spans = output_dict['top_spans'][instances, indB_proforms]
-        antecedent_spans = output_dict['top_spans'][instances, indB_antecedents]
-        if len(proform_spans) > 10000:
+        proform_spans = output_dict['top_spans'][instances, ind_proforms]
+        antecedent_spans = output_dict['top_spans'][instances, ind_antecedents]
+        chunk_size = 10000
+        if len(proform_spans) > chunk_size:
+            # too big for cuda, break into chunks
             indA_proforms = torch.empty(instances.size(), dtype=torch.long, device=instances.device)
             indA_antecedents = torch.empty(instances.size(), dtype=torch.long, device=instances.device)
-            # too big for cuda, break into chunks
-            for i in range(0, len(proform_spans), 10000):
-                instances_chunk = instances[i:i+10000]
-                proform_span_chunk = proform_spans[i:i+10000]
-                antecedent_span_chunk = antecedent_spans[i:i+10000]
-                indA_proform_chunk = ((proform_span_chunk.unsqueeze(1) - all_spans[instances_chunk]).abs().sum(-1) == 0).nonzero()[:, 1]
-                indA_antecedent_chunk = ((antecedent_span_chunk.unsqueeze(1) - all_spans[instances_chunk]).abs().sum(-1) == 0).nonzero()[:, 1]
-                indA_proforms[i:i+10000] = indA_proform_chunk
-                indA_antecedents[i:i+10000] = indA_antecedent_chunk
+            i = 0
+            while i < len(proform_spans):
+                try:
+                    # should use < 75% of GPU memory
+                    assert(torch.cuda.memory_cached(instances.device.index) + torch.cuda.memory_allocated(instances.device.index)
+                           < 0.75 * torch.cuda.get_device_properties(instances.device.index).total_memory)
+                    instances_chunk = instances[i:i+chunk_size]
+                    proform_span_chunk = proform_spans[i:i+chunk_size]
+                    antecedent_span_chunk = antecedent_spans[i:i+chunk_size]
+                    indA_proforms[i:i+chunk_size] = ((proform_span_chunk.unsqueeze(1) - all_spans[instances_chunk]).abs().sum(-1) == 0).nonzero()[:, 1]
+                    indA_antecedents[i:i+chunk_size] = ((antecedent_span_chunk.unsqueeze(1) - all_spans[instances_chunk]).abs().sum(-1) == 0).nonzero()[:, 1]
+                    i += chunk_size
+                except:
+                    torch.cuda.empty_cache()
+                    chunk_size = int(chunk_size / 2)
+                    '''
+                    import gc
+                    from functools import reduce
+                    import operator as op
+                    for obj in gc.get_objects():
+                        try:
+                            if torch.is_tensor(obj) or (hasattr(obj, 'data') and torch.is_tensor(obj.data)):
+                                print(type(obj), obj.size())
+                        except: pass
+                   '''
         else:
             indA_proforms = ((proform_spans.unsqueeze(1) - all_spans[instances]).abs().sum(-1) == 0).nonzero()[:, 1]
             indA_antecedents = ((antecedent_spans.unsqueeze(1) - all_spans[instances]).abs().sum(-1) == 0).nonzero()[:, 1]
-        batch_indA_edges = torch.stack([instances, indA_proforms, indA_antecedents], dim=-1)
-        return batch_indA_edges
+        return torch.stack([instances, indA_proforms, indA_antecedents], dim=-1)
 
     def _get_sorted_masked_edges(self, coreference_mask, output_dict, all_spans) -> torch.LongTensor:
         """
@@ -807,8 +827,8 @@ class Trainer(Registrable):
         edge_scores = output_dict['coreference_scores'][coreference_mask]
         # get sorted least negative scores
         _, ind_max_edge_scores = edge_scores.sort(descending=True)
-        sorted_edges = masked_edge_inds[ind_max_edge_scores]
-        return self._translate_to_indA(sorted_edges, output_dict, all_spans)
+        sorted_edges = self._translate_to_indA(masked_edge_inds[ind_max_edge_scores], output_dict, all_spans)
+        return sorted_edges
 
     def _query_user_labels(self, chosen_edges, span_labels, user_labels, num_labels_to_query,
                            use_alt_edges=False, all_candidate_alt_edges=None) -> torch.LongTensor:
@@ -826,7 +846,12 @@ class Trainer(Registrable):
         antecedent_gold_labels = span_labels[chosen_edges[:, 0], chosen_edges[:, 2]]
         edges_both_ends_in_gold_clusters_mask = (proform_gold_labels != -1) * (antecedent_gold_labels != -1)
         # TODO: only query (self._percent_to_query)% of labels
-        chosen_edges = chosen_edges[1 - edges_both_ends_in_gold_clusters_mask][:num_labels_to_query]
+        chosen_edges = chosen_edges[1 - edges_both_ends_in_gold_clusters_mask]
+        total_possible_queries = len(chosen_edges)
+        if self._use_percent_labels:
+            chosen_edges = chosen_edges[:int(num_labels_to_query * total_possible_queries)]
+        else:
+            chosen_edges = chosen_edges[:num_labels_to_query]
         num_queried = len(chosen_edges)
         if num_queried > 0:
             if self._sample_from_training:
@@ -858,7 +883,7 @@ class Trainer(Registrable):
                 chosen_edges = chosen_edges[chosen_edges[:, 0] >= 0]
             else:
                 chosen_edges = chosen_edges[coreferent_mask]
-        return chosen_edges, num_queried
+        return chosen_edges, num_queried, total_possible_queries
 
     def train(self) -> Dict[str, Any]:
         """
@@ -944,7 +969,7 @@ class Trainer(Registrable):
                 dump_metrics(os.path.join(self._serialization_dir, f'metrics_epoch_{epoch}.json'), metrics)
 
             if self._learning_rate_scheduler and (self._held_out_train_data is None or
-                                                  len(self._held_out_train_data) == 0):
+                                                  len(self._held_out_train_data) == 1):
                 # The LRScheduler API is agnostic to whether your schedule requires a validation metric -
                 # if it doesn't, the validation metric passed here is ignored.
                 self._learning_rate_scheduler.step(this_epoch_val_metric, epoch)
@@ -969,13 +994,13 @@ class Trainer(Registrable):
                                              epoch - last_data_added_epoch >= self._active_learning_epoch_interval):
                 # take a subset of training data to evaluate on, and add to actual training set
                 # TODO: currently arbitrarily choosing next 1 instance (by order in file), perhaps change this future(?)
-
                 train_data_to_add = self._held_out_train_data[:140]
                 self._held_out_train_data = self._held_out_train_data[140:]
                 held_out_generator = self._held_out_iterator(train_data_to_add, num_epochs=1, shuffle=False)
                 num_held_out_batches = self.iterator.get_num_batches(train_data_to_add)
                 held_out_generator_tqdm = Tqdm.tqdm(held_out_generator, total=num_held_out_batches)
                 conll_coref = ConllCorefScores()
+                total_labels = 0
                 total_num_queried = 0
 
                 if not self._percent_label_experiments:
@@ -1021,9 +1046,13 @@ class Trainer(Registrable):
                                 min_exist_edge_scores, ind_min_exist_edge_scores = model_pred_edge_scores.sort()
                                 chosen_pos_edges = chosen_pos_edges[ind_min_exist_edge_scores]
 
-                                chosen_pos_edges, num_queried_pos = \
+                                if self._use_percent_labels:
+                                    num_to_query = self._active_learning_percent_labels
+                                else:
+                                    num_to_query = int(self._active_learning_num_labels / 2)
+                                chosen_pos_edges, num_queried_pos, total_possible_pos_queries = \
                                     self._query_user_labels(chosen_pos_edges, batch['span_labels'], batch['user_labels'],
-                                                            int(self._active_learning_num_labels / 2),
+                                                            num_to_query,
                                                             self._replace_with_next_pos_edge, sorted_larger_than_zero_edges)
 
                             # TODO modularize code: Beginning of non-existing edges querying portion
@@ -1034,10 +1063,13 @@ class Trainer(Registrable):
                             chosen_neg_edges = self._get_sorted_masked_edges(neg_edge_inds_mask, output_dict,
                                                                              batch['spans'])
 
-                            # TODO: only query (self._percent_to_query)% of labels
-                            chosen_neg_edges, num_queried_neg = \
+                            if self._use_percent_labels:
+                                num_to_query = self._active_learning_percent_labels
+                            else:
+                                num_to_query = self._active_learning_num_labels - num_queried_pos
+                            chosen_neg_edges, num_queried_neg, total_possible_neg_queries = \
                                 self._query_user_labels(chosen_neg_edges, batch['span_labels'], batch['user_labels'],
-                                                        self._active_learning_num_labels - num_queried_pos)
+                                                        num_to_query)
 
                             # keep track of which instances we have to update in training data
                             train_instances_to_update = {}
@@ -1120,16 +1152,16 @@ class Trainer(Registrable):
                                 for scorer in conll_coref.scorers:
                                     scorer.update(predicted_clusters, gold_clusters, mention_to_predicted, mention_to_gold)
                             new_P, new_R, new_F1 = conll_coref.get_metric()
-                            description_display = {'coref_P': held_out_metrics['coref_precision'], 'new_P': new_P,
-                                                   'coref_R': held_out_metrics['coref_recall'], 'new_R': new_R,
-                                                   'coref_F1': held_out_metrics['coref_f1'], 'new_F1': new_F1,
+                            description_display = {'old_P': held_out_metrics['coref_precision'], 'new_P': new_P,
+                                                   'old_R': held_out_metrics['coref_recall'], 'new_R': new_R,
+                                                   'old_F1': held_out_metrics['coref_f1'], 'new_F1': new_F1,
                                                    'MR': held_out_metrics['mention_recall'], 'loss': held_out_metrics['loss']}
                             description = self._description_from_metrics(description_display)
                             total_num_queried += num_queried_pos + num_queried_neg
-                            description += ' # labels: ' + str(total_num_queried) + ' ||'
+                            total_labels += total_possible_pos_queries + total_possible_neg_queries
+                            description += ' # labels: ' + str(total_num_queried) + '/' + str(total_labels) + ' ||'
                             held_out_generator_tqdm.set_description(description, refresh=False)
                 else:
-                    total_labels = 0
                     for batch_ind, batch in enumerate(held_out_generator_tqdm):
                         for i, metadata in enumerate(batch['metadata']):
                             # eliminate singletons
