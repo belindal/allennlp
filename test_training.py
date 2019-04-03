@@ -348,4 +348,4 @@ if __name__ == "__main__":
                         help='run x% of labels experiments')
     
     args = parser.parse_args()
-    main(vars(args)['cuda_device'], vars(args)['testing'])
+    main(vars(args)['cuda_device'], vars(args)['testing'], vars(args)['experiments'])
