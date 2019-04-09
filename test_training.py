@@ -290,11 +290,11 @@ def train_model(params: Params,
 # In practice you'd probably do this from the command line:
 #   $ allennlp train tutorials/tagger/experiment.jsonnet -s /tmp/serialization_dir
 #
-def main(cuda_device, testing=False, experiments=False):
+def main(cuda_device, testing=False, testing_vocab=False, experiments=False):
     # ''' Make training happen
     if experiments:
         save_dir = "percent_labels_experiment_2"
-        for x in range(10, 90, 10):
+        for x in [100, 50, 20, 10, 5]:
             print("Running with " + str(x) + "% of labels")
             serialization_dir = "temp_" + str(cuda_device)
             os.system('rm -rf ' + serialization_dir)
@@ -306,32 +306,13 @@ def main(cuda_device, testing=False, experiments=False):
             dump_metrics(os.path.join(save_dir, str(x) + ".json"), metrics, log=True)
     else:
         params = Params.from_file('training_config/coref.jsonnet')
-        if testing:
+        if testing or testing_vocab:
             params.params['trainer']['active_learning']['epoch_interval'] = 0
-            params.params['model']['text_field_embedder']['token_embedders']['tokens'] = {'type': 'embedding', 'embedding_dim': 300}
+            if testing:
+                params.params['model']['text_field_embedder']['token_embedders']['tokens'] = {'type': 'embedding', 'embedding_dim': 300}
         serialization_dir = tempfile.mkdtemp()
         params.params['trainer']['cuda_device'] = cuda_device
         best_model, metrics = train_model(params, serialization_dir)
-
-    # model = Model.load(params, serialization_dir, os.path.join(serialization_dir, "weights.th"))
-
-    # Make prediction
-    ''' # Make predicting happen
-    # Make predictions
-    # predictor = CorefPredictor(best_model)
-    predictor = Predictor.from_path("../models")
-    docs = [{"document": "The woman reading a newspaper sat on the bench with her dog."},
-            {"document": "The man looked at himself."}]
-    output = predictor.predict_batch_json(
-        inputs=docs,
-    )
-    print("output: ")
-    for i in range(len(docs)):
-        for item in output[i]:
-            print(str(item) + ": " + str(output[i][item]))
-        print()
-
-    # '''
 
 
 if __name__ == "__main__":
@@ -342,10 +323,14 @@ if __name__ == "__main__":
                         action='store_true',
                         default=False,
                         help='run testing configuration')
+    parser.add_argument('-tv', '--testing_vocab',
+                        action='store_true',
+                        default=False,
+                        help='run testing configuration, but with pretrained embeddings')
     parser.add_argument('-e', '--experiments',
                         action='store_true',
                         default=False,
                         help='run x% of labels experiments')
     
     args = parser.parse_args()
-    main(vars(args)['cuda_device'], vars(args)['testing'], vars(args)['experiments'])
+    main(vars(args)['cuda_device'], vars(args)['testing'], vars(args)['testing_vocab'], vars(args)['experiments'])

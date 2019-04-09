@@ -124,8 +124,14 @@
       "model_type": "coref",
       "epoch_interval": 20,
       "use_percent": true,
-      "num_labels": 0.1, // if >= 0 and <= 1, is treated as a percent
+      "num_labels": 1, // if >= 0 and <= 1, is treated as a percent
       "simulate_user_inputs": true, // have to update in 2 places
+      /*
+      "percent_label_experiments": {
+          "percent_labels": 1 
+      },
+      */
+      "selector": "random",
       "replace_with_next_pos_edge": true,
       "patience": 2,
     }

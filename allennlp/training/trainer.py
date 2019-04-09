@@ -371,6 +371,8 @@ class Trainer(Registrable):
             if self._percent_label_experiments:
                 self._percent_labels = active_learning['percent_label_experiments']['percent_labels']
                 assert(self._percent_labels >= 0 and self._percent_labels <= 1)
+            self._selector = active_learning['selector'] if 'selector' in active_learning else 'score'
+            assert(self._selector == 'random' or self._selector == 'score')
 
     def _enable_gradient_clipping(self) -> None:
         if self._grad_clipping is not None:
@@ -822,7 +824,8 @@ class Trainer(Registrable):
         """
         :param coreference_mask: should be a boolean tensor with size equal to output_dict["coreference_scores"]
         :param output_dict: should have a field "coreference_scores"
-        :param farthest_from_zero: True if sort by farthest_from_zero
+        :param farthest_from_zero: in the case of non-random sorting,
+                                   True if sort by farthest_from_zero (most certain), False if sort by closest to 0 (least certain)
         :return: edges, sorted in farthest_from_zero order, and their corresponding scores
         """
         masked_edge_inds = coreference_mask.nonzero()
@@ -831,14 +834,18 @@ class Trainer(Registrable):
         # is greater than -1.
         masked_edge_inds[:, 2] -= 1
         edge_scores = output_dict['coreference_scores'][coreference_mask]
-        # get sorted closest/furthest from 0 scores
-        _, ind_max_edge_scores = edge_scores.abs().sort(descending=farthest_from_zero)
+        if self._selector == 'score':
+            # get sorted closest/furthest from 0 scores
+            _, ind_max_edge_scores = edge_scores.abs().sort(descending=farthest_from_zero)
+        else:
+            # using random selector
+            ind_max_edge_scores = torch.randperm(len(masked_edge_inds))
         sorted_edges = self._translate_to_indA(masked_edge_inds[ind_max_edge_scores], output_dict, all_spans)
         return sorted_edges, edge_scores[ind_max_edge_scores]
 
     def _filter_gold_cluster_edges(self, chosen_edges, span_labels):
         """
-        :param chosen_edges: should be sorted
+        :param chosen_edges: edges chosen to verify
         :param span_labels: from batch['span_labels']
         Filter out edges for which both ends are in the same, or different, gold clusters already
         """
@@ -863,7 +870,6 @@ class Trainer(Registrable):
         :return:
         """
         total_possible_queries = len(chosen_edges) + len(all_candidate_alt_edges)  # Verify all edges and alt edges
-        # TODO: only query (self._percent_to_query)% of labels
         pos_edges_mask = (edge_scores[:num_labels_to_query] > 0)
         num_labels_to_query = len(chosen_edges[:num_labels_to_query])
         num_alt_edge_queried = 0
@@ -959,9 +965,14 @@ class Trainer(Registrable):
 
         if self._do_active_learning:
             # save initial model state to retrain from scratch every iteration
+            # TODO: have this specified by user, and make the directory when necessary
+            os.makedirs("active_learning_model_states", exist_ok=True)
             init_model_path = os.path.join("active_learning_model_states", "init_model_state.th")
+            init_optimizer_path = os.path.join("active_learning_model_states", "init_optimizer_state.th")
             init_model_state = self.model.state_dict()
+            init_optimizer_state = self.optimizer.state_dict()
             torch.save(init_model_state, init_model_path)
+            torch.save(init_optimizer_state, init_optimizer_path)
 
         for epoch in range(epoch_counter, self._num_epochs):
             epoch_start_time = time.time()
@@ -1274,11 +1285,12 @@ class Trainer(Registrable):
                 last_data_added_epoch = epoch
 
                 # at last epoch, retrain from scratch, resetting model params to intial state
-                '''
                 if len(self._held_out_train_data) == 0:
                     init_model_state = torch.load(init_model_path, map_location=util.device_mapping(-1))
+                    init_optimizer_state = torch.load(init_optimizer_path, map_location=util.device_mapping(-1))
                     self.model.load_state_dict(init_model_state)
-                '''
+                    self.optimizer.load_state_dict(init_optimizer_state)
+                    move_optimizer_to_cuda(self.optimizer)
 
             epochs_trained += 1
 
