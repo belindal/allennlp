@@ -525,7 +525,11 @@ class Trainer(Registrable):
             self.optimizer.zero_grad()
 
             loss = self.batch_loss(batch, for_training=True)
-            loss.backward()
+            try:
+                torch.cuda.empty_cache()
+                loss.backward()
+            except:
+                pdb.set_trace()
 
             train_loss += loss.item()
 
@@ -740,6 +744,7 @@ class Trainer(Registrable):
         val_loss = 0
         for batch in val_generator_tqdm:
 
+            torch.cuda.empty_cache()
             loss = self.batch_loss(batch, for_training=False)
             if loss is not None:
                 # You shouldn't necessarily have to compute a loss for validation, so we allow for
@@ -786,15 +791,15 @@ class Trainer(Registrable):
             i = 0
             while i < len(proform_spans):
                 try:
-                    # should use < 75% of GPU memory
-                    assert(torch.cuda.memory_cached(instances.device.index) + torch.cuda.memory_allocated(instances.device.index)
-                           < 0.75 * torch.cuda.get_device_properties(instances.device.index).total_memory)
                     instances_chunk = instances[i:i+chunk_size]
                     proform_span_chunk = proform_spans[i:i+chunk_size]
                     antecedent_span_chunk = antecedent_spans[i:i+chunk_size]
                     indA_proforms[i:i+chunk_size] = ((proform_span_chunk.unsqueeze(1) - all_spans[instances_chunk]).abs().sum(-1) == 0).nonzero()[:, 1]
                     indA_antecedents[i:i+chunk_size] = ((antecedent_span_chunk.unsqueeze(1) - all_spans[instances_chunk]).abs().sum(-1) == 0).nonzero()[:, 1]
                     i += chunk_size
+                    # should use < 75% of GPU memory
+                    assert(torch.cuda.memory_cached(instances.device.index) + torch.cuda.memory_allocated(instances.device.index)
+                           < 0.75 * torch.cuda.get_device_properties(instances.device.index).total_memory)
                 except:
                     torch.cuda.empty_cache()
                     chunk_size = int(chunk_size / 2)
@@ -813,11 +818,12 @@ class Trainer(Registrable):
             indA_antecedents = ((antecedent_spans.unsqueeze(1) - all_spans[instances]).abs().sum(-1) == 0).nonzero()[:, 1]
         return torch.stack([instances, indA_proforms, indA_antecedents], dim=-1)
 
-    def _get_sorted_masked_edges(self, coreference_mask, output_dict, all_spans) -> torch.LongTensor:
+    def _get_sorted_masked_edges(self, coreference_mask, output_dict, all_spans, farthest_from_zero=False) -> torch.LongTensor:
         """
         :param coreference_mask: should be a boolean tensor with size equal to output_dict["coreference_scores"]
         :param output_dict: should have a field "coreference_scores"
-        :return: edges, sorted in descending order
+        :param farthest_from_zero: True if sort by farthest_from_zero
+        :return: edges, sorted in farthest_from_zero order, and their corresponding scores
         """
         masked_edge_inds = coreference_mask.nonzero()
         # Subtract one here because index 0 is the "no antecedent" class,
@@ -825,72 +831,107 @@ class Trainer(Registrable):
         # is greater than -1.
         masked_edge_inds[:, 2] -= 1
         edge_scores = output_dict['coreference_scores'][coreference_mask]
-        # get sorted least negative scores
-        _, ind_max_edge_scores = edge_scores.sort(descending=True)
+        # get sorted closest/furthest from 0 scores
+        _, ind_max_edge_scores = edge_scores.abs().sort(descending=farthest_from_zero)
         sorted_edges = self._translate_to_indA(masked_edge_inds[ind_max_edge_scores], output_dict, all_spans)
-        return sorted_edges
+        return sorted_edges, edge_scores[ind_max_edge_scores]
 
-    def _query_user_labels(self, chosen_edges, span_labels, user_labels, num_labels_to_query,
-                           return_all_edges,
-                           use_alt_edges=False, all_candidate_alt_edges=None) -> torch.LongTensor:
+    def _filter_gold_cluster_edges(self, chosen_edges, span_labels):
         """
         :param chosen_edges: should be sorted
         :param span_labels: from batch['span_labels']
+        Filter out edges for which both ends are in the same, or different, gold clusters already
+        """
+        proform_gold_labels = span_labels[chosen_edges[:, 0], chosen_edges[:, 1]]
+        antecedent_gold_labels = span_labels[chosen_edges[:, 0], chosen_edges[:, 2]]
+        edges_both_ends_in_gold_clusters_mask = (proform_gold_labels != -1) & (antecedent_gold_labels != -1)
+        chosen_edges = chosen_edges[~edges_both_ends_in_gold_clusters_mask]
+        return chosen_edges
+
+    def _query_user_labels(self, chosen_edges, edge_scores, user_labels, num_labels_to_query, return_all_edges,
+                           use_alt_edges=False, all_candidate_alt_edges=None, num_alts_to_check=0, alt_edge_scores=None):
+        """
+        :param chosen_edges: should be sorted with most uncertain first, with edges in which both ends in gold clusters filtered out
         :param user_labels: from batch['user_labels']
         :param num_labels_to_query:
         :param return_all_edges: returns all deemed coreferent edges, regardless of num_labels_to_query,
                                  if False, returns only up to num_labels_to_query edges
-        :param use_alt_edges:
+        :param use_alt_edges: replace non-coreferent positive edges with next most certain option
         :param all_candidate_alt_edges:
+        :param num_alts_to_check: # of alternate edges to verify coreference
+        :param alt_edge_scores: scores of alternate edges (all_candidate_alt-edges)
         :return:
         """
-        # filter out edges for which both are in the same, or different, gold clusters already
-        proform_gold_labels = span_labels[chosen_edges[:, 0], chosen_edges[:, 1]]
-        antecedent_gold_labels = span_labels[chosen_edges[:, 0], chosen_edges[:, 2]]
-        edges_both_ends_in_gold_clusters_mask = (proform_gold_labels != -1) * (antecedent_gold_labels != -1)
+        total_possible_queries = len(chosen_edges) + len(all_candidate_alt_edges)  # Verify all edges and alt edges
         # TODO: only query (self._percent_to_query)% of labels
-        chosen_edges = chosen_edges[1 - edges_both_ends_in_gold_clusters_mask]
-        total_possible_queries = len(chosen_edges)
-        if self._use_percent_labels:
-            num_queried = int(num_labels_to_query * total_possible_queries)
-        else:
-            num_queried = num_labels_to_query
-        edges_to_query = chosen_edges[:num_queried]
-        if num_queried > 0:
+        pos_edges_mask = (edge_scores[:num_labels_to_query] > 0)
+        num_labels_to_query = len(chosen_edges[:num_labels_to_query])
+        num_alt_edge_queried = 0
+        if num_labels_to_query > 0:
             if self._sample_from_training:
-                proform_user_labels = user_labels[edges_to_query[:, 0], edges_to_query[:, 1]]
-                antecedent_user_labels = user_labels[edges_to_query[:, 0], edges_to_query[:, 2]]
-                coreferent_mask = (proform_user_labels == antecedent_user_labels) * (proform_user_labels != -1)
+                proform_user_labels = user_labels[chosen_edges[:num_labels_to_query][:, 0], chosen_edges[:num_labels_to_query][:, 1]]
+                antecedent_user_labels = user_labels[chosen_edges[:num_labels_to_query][:, 0], chosen_edges[:num_labels_to_query][:, 2]]
+                coreferent_mask = (proform_user_labels == antecedent_user_labels) & (proform_user_labels != -1)
+                # ensure all edges deemed coreferent are assigned positive scores
+                edge_scores[:num_labels_to_query][coreferent_mask] = edge_scores[:num_labels_to_query][coreferent_mask].abs()
+                non_coreferent_pos_edges = chosen_edges[:num_labels_to_query][~coreferent_mask & pos_edges_mask]
+                if len(non_coreferent_pos_edges) > 0 and not use_alt_edges:
+                    # set all non-coreferent edges to -1
+                    chosen_edges[:num_labels_to_query][~coreferent_mask & pos_edges_mask] = -1
+                elif len(non_coreferent_pos_edges) > 0:
+                    # use alternate edges
+                    assert all_candidate_alt_edges is not None
+                    assert alt_edge_scores is not None
+                    # replace non-coreferent and (+) edges with alternate edges (same proform, next largest antecedent)
+                    allalt_differences = (non_coreferent_pos_edges.unsqueeze(0) - all_candidate_alt_edges.unsqueeze(1)).abs()
+                    same_proform_diff_antecedent_mask = (allalt_differences[:,:,1] == 0) & (
+                                                         allalt_differences[:,:,1] == 0) & (
+                                                         allalt_differences[:,:,2] != 0)
+                    # [inds of possible alternates in all_candidate_alt_edges, inds of edges to replace in non_coreferent_pos_edges]
+                    possible_alt_inds_to_query = same_proform_diff_antecedent_mask.nonzero()[:num_alts_to_check]
+                    num_alt_edge_queried += len(possible_alt_inds_to_query)
+                    alternate_pos_edges = -torch.ones(non_coreferent_pos_edges.size(), dtype=torch.long,
+                                                      device=non_coreferent_pos_edges.device)
+                    chosen_alternate_edge_scores = -torch.ones(non_coreferent_pos_edges.size(0), dtype=torch.float,
+                                                               device=alternate_pos_edges.device)
+                    if possible_alt_inds_to_query.size(0) > 0:
+                        possible_alts_to_query = all_candidate_alt_edges[possible_alt_inds_to_query[:,0]]
+                        alt_proforms = user_labels[possible_alts_to_query[:,0], possible_alts_to_query[:,1]]
+                        alt_antecedents = user_labels[possible_alts_to_query[:,0], possible_alts_to_query[:,2]]
+                        coreferent_alts_mask = (alt_proforms >= 0) & (alt_proforms == alt_antecedents)
+                        # flip since for the same proform, want to set to highest-scoring coreferent antecedent, which
+                        # means want highest-scoring at the end
+                        coreferent_alt_inds = possible_alt_inds_to_query[coreferent_alts_mask].flip(0)
+                        if len(coreferent_alt_inds) > 0:
+                            
+                            alternate_pos_edges[coreferent_alt_inds[:,1]] = all_candidate_alt_edges[coreferent_alt_inds[:,0]]
+                            # also set new edge score
+                            chosen_alternate_edge_scores[coreferent_alt_inds[:,1]] = alt_edge_scores[coreferent_alt_inds[:,0]]
+                    # TODO: not sure why this errors out sometimes... but always fine on retry...
+                    try:
+                        chosen_edges[:num_labels_to_query][~coreferent_mask & pos_edges_mask] = alternate_pos_edges
+                    except:
+                        try:
+                            chosen_edges[:num_labels_to_query][~coreferent_mask & pos_edges_mask] = alternate_pos_edges
+                        except:
+                            pdb.set_trace()
+                    edge_scores[:num_labels_to_query][~coreferent_mask & pos_edges_mask] = chosen_alternate_edge_scores
+                # filter -1s
+                filter_deleted_edges_mask = chosen_edges[:, 0] >= 0
+                chosen_edges = chosen_edges[filter_deleted_edges_mask]
+                edge_scores = edge_scores[filter_deleted_edges_mask]
             else:
                 # iterate through chosen edges (note iterating through inds given by ind_min_exist_edge_scores)
-                for i, edge in enumerate(edges_to_query):
+                for i, edge in enumerate(chosen_edges[:num_labels_to_query]):
                     ind_instance = edge[0]  # index in batch
                     # TODO: mechanism for printing chosen_proform_span and chosen_antecedent_span to user and getting user input
                     coreferent = True
-            if use_alt_edges:
-                assert all_candidate_alt_edges is not None
-                # replace non-coreferent edges with alternate edges (same proform, next largest antecedent)
-                non_coreferent_edges = edges_to_query[1 - coreferent_mask]
-                alternate_edges = -torch.ones(non_coreferent_edges.size(), dtype=torch.long,
-                                              device=non_coreferent_edges.device)
-                for i, edge in enumerate(non_coreferent_edges):
-                    possible_alts = all_candidate_alt_edges[
-                        (all_candidate_alt_edges[:, 0] == edge[0]) *
-                        (all_candidate_alt_edges[:, 1] == edge[1]) *
-                        (all_candidate_alt_edges[:, 2] != edge[2])]
-                    if possible_alts.size()[0] > 0:
-                        # exists at least 1 alternate edge, add next largest positive edge from antecedent
-                        alternate_edges[i] = possible_alts[0]
-                edges_to_query[1 - coreferent_mask] = alternate_edges
-                # filter -1s
-                edges_to_query = edges_to_query[edges_to_query[:, 0] >= 0]
-            else:
-                edges_to_query = edges_to_query[coreferent_mask]
+        # add all edges with positive scores (including unchecked edges that the model predicted)
         if return_all_edges:
-            chosen_edges = torch.cat([edges_to_query, chosen_edges[num_queried:]]) 
+            chosen_edges = chosen_edges[edge_scores >= 0]
         else:
-            chosen_edges = edges_to_query
-        return chosen_edges, num_queried, total_possible_queries
+            chosen_edges = chosen_edges[:num_labels_to_query][coreferent_mask]
+        return chosen_edges, num_labels_to_query + num_alt_edge_queried, total_possible_queries
 
     def train(self) -> Dict[str, Any]:
         """
@@ -915,6 +956,12 @@ class Trainer(Registrable):
         epochs_trained = 0
         training_start_time = time.time()
         last_data_added_epoch = 0
+
+        if self._do_active_learning:
+            # save initial model state to retrain from scratch every iteration
+            init_model_path = os.path.join("active_learning_model_states", "init_model_state.th")
+            init_model_state = self.model.state_dict()
+            torch.save(init_model_state, init_model_path)
 
         for epoch in range(epoch_counter, self._num_epochs):
             epoch_start_time = time.time()
@@ -976,7 +1023,7 @@ class Trainer(Registrable):
                 dump_metrics(os.path.join(self._serialization_dir, f'metrics_epoch_{epoch}.json'), metrics)
 
             if self._learning_rate_scheduler and (self._held_out_train_data is None or
-                                                  len(self._held_out_train_data) == 1):
+                                                  len(self._held_out_train_data) == 0):
                 # The LRScheduler API is agnostic to whether your schedule requires a validation metric -
                 # if it doesn't, the validation metric passed here is ignored.
                 self._learning_rate_scheduler.step(this_epoch_val_metric, epoch)
@@ -997,12 +1044,12 @@ class Trainer(Registrable):
             # 1. evaluate on held-out training data
             # 2. use active learning/gold labels to confirm/deny labels on held-out training data
             # 3. add correct instances in held-out training data to actual train data, then re-train
-            if self._do_active_learning and (query_this_epoch or
+            if self._do_active_learning and len(self._held_out_train_data) > 0 and (query_this_epoch or
                                              epoch - last_data_added_epoch >= self._active_learning_epoch_interval):
                 # take a subset of training data to evaluate on, and add to actual training set
                 # TODO: currently arbitrarily choosing next 1 instance (by order in file), perhaps change this future(?)
-                train_data_to_add = self._held_out_train_data[:140]
-                self._held_out_train_data = self._held_out_train_data[140:]
+                train_data_to_add = self._held_out_train_data[:280]
+                self._held_out_train_data = self._held_out_train_data[280:]
                 held_out_generator = self._held_out_iterator(train_data_to_add, num_epochs=1, shuffle=False)
                 num_held_out_batches = self.iterator.get_num_batches(train_data_to_add)
                 held_out_generator_tqdm = Tqdm.tqdm(held_out_generator, total=num_held_out_batches)
@@ -1034,8 +1081,9 @@ class Trainer(Registrable):
                             clustered_spans_mask = (output_dict['predicted_antecedents'] != -1)
                             batch_indB_proforms = clustered_spans_mask.nonzero()
                             if batch_indB_proforms.size()[0] == 0:
-                                chosen_pos_edges = torch.tensor([], dtype=torch.long, device=batch_indB_proforms.device)
-                                num_queried_pos = 0
+                                predicted_scores_mask = torch.zeros(output_dict['coreference_scores'].size(), dtype=torch.uint8, device=batch_indB_proforms.device)
+                                sorted_larger_than_zero_edges = torch.tensor([], dtype=torch.long, device=batch_indB_proforms.device)
+                                larger_than_zero_scores = torch.tensor([], dtype=torch.long, device=batch_indB_proforms.device)
                             else:
                                 # model outputted at least 1 edge for this instance
                                 indC_antecedents = output_dict['predicted_antecedents'][clustered_spans_mask].unsqueeze(-1)
@@ -1044,46 +1092,34 @@ class Trainer(Registrable):
 
                                 # get all > 0 edges (to know which to assign next)
                                 larger_than_zero_mask = (output_dict['coreference_scores'] > 0)
-                                sorted_larger_than_zero_edges = self._get_sorted_masked_edges(larger_than_zero_mask,
-                                                                                              output_dict, batch['spans'])
-
+                                sorted_larger_than_zero_edges, larger_than_zero_scores = \
+                                    self._get_sorted_masked_edges(larger_than_zero_mask, output_dict, batch['spans'], farthest_from_zero=True)
                                 # get scores of edges, and check most uncertain subset of edges
-                                predicted_scores = output_dict['coreference_scores'].max(2)[0]
-                                model_pred_edge_scores = predicted_scores[predicted_scores != 0]  # scores of edges
-                                min_exist_edge_scores, ind_min_exist_edge_scores = model_pred_edge_scores.sort()
-                                chosen_pos_edges = chosen_pos_edges[ind_min_exist_edge_scores]
+                                predicted_scores, _ = output_dict['coreference_scores'].max(2, keepdim=True)
+                                predicted_scores_mask = output_dict['coreference_scores'].eq(predicted_scores)
+                                predicted_scores_mask[:,:,0] = 0
 
-                                if self._use_percent_labels:
-                                    num_to_query = self._active_learning_percent_labels
-                                else:
-                                    num_to_query = int(self._active_learning_num_labels / 2)
-                                chosen_pos_edges, num_queried_pos, total_possible_pos_queries = \
-                                    self._query_user_labels(chosen_pos_edges, batch['span_labels'], batch['user_labels'],
-                                                            num_to_query, True,
-                                                            self._replace_with_next_pos_edge, sorted_larger_than_zero_edges)
-
-                            # TODO modularize code: Beginning of non-existing edges querying portion
-                            # get scores of all possible edges originating from nodes not predicted to have any proform, and
-                            # check most uncertain (least negative) subset of these "negative edges"
-                            neg_edge_inds_mask = (output_dict['coreference_scores'] < 0) * \
+                            # get mask of scores of all possible edges originating from nodes not predicted to have any proform
+                            neg_edge_inds_mask = (output_dict['coreference_scores'] < 0) & \
                                                  (output_dict['coreference_scores'] != -float("inf"))
-                            chosen_neg_edges = self._get_sorted_masked_edges(neg_edge_inds_mask, output_dict,
-                                                                             batch['spans'])
+
+                            chosen_edges_mask = (neg_edge_inds_mask + predicted_scores_mask) > 0
+                            edges_to_add, edge_scores = self._get_sorted_masked_edges(chosen_edges_mask, output_dict,
+                                                                                      batch['spans'], farthest_from_zero=False)
+                            edges_to_add = self._filter_gold_cluster_edges(edges_to_add, batch['span_labels'])
 
                             if self._use_percent_labels:
-                                num_to_query = self._active_learning_percent_labels
+                                num_to_query = int(self._active_learning_percent_labels * len(edges_to_add))
+                                num_alts_to_check = int(self._active_learning_percent_labels * len(sorted_larger_than_zero_edges))
                             else:
-                                num_to_query = self._active_learning_num_labels - num_queried_pos
-                            chosen_neg_edges, num_queried_neg, total_possible_neg_queries = \
-                                self._query_user_labels(chosen_neg_edges, batch['span_labels'], batch['user_labels'],
-                                                        num_to_query, False)
+                                num_to_query = self._active_learning_num_labels
+                            edges_to_add, num_to_query, total_possible_queries = \
+                                self._query_user_labels(edges_to_add, edge_scores, batch['user_labels'], num_to_query,
+                                                        True, self._replace_with_next_pos_edge,
+                                                        sorted_larger_than_zero_edges, num_alts_to_check, larger_than_zero_scores)
 
                             # keep track of which instances we have to update in training data
                             train_instances_to_update = {}
-
-                            # edges to add
-                            edges_to_add = torch.cat([chosen_pos_edges, chosen_neg_edges], dim=0)
-
                             # Update gold clusters based on (corrected) model edges, in span_labels
                             for edge in edges_to_add:
                                 ind_instance = edge[0].item()  # index of instance in batch
@@ -1102,12 +1138,6 @@ class Trainer(Registrable):
                                     if proform_label == antecedent_label:
                                         # If already in same clusters, no need to merge
                                         continue
-                                    '''
-                                    num_gold_clusters = batch['metadata'][ind_instance]['num_gold_clusters']
-                                    if proform_label < num_gold_clusters and antecedent_label < num_gold_clusters:
-                                        # If both in separate *gold* clusters, no need to merge
-                                        continue
-                                    '''
                                     # Otherwise, merge clusters: merge larger cluster id into smaller cluster id
                                     min_cluster_id = min(proform_label, antecedent_label)
                                     max_cluster_id = max(proform_label, antecedent_label)
@@ -1164,8 +1194,8 @@ class Trainer(Registrable):
                                                    'old_F1': held_out_metrics['coref_f1'], 'new_F1': new_F1,
                                                    'MR': held_out_metrics['mention_recall'], 'loss': held_out_metrics['loss']}
                             description = self._description_from_metrics(description_display)
-                            total_num_queried += num_queried_pos + num_queried_neg
-                            total_labels += total_possible_pos_queries + total_possible_neg_queries
+                            total_num_queried += num_to_query
+                            total_labels += total_possible_queries
                             description += ' # labels: ' + str(total_num_queried) + '/' + str(total_labels) + ' ||'
                             held_out_generator_tqdm.set_description(description, refresh=False)
                 else:
@@ -1181,7 +1211,7 @@ class Trainer(Registrable):
                                 user_cluster_idx = (batch['user_labels'][i] == cluster).nonzero()
                                 batch['user_labels'][i, user_cluster_idx] = -1
                             # labelled in user_labels to not in span_labels
-                            possible_mentions_idx = ((batch['user_labels'][i] >= 0) * (batch['span_labels'][i] == -1)).nonzero().squeeze(-1)
+                            possible_mentions_idx = ((batch['user_labels'][i] >= 0) & (batch['span_labels'][i] == -1)).nonzero().squeeze(-1)
                             num_labels = len(possible_mentions_idx)
                             num_labels_to_pick = int(self._percent_labels * num_labels)
                             ''' Try to avoid singletons 
@@ -1197,7 +1227,7 @@ class Trainer(Registrable):
                                 chosen_cluster_mention = possible_mentions_idx[torch.randint(len(possible_mentions_idx), (), dtype=torch.long)]
                                 chosen_cluster = batch['user_labels'][i][chosen_cluster_mention].item()
                                 if chosen_cluster not in seen_clusters:
-                                    possible_cluster_mentions = ((batch['user_labels'][i] == chosen_cluster) * (
+                                    possible_cluster_mentions = ((batch['user_labels'][i] == chosen_cluster) & (
                                                 batch['span_labels'][i] != chosen_cluster)).nonzero().squeeze(-1)
                                     num_mentions_to_pick = min(2, len(possible_cluster_mentions))
                                 else:
@@ -1242,6 +1272,13 @@ class Trainer(Registrable):
                 self.train_data.extend(train_data_to_add)
 
                 last_data_added_epoch = epoch
+
+                # at last epoch, retrain from scratch, resetting model params to intial state
+                '''
+                if len(self._held_out_train_data) == 0:
+                    init_model_state = torch.load(init_model_path, map_location=util.device_mapping(-1))
+                    self.model.load_state_dict(init_model_state)
+                '''
 
             epochs_trained += 1
 
