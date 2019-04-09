@@ -961,9 +961,9 @@ class Trainer(Registrable):
         metrics: Dict[str, Any] = {}
         epochs_trained = 0
         training_start_time = time.time()
-        last_data_added_epoch = 0
+        first_epoch_after_last_data_add = 0
 
-        if self._do_active_learning:
+        if self._do_active_learning and not os.path.exists("active_learning_model_states"):
             # save initial model state to retrain from scratch every iteration
             # TODO: have this specified by user, and make the directory when necessary
             os.makedirs("active_learning_model_states", exist_ok=True)
@@ -992,13 +992,13 @@ class Trainer(Registrable):
                     is_best_so_far = self._is_best_so_far(this_epoch_val_metric, validation_metric_per_epoch)
                     validation_metric_per_epoch.append(this_epoch_val_metric)
                     if self._do_active_learning and len(self._held_out_train_data) > 0:
-                        if self._should_stop_early(validation_metric_per_epoch[last_data_added_epoch:],
+                        if self._should_stop_early(validation_metric_per_epoch[first_epoch_after_last_data_add:],
                                                    self._active_learning_patience):
                             # still have more data to add
                             query_this_epoch = True
                             logger.info("Ran out of patience.  Adding more data.")
                     else:
-                        if self._should_stop_early(validation_metric_per_epoch[last_data_added_epoch:], self._patience):
+                        if self._should_stop_early(validation_metric_per_epoch[first_epoch_after_last_data_add:], self._patience):
                             logger.info("Ran out of patience.  Stopping training.")
                             break
 
@@ -1056,7 +1056,7 @@ class Trainer(Registrable):
             # 2. use active learning/gold labels to confirm/deny labels on held-out training data
             # 3. add correct instances in held-out training data to actual train data, then re-train
             if self._do_active_learning and len(self._held_out_train_data) > 0 and (query_this_epoch or
-                                             epoch - last_data_added_epoch >= self._active_learning_epoch_interval):
+                                             epoch - first_epoch_after_last_data_add >= self._active_learning_epoch_interval):
                 # take a subset of training data to evaluate on, and add to actual training set
                 # TODO: currently arbitrarily choosing next 1 instance (by order in file), perhaps change this future(?)
                 train_data_to_add = self._held_out_train_data[:280]
@@ -1282,7 +1282,7 @@ class Trainer(Registrable):
                 # above)
                 self.train_data.extend(train_data_to_add)
 
-                last_data_added_epoch = epoch
+                first_epoch_after_last_data_add = epoch + 1
 
                 # at last epoch, retrain from scratch, resetting model params to intial state
                 if len(self._held_out_train_data) == 0:

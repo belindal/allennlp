@@ -290,10 +290,10 @@ def train_model(params: Params,
 # In practice you'd probably do this from the command line:
 #   $ allennlp train tutorials/tagger/experiment.jsonnet -s /tmp/serialization_dir
 #
-def main(cuda_device, testing=False, testing_vocab=False, experiments=False):
+def main(cuda_device, testing=False, testing_vocab=False, experiments=None):
     # ''' Make training happen
     if experiments:
-        save_dir = "percent_labels_experiment_2"
+        save_dir = experiments
         for x in [100, 50, 20, 10, 5]:
             print("Running with " + str(x) + "% of labels")
             serialization_dir = "temp_" + str(cuda_device)
@@ -328,9 +328,8 @@ if __name__ == "__main__":
                         default=False,
                         help='run testing configuration, but with pretrained embeddings')
     parser.add_argument('-e', '--experiments',
-                        action='store_true',
-                        default=False,
-                        help='run x% of labels experiments')
+                        type=str,
+                        help='file to store results of x% of labels experiments')
     
     args = parser.parse_args()
     main(vars(args)['cuda_device'], vars(args)['testing'], vars(args)['testing_vocab'], vars(args)['experiments'])
