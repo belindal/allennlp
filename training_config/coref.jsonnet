@@ -109,7 +109,7 @@
     "num_epochs": 300,
     "grad_norm": 5.0,
     "patience" : 10,
-    "cuda_device" : 2,
+    "cuda_device" : 0,
     "validation_metric": "+coref_f1",
     "learning_rate_scheduler": {
       "type": "reduce_on_plateau",
@@ -123,8 +123,16 @@
     "active_learning": {
       "model_type": "coref",
       "epoch_interval": 20,
-      "num_labels": 10,
+      "use_percent": true,
+      "num_labels": 1, // if >= 0 and <= 1, is treated as a percent
       "simulate_user_inputs": true, // have to update in 2 places
+      /*
+      "percent_label_experiments": {
+          "percent_labels": 1 
+      },
+      */
+      //"selector": "random",
+      "replace_with_next_pos_edge": true,
       "patience": 2,
     }
   }

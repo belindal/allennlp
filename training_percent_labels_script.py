@@ -1,4 +1,4 @@
-from typing import Dict, Iterable
+from typing import Any, Dict, Tuple, Iterable
 import argparse
 import logging
 import os
@@ -136,34 +136,13 @@ def create_serialization_dir(
         os.makedirs(serialization_dir, exist_ok=True)
 
 
+results_dir = "percent_labels_experiment"
 def train_model(params: Params,
                 serialization_dir: str,
+                results_fn: str,
                 file_friendly_logging: bool = False,
                 recover: bool = False,
-                force: bool = False) -> Model:
-    """
-    Trains the model specified in the given :class:`Params` object, using the data and training
-    parameters also specified in that object, and saves the results in ``serialization_dir``.
-
-    Parameters
-    ----------
-    params : ``Params``
-        A parameter object specifying an AllenNLP Experiment.
-    serialization_dir : ``str``
-        The directory in which to save results and logs.
-    file_friendly_logging : ``bool``, optional (default=False)
-        If ``True``, we add newlines to tqdm output, even on an interactive terminal, and we slow
-        down tqdm's output to only once every 10 seconds.
-    recover : ``bool``, optional (default=False)
-        If ``True``, we will try to recover a training run from an existing serialization
-        directory.  This is only intended for use when something actually crashed during the middle
-        of a run.  For continuing training a model on new data, see the ``fine-tune`` command.
-
-    Returns
-    -------
-    best_model: ``Model``
-        The model with the best epoch weights.
-    """
+                force: bool = False) -> Tuple[Model, Dict[str, Any]]:
     prepare_environment(params)
 
     create_serialization_dir(params, serialization_dir, recover, force)
@@ -282,7 +261,7 @@ def train_model(params: Params,
         logger.info("To evaluate on the test set after training, pass the "
                     "'evaluate_on_test' flag, or use the 'allennlp evaluate' command.")
 
-    dump_metrics(os.path.join(serialization_dir, "metrics.json"), metrics, log=True)
+    dump_metrics(os.path.join(results_dir, results_fn), metrics, log=True)
 
     return best_model, metrics
 
@@ -290,47 +269,17 @@ def train_model(params: Params,
 # In practice you'd probably do this from the command line:
 #   $ allennlp train tutorials/tagger/experiment.jsonnet -s /tmp/serialization_dir
 #
-def main(cuda_device, testing=False, testing_vocab=False, experiments=None):
-    # ''' Make training happen
-    if experiments:
-        save_dir = experiments
-        os.system('cp training_config/coref.jsonnet ' + save_dir)
-        for x in [10,5,0]:
-            print("Running with " + str(x) + "% of labels")
-            serialization_dir = os.path.join(save_dir, "temp_" + str(cuda_device))
-            os.system('rm -rf ' + serialization_dir)
-            params = Params.from_file(os.path.join(save_dir, 'coref.jsonnet'))
-            params.params['trainer']['cuda_device'] = cuda_device
-            params.params['trainer']['active_learning']['use_percent'] = True
-            params.params['trainer']['active_learning']['num_labels'] = round(0.01 * x, 2)
-            best_model, metrics = train_model(params, serialization_dir)
-            dump_metrics(os.path.join(save_dir, str(x) + ".json"), metrics, log=True)
-    else:
-        params = Params.from_file('training_config/coref.jsonnet')
-        if testing or testing_vocab:
-            params.params['trainer']['active_learning']['epoch_interval'] = 0
-            if testing:
-                params.params['model']['text_field_embedder']['token_embedders']['tokens'] = {'type': 'embedding', 'embedding_dim': 300}
-        serialization_dir = tempfile.mkdtemp()
-        params.params['trainer']['cuda_device'] = cuda_device
-        best_model, metrics = train_model(params, serialization_dir)
+def main():
+    serialization_dir = "temp"
+
+    for percent in [100, 80, 60, 40]:  # [20, 40, 60, 80]
+        params = Params.from_file("./training_config/coref.jsonnet", "")
+        print(str(percent) + "% of labels")
+        params.params["trainer"]["active_learning"]["percent_label_experiments"] = {'percent_labels': round(percent * 0.01, 2)}
+        os.system("rm -rf " + serialization_dir)
+        best_model, metrics = train_model(params, serialization_dir, str(percent) + ".json")
+        print("  Best Epoch = " + str(metrics['best_epoch']) + " with F1 = " + str(metrics['best_validation_coref_f1']))
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Run setting')
-    parser.add_argument('cuda_device', type=int,
-                        help='which cuda device to run on')
-    parser.add_argument('-t', '--testing',
-                        action='store_true',
-                        default=False,
-                        help='run testing configuration')
-    parser.add_argument('-tv', '--testing_vocab',
-                        action='store_true',
-                        default=False,
-                        help='run testing configuration, but with pretrained embeddings')
-    parser.add_argument('-e', '--experiments',
-                        type=str,
-                        help='file to store results of x% of labels experiments')
-    
-    args = parser.parse_args()
-    main(vars(args)['cuda_device'], vars(args)['testing'], vars(args)['testing_vocab'], vars(args)['experiments'])
+    main()
