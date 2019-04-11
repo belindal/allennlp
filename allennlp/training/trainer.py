@@ -963,16 +963,17 @@ class Trainer(Registrable):
         training_start_time = time.time()
         first_epoch_after_last_data_add = 0
 
-        if self._do_active_learning and not os.path.exists("active_learning_model_states"):
+        if self._do_active_learning:
             # save initial model state to retrain from scratch every iteration
             # TODO: have this specified by user, and make the directory when necessary
-            os.makedirs("active_learning_model_states", exist_ok=True)
             init_model_path = os.path.join("active_learning_model_states", "init_model_state.th")
             init_optimizer_path = os.path.join("active_learning_model_states", "init_optimizer_state.th")
-            init_model_state = self.model.state_dict()
-            init_optimizer_state = self.optimizer.state_dict()
-            torch.save(init_model_state, init_model_path)
-            torch.save(init_optimizer_state, init_optimizer_path)
+            if not os.path.exists("active_learning_model_states"):
+                os.makedirs("active_learning_model_states")
+                init_model_state = self.model.state_dict()
+                init_optimizer_state = self.optimizer.state_dict()
+                torch.save(init_model_state, init_model_path)
+                torch.save(init_optimizer_state, init_optimizer_path)
 
         for epoch in range(epoch_counter, self._num_epochs):
             epoch_start_time = time.time()
