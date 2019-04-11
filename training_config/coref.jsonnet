@@ -131,7 +131,7 @@
           "percent_labels": 1 
       },
       */
-      "selector": "random",
+      //"selector": "random",
       "replace_with_next_pos_edge": true,
       "patience": 2,
     }
