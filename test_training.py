@@ -294,11 +294,12 @@ def main(cuda_device, testing=False, testing_vocab=False, experiments=None):
     # ''' Make training happen
     if experiments:
         save_dir = experiments
-        for x in [100, 50, 20, 10, 5]:
+        os.system('cp training_config/coref.jsonnet ' + save_dir)
+        for x in [10,5,0]:
             print("Running with " + str(x) + "% of labels")
-            serialization_dir = "temp_" + str(cuda_device)
+            serialization_dir = os.path.join(save_dir, "temp_" + str(cuda_device))
             os.system('rm -rf ' + serialization_dir)
-            params = Params.from_file('training_config/coref.jsonnet')
+            params = Params.from_file(os.path.join(save_dir, 'coref.jsonnet'))
             params.params['trainer']['cuda_device'] = cuda_device
             params.params['trainer']['active_learning']['use_percent'] = True
             params.params['trainer']['active_learning']['num_labels'] = round(0.01 * x, 2)
