@@ -805,16 +805,6 @@ class Trainer(Registrable):
                 except:
                     torch.cuda.empty_cache()
                     chunk_size = int(chunk_size / 2)
-                    '''
-                    import gc
-                    from functools import reduce
-                    import operator as op
-                    for obj in gc.get_objects():
-                        try:
-                            if torch.is_tensor(obj) or (hasattr(obj, 'data') and torch.is_tensor(obj.data)):
-                                print(type(obj), obj.size())
-                        except: pass
-                   '''
         else:
             indA_proforms = ((proform_spans.unsqueeze(1) - all_spans[instances]).abs().sum(-1) == 0).nonzero()[:, 1]
             indA_antecedents = ((antecedent_spans.unsqueeze(1) - all_spans[instances]).abs().sum(-1) == 0).nonzero()[:, 1]
