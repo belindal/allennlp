@@ -131,7 +131,8 @@
           "percent_labels": 1 
       },
       */
-      //"selector": "random",
+      "query_type": "pairwise", // either pairwise or discrete, by default 'discrete'
+      "selector": "random", // either random or score, by default 'score'
       "replace_with_next_pos_edge": true,
       "patience": 2,
     }

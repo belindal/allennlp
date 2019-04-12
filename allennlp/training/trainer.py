@@ -373,6 +373,8 @@ class Trainer(Registrable):
                 assert(self._percent_labels >= 0 and self._percent_labels <= 1)
             self._selector = active_learning['selector'] if 'selector' in active_learning else 'score'
             assert(self._selector == 'random' or self._selector == 'score')
+            self._query_type = active_learning['query_type'] if 'query_type' in active_learning else 'discrete'
+            assert(self._query_type == 'pairwise' or self._query_type == 'discrete')
 
     def _enable_gradient_clipping(self) -> None:
         if self._grad_clipping is not None:
