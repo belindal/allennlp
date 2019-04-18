@@ -951,8 +951,8 @@ class Trainer(Registrable):
         total_possible_queries = len(chosen_edges)
         first_spans_of_clusters = {}
         num_labels_queried = 0
+        i = 0
         if num_labels_to_query > 0:
-            i = 0
             # use for loop, as may want to change things depending on which edge we're currently querying, also a few hundred
             # mentions = not too expensive
             while i < len(chosen_edges):
@@ -1028,10 +1028,12 @@ class Trainer(Registrable):
                 else:  # set score negative
                     edge_scores[i] = -edge_scores[i].abs()
                 i += 1
-                pdb.set_trace()
         if return_all_edges:
+            # add unadded positive edges to span_labels--i is last unchecked edge
+            unadded_pos_edges = chosen_edges[i:][edge_scores[i:] >= 0]
             chosen_edges = chosen_edges[edge_scores >= 0]
-            pdb.set_trace()
+            for edge in unadded_pos_edges:
+                span_labels = self._update_clusters_with_edge(span_labels, edge)
         else:
             chosen_edges = chosen_edges[edge_scores >= 0][:num_labels_to_query]
         return chosen_edges, num_labels_queried, total_possible_queries, span_labels

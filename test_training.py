@@ -286,7 +286,6 @@ def train_model(params: Params,
 
     return best_model, metrics
 
-
 # In practice you'd probably do this from the command line:
 #   $ allennlp train tutorials/tagger/experiment.jsonnet -s /tmp/serialization_dir
 #
@@ -297,7 +296,11 @@ def main(cuda_device, testing=False, testing_vocab=False, experiments=None):
         if not os.path.exists(save_dir):
             os.makedirs(save_dir)
         os.system('cp training_config/coref.jsonnet ' + os.path.join(save_dir, 'coref.jsonnet'))
-        for x in [50, 10, 80]:
+        if cuda_device == 0:
+            percent_list = [0, 20, 80]
+        if cuda_device == 1:
+            percent_list = [50, 10, 60]
+        for x in percent_list:
             print("Running with " + str(x) + "% of labels")
             serialization_dir = os.path.join(save_dir, "temp_" + str(cuda_device))
             os.system('rm -rf ' + serialization_dir)
