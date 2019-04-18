@@ -294,8 +294,10 @@ def main(cuda_device, testing=False, testing_vocab=False, experiments=None):
     # ''' Make training happen
     if experiments:
         save_dir = experiments
-        os.system('cp training_config/coref.jsonnet ' + save_dir)
-        for x in [10,5,0]:
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir)
+        os.system('cp training_config/coref.jsonnet ' + os.path.join(save_dir, 'coref.jsonnet'))
+        for x in [50, 10, 80]:
             print("Running with " + str(x) + "% of labels")
             serialization_dir = os.path.join(save_dir, "temp_" + str(cuda_device))
             os.system('rm -rf ' + serialization_dir)
@@ -303,7 +305,7 @@ def main(cuda_device, testing=False, testing_vocab=False, experiments=None):
             params.params['trainer']['cuda_device'] = cuda_device
             params.params['trainer']['active_learning']['use_percent'] = True
             params.params['trainer']['active_learning']['num_labels'] = round(0.01 * x, 2)
-            best_model, metrics = train_model(params, serialization_dir)
+            best_model, metrics = train_model(params, serialization_dir, recover=False)
             dump_metrics(os.path.join(save_dir, str(x) + ".json"), metrics, log=True)
     else:
         params = Params.from_file('training_config/coref.jsonnet')

@@ -124,15 +124,15 @@
       "model_type": "coref",
       "epoch_interval": 20,
       "use_percent": true,
-      "num_labels": 1, // if >= 0 and <= 1, is treated as a percent
+      "num_labels": 0.5,
       "simulate_user_inputs": true, // have to update in 2 places
       /*
       "percent_label_experiments": {
           "percent_labels": 1 
       },
       */
-      "query_type": "pairwise", // either pairwise or discrete, by default 'discrete'
-      "selector": "random", // either random or score, by default 'score'
+      //"query_type": "pairwise", // either pairwise or discrete, by default 'discrete'
+      //"selector": "random", // either random or score, by default 'score'
       "replace_with_next_pos_edge": true,
       "patience": 2,
     }

@@ -354,6 +354,7 @@ class Trainer(Registrable):
 
         # Whether or not to do active learning
         self._do_active_learning = False
+        self.DEBUG_BREAK_FLAG = False
         if active_learning:
             if active_learning['model_type'] != 'coref':
                 raise ConfigurationError("Active learning only compatible with coreference model (for now)")
@@ -821,6 +822,9 @@ class Trainer(Registrable):
         :return: edges, sorted in farthest_from_zero order, and their corresponding scores
         """
         masked_edge_inds = coreference_mask.nonzero()
+        if masked_edge_inds.size(0) == 0:
+            # no edges, just return empty arrays (note masked_edge_inds is empty)
+            return masked_edge_inds, masked_edge_inds
         # Subtract one here because index 0 is the "no antecedent" class,
         # so this makes the indices line up with actual spans if the prediction
         # is greater than -1.
@@ -847,8 +851,8 @@ class Trainer(Registrable):
         chosen_edges = chosen_edges[~edges_both_ends_in_gold_clusters_mask]
         return chosen_edges
 
-    def _query_user_labels(self, chosen_edges, edge_scores, user_labels, num_labels_to_query, return_all_edges,
-                           use_alt_edges=False, all_candidate_alt_edges=None, num_alts_to_check=0, alt_edge_scores=None):
+    def _query_user_labels_pairwise(self, chosen_edges, edge_scores, user_labels, num_labels_to_query, return_all_edges,
+                                    use_alt_edges=False, all_candidate_alt_edges=None, num_alts_to_check=0, alt_edge_scores=None):
         """
         :param chosen_edges: should be sorted with most uncertain first, with edges in which both ends in gold clusters filtered out
         :param user_labels: from batch['user_labels']
@@ -861,7 +865,7 @@ class Trainer(Registrable):
         :param alt_edge_scores: scores of alternate edges (all_candidate_alt-edges)
         :return:
         """
-        total_possible_queries = len(chosen_edges) + len(all_candidate_alt_edges)  # Verify all edges and alt edges
+        total_possible_queries = len(chosen_edges) + len(all_candidate_alt_edges) if all_candidate_alt_edges is not None else len(chosen_edges)
         pos_edges_mask = (edge_scores[:num_labels_to_query] > 0)
         num_labels_to_query = len(chosen_edges[:num_labels_to_query])
         num_alt_edge_queried = 0
@@ -930,6 +934,141 @@ class Trainer(Registrable):
         else:
             chosen_edges = chosen_edges[:num_labels_to_query][coreferent_mask]
         return chosen_edges, num_labels_to_query + num_alt_edge_queried, total_possible_queries
+
+    def _query_user_labels_discrete(self, chosen_edges, edge_scores, num_labels_to_query, return_all_edges,
+                                    output_dict, batch):
+        """
+        :param chosen_edges: should be sorted with most uncertain first, with edges in which both ends in gold clusters filtered out
+        :param user_labels: from batch['user_labels']
+        :param num_labels_to_query:
+        :return:
+        NOTE on implementation: sets scores of checked, coreferent edges to be positive, scores of checked, non-coreferenet edges
+        to be negative (if return_all_edges is True)
+        """
+        user_labels = batch['user_labels']
+        span_labels = batch['span_labels']
+        # Verify all edges and alt edges
+        total_possible_queries = len(chosen_edges)
+        first_spans_of_clusters = {}
+        num_labels_queried = 0
+        if num_labels_to_query > 0:
+            i = 0
+            # use for loop, as may want to change things depending on which edge we're currently querying, also a few hundred
+            # mentions = not too expensive
+            while i < len(chosen_edges):
+                if num_labels_queried >= num_labels_to_query:
+                    break
+                proform_span_label = span_labels[chosen_edges[i,0], chosen_edges[i,1]]
+                antecedent_span_label = span_labels[chosen_edges[i,0], chosen_edges[i,2]]
+                # TODO: if already in same cluster, do nothing
+                if proform_span_label != -1 and proform_span_label == antecedent_span_label:
+                    i += 1
+                    continue
+                proform_user_label = user_labels[chosen_edges[i][0], chosen_edges[i,1]]
+                antecedent_user_label = user_labels[chosen_edges[i,0], chosen_edges[i,2]]
+                num_labels_queried += 1
+                # ask if edge is coreferent
+                coreferent = (proform_user_label == antecedent_user_label) & (proform_user_label != -1)
+                if not coreferent and proform_user_label != -1:
+                    # query a coreferent spans from user
+                    user_spans_in_proform_cluster_mask = user_labels[chosen_edges[i,0]] == proform_user_label
+                    user_spans_in_proform_cluster = user_spans_in_proform_cluster_mask.nonzero()
+                    if len(user_spans_in_proform_cluster) > 1:  # more than 1 element in cluster
+                        # if we are 1st span in cluster, choose arbitrary span outside of spans already in our cluster
+                        if chosen_edges[i,1] == user_spans_in_proform_cluster[0]:
+                            spans_in_curr_proform_cluster_mask = (proform_span_label != -1) & (span_labels[chosen_edges[i,0]] == proform_span_label)
+                            user_spans_outside_curr_proform_cluster = (user_spans_in_proform_cluster_mask &
+                                              ~spans_in_curr_proform_cluster_mask).nonzero()
+                            user_spans_outside_curr_proform_cluster = user_spans_outside_curr_proform_cluster[
+                                user_spans_outside_curr_proform_cluster != chosen_edges[i,1]]
+                            # TODO: if there are spans in the cluster besides what we have currently, choose random among them
+                            # otherwise, no additional spans to add, delete edge (and all ingoing and outgoing edges from cluster)
+                            if len(user_spans_outside_curr_proform_cluster.nonzero()) > 0:
+                                new_antecedent = user_spans_outside_curr_proform_cluster[torch.randint(len(user_spans_outside_curr_proform_cluster), (), dtype=torch.long)]
+                                chosen_edges[i,2] = chosen_edges[i,1]
+                                chosen_edges[i,1] = new_antecedent
+
+                                # redirect future edges out of new_antecedent -> S to go from S -> first span
+                                outgoing_new_antecedent_span_mask = (chosen_edges[:,1] == new_antecedent)
+                                outgoing_new_antecedent_span_mask[:i+1] = 0   # ensure only setting future edges
+                                chosen_edges[:,1][outgoing_new_antecedent_span_mask] = chosen_edges[:,2][outgoing_new_antecedent_span_mask]
+                                chosen_edges[:,2][outgoing_new_antecedent_span_mask] = chosen_edges[i,2]  # point to first span of cluster (the same as chosen_edges[i] is pointing to)
+                                # delete future edges that are now invalid (because impossible to be before first span and still in clustetr)
+                                invalid_edges_mask = (chosen_edges[:,2] == chosen_edges[i,2]) & (chosen_edges[:,1] <= chosen_edges[:,2])
+                                invalid_edges_mask[:i+1] = 0  # ensure edges that have been verified aren't deemed 'invalid'
+                                chosen_edges = chosen_edges[~invalid_edges_mask]
+                                edge_scores = edge_scores[~invalid_edges_mask]
+
+                                coreferent = True
+                            else:
+                                coreferent = False
+                                # cluster is complete; delete all remaining ingoing and outgoing edges from cluster (and within cluster)
+                                if i < len(chosen_edges) - 1:  # we are not on last edge (there are still remaining edges to check)
+                                    remaining_edges_to_and_from_cluster = ((chosen_edges[i+1:].unsqueeze(0) - user_spans_in_proform_cluster.unsqueeze(-1)).abs() == 0).nonzero()
+                                    if len(remaining_edges_to_and_from_cluster) > 0:
+                                        remaining_edges_to_and_from_cluster[:, 1] += i + 1
+                                        # delete rows at remaining_edges_to_and_from_cluster[:,1]
+                                        chosen_edges[remaining_edges_to_and_from_cluster[:,1], :] = -1
+                                        mask = chosen_edges[:,0] != -1
+                                        chosen_edges = chosen_edges[mask]
+                                        edge_scores = edge_scores[mask]
+                        else:
+                            # TODO: don't ask current antecedent (chosen_edges[i,2]) to ANY element of cluster involving current proform (chosen_edges[i,1])
+                            new_antecedent = user_spans_in_proform_cluster[0]
+                            delete_first_antecedent_span_mask = (chosen_edges[:,1] != new_antecedent)
+                            delete_first_antecedent_span_mask[:i+1] = 1  # ensure we don't delete verified edges
+                            chosen_edges = chosen_edges[delete_first_antecedent_span_mask]
+                            edge_scores = edge_scores[delete_first_antecedent_span_mask]
+                            chosen_edges[i, 2] = new_antecedent
+                            coreferent = True
+                if coreferent:  # set score positive
+                    edge_scores[i] = edge_scores[i].abs()
+                    # update span labels...
+                    span_labels = self._update_clusters_with_edge(span_labels, chosen_edges[i])
+                else:  # set score negative
+                    edge_scores[i] = -edge_scores[i].abs()
+                i += 1
+                pdb.set_trace()
+        if return_all_edges:
+            chosen_edges = chosen_edges[edge_scores >= 0]
+            pdb.set_trace()
+        else:
+            chosen_edges = chosen_edges[edge_scores >= 0][:num_labels_to_query]
+        return chosen_edges, num_labels_queried, total_possible_queries, span_labels
+
+    def _update_clusters_with_edge(self, span_labels, edge):
+        proform_label = span_labels[edge[0], edge[1]].item()
+        antecedent_label = span_labels[edge[0], edge[2]].item()
+
+        # NOTE: Do not modify num_gold_clusters field in metadata, which is used to keep track of
+        # the original, gold clusters
+        if proform_label != -1 and antecedent_label != -1:
+            # Case 0: both in clusters (merge clusters iff were newly created, non-gold clusters)
+            if proform_label == antecedent_label:
+                # If already in same clusters, no need to merge
+                return span_labels
+            # Otherwise, merge clusters: merge larger cluster id into smaller cluster id
+            min_cluster_id = min(proform_label, antecedent_label)
+            max_cluster_id = max(proform_label, antecedent_label)
+
+            span_labels[edge[0]][span_labels[edge[0]] == max_cluster_id] = min_cluster_id
+            # decrease by 1 the index of all clusters > removed max_cluster in span_labels
+            decrement_mask = -(span_labels[edge[0]] > max_cluster_id).type(torch.long)
+            span_labels[edge[0]] += decrement_mask
+        elif antecedent_label != -1:
+            # Case 1: antecedent in cluster, proform not (update proform's label,
+            # add proform to cluster)
+            span_labels[edge[0], edge[1]] = antecedent_label
+        elif proform_label != -1:
+            # Case 2: proform in cluster, antecedent not (update antecedent's label,
+            # add antecedent to cluster)
+            span_labels[edge[0], edge[2]] = proform_label
+        else:
+            # Case 3: neither in cluster (create new cluster with both)
+            cluster_id = span_labels.max() + 1
+            span_labels[edge[0], edge[2]] = cluster_id
+            span_labels[edge[0], edge[1]] = cluster_id
+        return span_labels
 
     def train(self) -> Dict[str, Any]:
         """
@@ -1079,92 +1218,81 @@ class Trainer(Registrable):
 
                             batch_size = len(output_dict['predicted_antecedents'])
 
-                            # get edges outputted by model
-                            # get all edges in indB form
-                            # TODO modularize code: Beginning of existing edges querying portion
-                            clustered_spans_mask = (output_dict['predicted_antecedents'] != -1)
-                            batch_indB_proforms = clustered_spans_mask.nonzero()
-                            if batch_indB_proforms.size()[0] == 0:
-                                predicted_scores_mask = torch.zeros(output_dict['coreference_scores'].size(), dtype=torch.uint8, device=batch_indB_proforms.device)
-                                sorted_larger_than_zero_edges = torch.tensor([], dtype=torch.long, device=batch_indB_proforms.device)
-                                larger_than_zero_scores = torch.tensor([], dtype=torch.long, device=batch_indB_proforms.device)
-                            else:
-                                # model outputted at least 1 edge for this instance
-                                indC_antecedents = output_dict['predicted_antecedents'][clustered_spans_mask].unsqueeze(-1)
-                                batch_indC_edges = torch.cat([batch_indB_proforms, indC_antecedents], dim=-1)
-                                chosen_pos_edges = self._translate_to_indA(batch_indC_edges, output_dict, batch['spans'])
+                            if self._query_type == 'discrete':
+                                # get rid of 1st, dummy column to ensure nothing selected from it
+                                coref_scores_no_dummy = output_dict['coreference_scores'][:,:,1:]
+                                max_mention_scores, _ = coref_scores_no_dummy.max(2, keepdim=True)
+                                max_mention_scores_mask = coref_scores_no_dummy.eq(max_mention_scores)
 
+                                # BOTH-ENDS MASK-MAKING CODE: ensures we don't select edges for which both mentions are already in clusters
+                                spans_in_clusters = batch['spans'][batch['span_labels'] > 0]
+                                both_ends_in_clusters_mask = torch.zeros(max_mention_scores_mask.size(), dtype=torch.uint8, device=max_mention_scores_mask.device)
+                                if len(spans_in_clusters) > 0:
+                                    indB_spans_in_clusters = ((spans_in_clusters.unsqueeze(1).unsqueeze(1) -
+                                                               output_dict['top_spans'].unsqueeze(0)).abs().sum(-1) == 0).nonzero()[:, 1:]
+                                    # if [0,a] and [0,b] both in indB_spans_in_clusters, mask['antecedent_indices'][0,a,i] =
+                                    # mask['antecedent_indices'][0,b,j] = 1 (both ends in gold clusters), whereby output_dict['antecedent_indices'][0,a,i] = b, and
+                                    # output_dict['antecedent_indices'][0,b,j] = a
+                                    # TODO: this code ONLY WORKS for batchsize = 1
+                                    in_cluster_mention_rows = output_dict['antecedent_indices'][indB_spans_in_clusters[:,0], indB_spans_in_clusters[:,1]] # rows to search within
+                                    # inds where some element of indB_spans_in_clusters is present in in_cluster_mention_rows
+                                    both_ends_in_clusters_mask[indB_spans_in_clusters[:,0], indB_spans_in_clusters[:,1]] = (
+                                        (in_cluster_mention_rows.unsqueeze(-1) - indB_spans_in_clusters[:,1].unsqueeze(0).unsqueeze(0)).abs() == 0).sum(-1) != 0
+
+                                max_mention_scores_mask &= ~both_ends_in_clusters_mask  # exclude edges w/ both ends in gold clusters
+                                # add back dummy column to fit to shape of output_dict['coreference_scores']
+                                max_mention_scores_mask = torch.cat([torch.zeros(
+                                    batch_size, coref_scores_no_dummy.size(1), 1, dtype=torch.uint8,
+                                    device=max_mention_scores_mask.device), max_mention_scores_mask], dim=-1)
+
+                                sorted_max_mention_edges, sorted_max_mention_edges_score = \
+                                    self._get_sorted_masked_edges(max_mention_scores_mask, output_dict, batch['spans'], farthest_from_zero=False)
+
+                                if self._use_percent_labels:
+                                    num_to_query = int(self._active_learning_percent_labels * len(sorted_max_mention_edges))
+                                else:
+                                    num_to_query = self._active_learning_num_labels
+
+                                edges_to_add, num_to_query, total_possible_queries, batch['span_labels'] = \
+                                    self._query_user_labels_discrete(sorted_max_mention_edges, sorted_max_mention_edges_score, num_to_query,
+                                                                     True, output_dict, batch)
+                            else: # query type is pairwise
                                 # get all > 0 edges (to know which to assign next)
                                 larger_than_zero_mask = (output_dict['coreference_scores'] > 0)
                                 sorted_larger_than_zero_edges, larger_than_zero_scores = \
                                     self._get_sorted_masked_edges(larger_than_zero_mask, output_dict, batch['spans'], farthest_from_zero=True)
+
                                 # get scores of edges, and check most uncertain subset of edges
                                 predicted_scores, _ = output_dict['coreference_scores'].max(2, keepdim=True)
                                 predicted_scores_mask = output_dict['coreference_scores'].eq(predicted_scores)
-                                predicted_scores_mask[:,:,0] = 0
+                                predicted_scores_mask[:,:,0] = 0  # get rid of negative-scoring edges (ones for which "max edge" is predicted to be w/ null)
 
-                            # get mask of scores of all possible edges originating from nodes not predicted to have any proform
-                            neg_edge_inds_mask = (output_dict['coreference_scores'] < 0) & \
-                                                 (output_dict['coreference_scores'] != -float("inf"))
+                                # get mask of scores of all possible edges originating from nodes not predicted to have any proform
+                                neg_edge_inds_mask = (output_dict['coreference_scores'] < 0) & \
+                                                     (output_dict['coreference_scores'] != -float("inf"))
 
-                            chosen_edges_mask = (neg_edge_inds_mask + predicted_scores_mask) > 0
-                            edges_to_add, edge_scores = self._get_sorted_masked_edges(chosen_edges_mask, output_dict,
-                                                                                      batch['spans'], farthest_from_zero=False)
-                            edges_to_add = self._filter_gold_cluster_edges(edges_to_add, batch['span_labels'])
+                                chosen_edges_mask = (neg_edge_inds_mask + predicted_scores_mask) > 0
+                                edges_to_add, edge_scores = self._get_sorted_masked_edges(chosen_edges_mask, output_dict,
+                                                                                          batch['spans'], farthest_from_zero=False)
+                                edges_to_add = self._filter_gold_cluster_edges(edges_to_add, batch['span_labels'])
 
-                            if self._use_percent_labels:
-                                num_to_query = int(self._active_learning_percent_labels * len(edges_to_add))
-                                num_alts_to_check = int(self._active_learning_percent_labels * len(sorted_larger_than_zero_edges))
-                            else:
-                                num_to_query = self._active_learning_num_labels
-                            edges_to_add, num_to_query, total_possible_queries = \
-                                self._query_user_labels(edges_to_add, edge_scores, batch['user_labels'], num_to_query,
-                                                        True, self._replace_with_next_pos_edge,
-                                                        sorted_larger_than_zero_edges, num_alts_to_check, larger_than_zero_scores)
+                                if self._use_percent_labels:
+                                    num_to_query = int(self._active_learning_percent_labels * len(edges_to_add))
+                                    num_alts_to_check = int(self._active_learning_percent_labels * len(sorted_larger_than_zero_edges))
+                                else:
+                                    num_to_query = self._active_learning_num_labels
+                                edges_to_add, num_to_query, total_possible_queries = \
+                                    self._query_user_labels_pairwise(edges_to_add, edge_scores, batch['user_labels'], num_to_query,
+                                                                     True, self._replace_with_next_pos_edge,
+                                                                     sorted_larger_than_zero_edges, num_alts_to_check, larger_than_zero_scores)
 
                             # keep track of which instances we have to update in training data
                             train_instances_to_update = {}
                             # Update gold clusters based on (corrected) model edges, in span_labels
                             for edge in edges_to_add:
+                                if self._query_type != 'discrete':
+                                    batch['span_labels'] = self._update_clusters_with_edge(batch['span_labels'], edge)
                                 ind_instance = edge[0].item()  # index of instance in batch
-
-                                # chosen_proform_span_tuple = (batch['spans'][ind_instance, edge[1]][0].item(),
-                                #                              batch['spans'][ind_instance, edge[1]][1].item())
-                                # chosen_antecedent_span_tuple = (batch['spans'][ind_instance, edge[2]][0].item(),
-                                #                                 batch['spans'][ind_instance, edge[2]][1].item())
-                                proform_label = batch['span_labels'][ind_instance, edge[1]].item()
-                                antecedent_label = batch['span_labels'][ind_instance, edge[2]].item()
-
-                                # NOTE: Do not modify num_gold_clusters field in metadata, which is used to keep track of
-                                # the original, gold clusters
-                                if proform_label != -1 and antecedent_label != -1:
-                                    # Case 0: both in clusters (merge clusters iff were newly created, non-gold clusters)
-                                    if proform_label == antecedent_label:
-                                        # If already in same clusters, no need to merge
-                                        continue
-                                    # Otherwise, merge clusters: merge larger cluster id into smaller cluster id
-                                    min_cluster_id = min(proform_label, antecedent_label)
-                                    max_cluster_id = max(proform_label, antecedent_label)
-
-                                    batch['span_labels'][ind_instance][batch['span_labels'][ind_instance] ==
-                                                                       max_cluster_id] = min_cluster_id
-                                    # decrease by 1 the index of all clusters > removed max_cluster in span_labels
-                                    decrement_mask = -(batch['span_labels'][ind_instance] > max_cluster_id).type(torch.long)
-                                    batch['span_labels'][ind_instance] += decrement_mask
-                                elif antecedent_label != -1:
-                                    # Case 1: antecedent in cluster, proform not (update proform's label,
-                                    # add proform to cluster)
-                                    batch['span_labels'][ind_instance, edge[1]] = antecedent_label
-                                elif proform_label != -1:
-                                    # Case 2: proform in cluster, antecedent not (update antecedent's label,
-                                    # add antecedent to cluster)
-                                    batch['span_labels'][ind_instance, edge[2]] = proform_label
-                                else:
-                                    # Case 3: neither in cluster (create new cluster with both)
-                                    cluster_id = batch['span_labels'].max() + 1
-                                    batch['span_labels'][ind_instance, edge[2]] = cluster_id
-                                    batch['span_labels'][ind_instance, edge[1]] = cluster_id
-
                                 if ind_instance not in train_instances_to_update:
                                     train_instances_to_update[ind_instance] = 0
                                 train_instances_to_update[ind_instance] += 1
@@ -1190,6 +1318,9 @@ class Trainer(Registrable):
                                     predicted_clusters.append(batch['spans'][i][batch['span_labels'][i] == cluster].tolist())
                                 predicted_clusters, mention_to_predicted = conll_coref.get_gold_clusters(predicted_clusters)
                                 gold_clusters, mention_to_gold = conll_coref.get_gold_clusters(batch['metadata'][i]['clusters'])
+                                if self.DEBUG_BREAK_FLAG:
+                                    pdb.set_trace()
+                                    self.DEBUG_BREAK_FLAG = False
                                 for scorer in conll_coref.scorers:
                                     scorer.update(predicted_clusters, gold_clusters, mention_to_predicted, mention_to_gold)
                             new_P, new_R, new_F1 = conll_coref.get_metric()
