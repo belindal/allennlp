@@ -1282,7 +1282,9 @@ class Trainer(Registrable):
                                     num_to_query = int(self._active_learning_percent_labels * len(edges_to_add))
                                     num_alts_to_check = int(self._active_learning_percent_labels * len(sorted_larger_than_zero_edges))
                                 else:
-                                    num_to_query = self._active_learning_num_labels
+                                    percent_to_alt = float(len(sorted_larger_than_zero_edges)) / float(len(edges_to_add))
+                                    num_alts_to_check = int(percent_to_alt * self._active_learning_num_labels)
+                                    num_to_query = self._active_learning_num_labels - num_alts_to_check
                                 edges_to_add, num_to_query, total_possible_queries = \
                                     self._query_user_labels_pairwise(edges_to_add, edge_scores, batch['user_labels'], num_to_query,
                                                                      True, self._replace_with_next_pos_edge,
