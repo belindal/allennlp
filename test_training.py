@@ -289,25 +289,31 @@ def train_model(params: Params,
 # In practice you'd probably do this from the command line:
 #   $ allennlp train tutorials/tagger/experiment.jsonnet -s /tmp/serialization_dir
 #
-def main(cuda_device, testing=False, testing_vocab=False, experiments=None):
+def main(cuda_device, testing=False, testing_vocab=False, experiments=None, pairwise=False, selector='entropy'):
+    assert(selector == 'entropy' or selector == 'score' or selector == 'random')
+    use_percents=True
+    if cuda_device == 0:
+        percent_list = [100, 20, 10]
+    if cuda_device == 1:
+        percent_list = [0, 50, 80]
+
     # ''' Make training happen
     if experiments:
         save_dir = experiments
         if not os.path.exists(save_dir):
             os.makedirs(save_dir)
         os.system('cp training_config/coref.jsonnet ' + os.path.join(save_dir, 'coref.jsonnet'))
-        if cuda_device == 0:
-            percent_list = [0, 20, 80]
-        if cuda_device == 1:
-            percent_list = [50, 10, 60]
         for x in percent_list:
-            print("Running with " + str(x) + "% of labels")
+            print_str = "% of labels" if use_percents else " labels per doc"
+            print("Running with " + str(x) + print_str)
             serialization_dir = os.path.join(save_dir, "temp_" + str(cuda_device))
             os.system('rm -rf ' + serialization_dir)
             params = Params.from_file(os.path.join(save_dir, 'coref.jsonnet'))
             params.params['trainer']['cuda_device'] = cuda_device
-            params.params['trainer']['active_learning']['use_percent'] = True
-            params.params['trainer']['active_learning']['num_labels'] = round(0.01 * x, 2)
+            params.params['trainer']['active_learning']['query_type'] = "pairwise" if pairwise else "discrete"
+            params.params['trainer']['active_learning']['selector'] = selector if selector else "entropy"
+            params.params['trainer']['active_learning']['use_percent'] = use_percents
+            params.params['trainer']['active_learning']['num_labels'] = round(0.01 * x, 2) if use_percents else x
             best_model, metrics = train_model(params, serialization_dir, recover=False)
             dump_metrics(os.path.join(save_dir, str(x) + ".json"), metrics, log=True)
     else:
@@ -318,6 +324,8 @@ def main(cuda_device, testing=False, testing_vocab=False, experiments=None):
                 params.params['model']['text_field_embedder']['token_embedders']['tokens'] = {'type': 'embedding', 'embedding_dim': 300}
         serialization_dir = tempfile.mkdtemp()
         params.params['trainer']['cuda_device'] = cuda_device
+        params.params['trainer']['active_learning']['query_type'] = "pairwise" if pairwise else "discrete"
+        params.params['trainer']['active_learning']['selector'] = selector if selector else "entropy"
         best_model, metrics = train_model(params, serialization_dir)
 
 
@@ -336,6 +344,14 @@ if __name__ == "__main__":
     parser.add_argument('-e', '--experiments',
                         type=str,
                         help='file to store results of x% of labels experiments')
-    
+    parser.add_argument('-p', '--pairwise',
+                        action='store_true',
+                        default=False,
+                        help='run pairwise querying')
+    parser.add_argument('-s', '--selector',
+                        type=str,
+                        default='entropy',
+                        help='what type of selector to use')
+   
     args = parser.parse_args()
-    main(vars(args)['cuda_device'], vars(args)['testing'], vars(args)['testing_vocab'], vars(args)['experiments'])
+    main(vars(args)['cuda_device'], vars(args)['testing'], vars(args)['testing_vocab'], vars(args)['experiments'], vars(args)['pairwise'], vars(args)['selector'])
