@@ -124,15 +124,18 @@
       "model_type": "coref",
       "epoch_interval": 20,
       "use_percent": true,
-      "num_labels": 0.5,
+      "num_labels": 1,
       "simulate_user_inputs": true, // have to update in 2 places
       /*
       "percent_label_experiments": {
           "percent_labels": 1 
       },
       */
-      //"query_type": "pairwise", // either pairwise or discrete, by default 'discrete'
-      //"selector": "random", // either random or score, by default 'score'
+      "query_type": "discrete", // either pairwise or discrete, by default 'discrete'
+      "selector": {
+          "type": "entropy", // either random, score, or entropy, by default 'entropy'
+          "use_clusters": false, //true, // default 'true'
+      },
       "replace_with_next_pos_edge": true,
       "patience": 2,
     }

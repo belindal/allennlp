@@ -373,7 +373,8 @@ class Trainer(Registrable):
             if self._percent_label_experiments:
                 self._percent_labels = active_learning['percent_label_experiments']['percent_labels']
                 assert(self._percent_labels >= 0 and self._percent_labels <= 1)
-            self._selector = active_learning['selector'] if 'selector' in active_learning else 'entropy'
+            self._selector = active_learning['selector']['type'] if 'selector' in active_learning else 'entropy'
+            self._selector_clusters = active_learning['selector']['use_clusters'] if 'use_clusters' in active_learning else True
             assert(self._selector == 'random' or self._selector == 'score' or self._selector == 'entropy')
             self._query_type = active_learning['query_type'] if 'query_type' in active_learning else 'discrete'
             assert(self._query_type == 'pairwise' or self._query_type == 'discrete')
@@ -845,9 +846,11 @@ class Trainer(Registrable):
         if self._selector == 'score':
             # get sorted closest/furthest from 0 scores
             _, ind_max_edge_scores = edge_scores.abs().sort(descending=farthest_from_zero)
-        else:
+        elif self._selector == 'random':
             # using random selector
             ind_max_edge_scores = torch.randperm(len(masked_edge_inds))
+        else: # selector is entropy
+            pdb.set_trace()
         sorted_edges = self._translate_to_indA(masked_edge_inds[ind_max_edge_scores], output_dict, all_spans)
         return sorted_edges, edge_scores[ind_max_edge_scores]
 
@@ -1082,7 +1085,7 @@ class Trainer(Registrable):
         and user corrections. IMPORTANT: indexes into TOP_SPANS, not all spans.
         '''
         coref_scores_mask = output_dict['coreference_scores'] != -float("inf")
-        mention_confidence_scores = torch.ones(output_dict['top_spans'].size()[:2], dtype=torch.float).cuda(self._cuda_devices[0])
+        mention_confidence_scores = torch.zeros(output_dict['top_spans'].size()[:2], dtype=torch.float).cuda(self._cuda_devices[0])
         for b, score_instance in enumerate(output_dict['coreference_scores']):
             # Sum across all probabilities link to each cluster for each mention
             top_span_mask = torch.ones(output_dict['top_spans'][b].size(0), dtype=torch.float).cuda(self._cuda_devices[0]).unsqueeze(-1)
@@ -1104,33 +1107,58 @@ class Trainer(Registrable):
 
                 # Get scores of mentions pointing to elements in clusters
                 clustered_mask = antecedent_clusters != -1  # mask for mentions selected antecedents in clusters
-                if len(clustered_mask.nonzero()) > 0:
-                    # mask for mentions belonging in chosen cluster
-                    chosen_cluster_rows_mask = (model_output_mention_pair_clusters[clustered_mask] == antecedent_clusters[
-                        clustered_mask].unsqueeze(-1).expand_as(model_output_mention_pair_clusters[clustered_mask]))
-                    # get rows of those in selected clusters, add scores
-                    # pdb.set_trace()
-                    mention_confidence_scores[b][clustered_mask] = (coreference_probs[clustered_mask] * chosen_cluster_rows_mask.float()).sum(1)
-                    # TODO VERIFY: for it, i in enumerate(clustered_mask.nonzero().squeeze()): print(coreference_probs[i][model_output_mention_pair_clusters[i] == model_output_mention_pair_clusters[i][output_dict['predicted_antecedents'][b,i] + 1]].sum() == mention_confidence_scores[b][clustered_mask][it])
-                
-                # Get scores of mentions pointing to elements outside clusters (should ALL be pointing to NULL, since
-                # if did point to another span, those 2 spans would've been in a cluster together, so would've pointed
-                # to an element in cluster)
-                #Otherwise do: torch.gather(coref_cluster_probs[~clustered_mask], 1, predicted_antecedents[~clustered_mask])[:,0]
-                try:
-                   assert(len(predicted_antecedents[~clustered_mask].nonzero()) == 0)
-                except:
-                    pdb.set_trace()
-                mention_confidence_scores[b][~clustered_mask] = coreference_probs[~clustered_mask][:,0]
-        min_score = mention_confidence_scores.min()
+                if self._selector == 'entropy':
+                    if len(clustered_mask.nonzero()) > 0:
+                        mention_pair_cluster_mask = (model_output_mention_pair_clusters != -1)
+                        # get rows of those in selected clusters, add scores of each cluster
+                        num_clusters = model_output_mention_pair_clusters.max() + 1
+                        row_increment_range_vec = torch.arange(0, model_output_mention_pair_clusters.size(0) * num_clusters, num_clusters, dtype=torch.long).cuda(self._cuda_devices[0]).unsqueeze(1)
+                        row_cluster_sum = (model_output_mention_pair_clusters + row_increment_range_vec)[mention_pair_cluster_mask].bincount(
+                            coreference_probs[mention_pair_cluster_mask], minlength=row_increment_range_vec.max() + num_clusters)
+                        row_cluster_sum = row_cluster_sum.view(-1, num_clusters)
+                        # TODO VERIFY: for i, row in enumerate(row_cluster_sum): assert(len(coreference_probs[i][mention_pair_cluster_mask[i]]) == 0 or len(((row - model_output_mention_pair_clusters[i][mention_pair_cluster_mask[i]].bincount(coreference_probs[i][mention_pair_cluster_mask[i]], minlength=len(row))).abs() > 0.0001).nonzero()) == 0)
+                        # add entropies of clusters
+                        row_cluster_entropy = row_cluster_sum * row_cluster_sum.log()
+                        row_cluster_entropy[row_cluster_entropy != row_cluster_entropy] = 0  # don't want to add nan caused by log-ing 0 probabilities
+                        mention_confidence_scores[b] = -row_cluster_entropy.sum(1)
+                    row_non_cluster_entropy = coreference_probs * coreference_probs.log()
+                    row_non_cluster_entropy[mention_pair_cluster_mask] = 0  # don't add values in clusters (which we've already added)
+                    row_non_cluster_entropy[row_non_cluster_entropy != row_non_cluster_entropy] = 0  # don't want to add nan caused by log-ing 0 probabilities
+                    mention_confidence_scores[b] += -row_non_cluster_entropy.sum(1)
+                elif self._selector == 'score':
+                    if len(clustered_mask.nonzero()) > 0:
+                        # mask for mentions belonging in chosen cluster
+                        chosen_cluster_rows_mask = (model_output_mention_pair_clusters[clustered_mask] == antecedent_clusters[
+                                                 clustered_mask].unsqueeze(-1).expand_as(model_output_mention_pair_clusters[clustered_mask]))
+                        # get rows of those in selected clusters, add scores
+                        mention_confidence_scores[b][clustered_mask] = (coreference_probs[clustered_mask] * chosen_cluster_rows_mask.float()).sum(1)
+                    try:
+                        assert(len(predicted_antecedents[~clustered_mask].nonzero()) == 0)
+                    except:
+                        pdb.set_trace()
+                    mention_confidence_scores[b][~clustered_mask] = coreference_probs[~clustered_mask][:,0]
+        '''
+        if len(clustered_mask.nonzero()) > 0:
+            torch.save(mention_confidence_scores, "mention_confidence_scores.txt")
+            torch.save(coreference_probs, "coreference_probs.txt")
+            torch.save(model_output_mention_pair_clusters, "model_output_mention_pair_clusters.txt")
+            os.system("python verify_scorer.py")
+            pdb.set_trace()
+            self.DEBUG_BREAK_FLAG = False
+        '''
+        if self._selector == 'entropy':
+            opt_score = mention_confidence_scores.max()
+        elif self._selector == 'score':
+            opt_score = mention_confidence_scores.min()
         # choose arbitrary unchosen, least-confident mention
-        batch_and_mentions = ((mention_confidence_scores == min_score) & ~queried_mentions_mask).nonzero()
+        batch_and_mentions = ((mention_confidence_scores == opt_score) & ~queried_mentions_mask).nonzero()
+        # check if edge belongs to 
         try:
             assert(len(batch_and_mentions) > 0)
         except:
             pdb.set_trace()
         # return least confident mention and associated score
-        return batch_and_mentions[0], min_score
+        return batch_and_mentions[0], opt_score
 
     def _update_clusters_with_edge(self, span_labels, edge, delete=False, all_edges=None):
         '''
@@ -1341,7 +1369,7 @@ class Trainer(Registrable):
                             batch_size = len(output_dict['predicted_antecedents'])
 
                             #BOOKMARK
-                            if self._query_type == 'discrete' and self._selector == 'entropy':
+                            if self._query_type == 'discrete' and self._selector_clusters:
                                 # Create reference for translation to and from indA
                                 spans_in_text = torch.tensor([len(batch['metadata'][i]['original_text']) for i in range(len(batch['metadata']))],
                                     dtype=torch.long).cuda(self._cuda_devices[0])
@@ -1349,16 +1377,9 @@ class Trainer(Registrable):
                                 all_spans_keys = batch['spans'][:,:,0] * spans_in_text + batch['spans'][:,:,1]
                                 top_spans_keys = output_dict['top_spans'][:,:,0] * spans_in_text + output_dict['top_spans'][:,:,1]
                                 top_span_to_all_span_inds = -torch.ones(output_dict['top_spans'].size()[:2], dtype=torch.long).cuda(self._cuda_devices[0])
-                                #t1 = time.time()
-                                #equal_spans_keys = ((all_spans_keys.unsqueeze(0) - top_spans_keys.unsqueeze(-1)).abs() == 0).nonzero()
-                                #t2 = time.time()
-                                #print(t2 - t1)
-                                #t3 = time.time()
                                 for b in range(len(top_spans_keys)):
                                     for i, span_key in enumerate(top_spans_keys[b]):
                                         top_span_to_all_span_inds[b,i] = (all_spans_keys[b] == span_key).nonzero()
-                                #t4 = time.time()
-                                #print(t4 - t3)
 
                                 # history of mentions that have already been queried/exist in gold data (index in top_spans)
                                 all_queried_mentions = (batch['span_labels'] != -1).nonzero()
@@ -1372,7 +1393,9 @@ class Trainer(Registrable):
                                     # ASSUMES 1 INSTANCE/BATCH
                                     queried_mentions_mask[batch_inds, top_queried_mentions_spans[:,1]] = 1
 
-                                confirmed_labels = batch['span_labels'].clone()
+                                confirmed_clusters = batch['span_labels'].clone()
+                                # TODO: fix if batch['span_labels'] is not all -1
+                                confirmed_non_coref_edges = torch.tensor([], dtype=torch.long).cuda(self._cuda_devices[0])
 
                                 # Update span_labels with model-predicted clusters
                                 output_dict = self.model.decode(output_dict)
@@ -1394,10 +1417,8 @@ class Trainer(Registrable):
                                 num_queried = 0
                                 while num_queried < num_to_query:
                                     top_spans_model_labels = torch.gather(batch['span_labels'], 1, top_span_to_all_span_inds)
-                                    #pdb.set_trace()
                                     mention, mention_score = self._find_next_most_uncertain_mention(top_spans_model_labels, output_dict, queried_mentions_mask)
                                     indA_edge, edge_asked, indA_edge_asked = self._query_user_labels_mention(mention, output_dict, batch['spans'], batch['user_labels'], translation_reference=top_span_to_all_span_inds)
-                                    #pdb.set_trace()
                                     # add mention to queried before (arbitrarily set it in predicted_antecedents and coreference_scores to no cluster, even if not truly
                                     # the case--the only thing that matters is that it has a value that it is 100% confident of)
                                     queried_mentions_mask[mention[0], mention[1]] = 1
@@ -1407,10 +1428,19 @@ class Trainer(Registrable):
 
                                     # If asked edge was deemed not coreferent, delete it
                                     if indA_edge_asked[2] != indA_edge[2] and len(indA_model_edges) > 0:
-                                        # (both lines implicitly check whether indA_edge_asked was actually added before)
+                                        # (both lines below implicitly check whether indA_edge_asked was actually added before)
                                         edge_asked_mask = (indA_model_edges == indA_edge_asked).sum(1)
                                         batch['span_labels'] = self._update_clusters_with_edge(batch['span_labels'], indA_edge_asked, delete=True, all_edges=indA_model_edges)
                                         indA_model_edges = indA_model_edges[edge_asked_mask < 3]
+                                        # Add to confirmed non-coreferent
+                                        if len(confirmed_non_coref_edges) == 0:
+                                            confirmed_non_coref_edges = indA_edge_asked.unsqueeze(0)
+                                        else:
+                                            confirmed_non_coref_edges = torch.cat((confirmed_non_coref_edges, indA_edge_asked.unsqueeze(0)), dim=0)
+                                        # Do pruning
+                                        cluster_ant = confirmed_clusters[indA_edge_asked[0], indA_edge_asked[2]]
+                                        cluster_pro = confirmed_clusters[indA_edge_asked[0], indA_edge_asked[1]]
+                                        #pdb.set_trace()
 
                                     # Add edge deemed coreferent
                                     if indA_edge[2] != -1:
@@ -1418,9 +1448,13 @@ class Trainer(Registrable):
                                         if len(indA_model_edges) == 0 or ((indA_model_edges == indA_edge).sum(1) == 3).sum() == 0:
                                             indA_model_edges = torch.cat((indA_model_edges, indA_edge.unsqueeze(0)), dim=0)
                                             batch['span_labels'] = self._update_clusters_with_edge(batch['span_labels'], indA_edge)
-                                        confirmed_labels = self._update_clusters_with_edge(confirmed_labels, indA_edge)
+                                        confirmed_clusters = self._update_clusters_with_edge(confirmed_clusters, indA_edge)
+                                        # Do pruning
+                                        #pdb.set_trace()
+
                                     num_queried += 1
 
+                                self.DEBUG_BREAK_FLAG = False
                                 edges_to_add = indA_model_edges
 
                             elif self._query_type == 'discrete': # selector is random or score
@@ -1526,8 +1560,14 @@ class Trainer(Registrable):
                                 predicted_clusters, mention_to_predicted = conll_coref.get_gold_clusters(predicted_clusters)
                                 gold_clusters, mention_to_gold = conll_coref.get_gold_clusters(batch['metadata'][i]['clusters'])
                                 if self.DEBUG_BREAK_FLAG:
+                                    import pickle
+                                    pickle.dump(predicted_clusters, open('predicted_clusters.pkl', 'wb'), pickle.HIGHEST_PROTOCOL)
+                                    pickle.dump(gold_clusters, open('gold_clusters.pkl', 'wb'), pickle.HIGHEST_PROTOCOL)
+                                    pickle.dump(mention_to_predicted, open('mention_to_predicted.pkl', 'wb'), pickle.HIGHEST_PROTOCOL)
+                                    pickle.dump(mention_to_gold, open('mention_to_gold.pkl', 'wb'), pickle.HIGHEST_PROTOCOL)
+                                    os.system("python verify_clusters.py")
                                     pdb.set_trace()
-                                    #self.DEBUG_BREAK_FLAG = False
+                                    #for span in spans: print(str(span) + " " + str(((output_dict['top_spans'][:,:,0] == span[0]) & (output_dict['top_spans'][:,:,1] == span[1])).nonzero()))
                                 for scorer in conll_coref.scorers:
                                     scorer.update(predicted_clusters, gold_clusters, mention_to_predicted, mention_to_gold)
                             new_P, new_R, new_F1 = conll_coref.get_metric()

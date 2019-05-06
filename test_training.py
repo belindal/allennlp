@@ -292,11 +292,10 @@ def train_model(params: Params,
 def main(cuda_device, testing=False, testing_vocab=False, experiments=None, pairwise=False, selector='entropy'):
     assert(selector == 'entropy' or selector == 'score' or selector == 'random')
     use_percents=True
-    if cuda_device == 0:
+    if cuda_device == 0 or cuda_device == 2:
         percent_list = [100, 20, 10]
     if cuda_device == 1:
-        percent_list = [0, 50, 80]
-
+        percent_list = [0, 50, 5, 80]
     # ''' Make training happen
     if experiments:
         save_dir = experiments
@@ -311,7 +310,7 @@ def main(cuda_device, testing=False, testing_vocab=False, experiments=None, pair
             params = Params.from_file(os.path.join(save_dir, 'coref.jsonnet'))
             params.params['trainer']['cuda_device'] = cuda_device
             params.params['trainer']['active_learning']['query_type'] = "pairwise" if pairwise else "discrete"
-            params.params['trainer']['active_learning']['selector'] = selector if selector else "entropy"
+            #params.params['trainer']['active_learning']['selector'] = selector if selector else "entropy"
             params.params['trainer']['active_learning']['use_percent'] = use_percents
             params.params['trainer']['active_learning']['num_labels'] = round(0.01 * x, 2) if use_percents else x
             best_model, metrics = train_model(params, serialization_dir, recover=False)
@@ -325,7 +324,7 @@ def main(cuda_device, testing=False, testing_vocab=False, experiments=None, pair
         serialization_dir = tempfile.mkdtemp()
         params.params['trainer']['cuda_device'] = cuda_device
         params.params['trainer']['active_learning']['query_type'] = "pairwise" if pairwise else "discrete"
-        params.params['trainer']['active_learning']['selector'] = selector if selector else "entropy"
+        #params.params['trainer']['active_learning']['selector'] = selector if selector else "entropy"
         best_model, metrics = train_model(params, serialization_dir)
 
 
