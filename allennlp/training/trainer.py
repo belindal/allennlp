@@ -373,8 +373,9 @@ class Trainer(Registrable):
             if self._percent_label_experiments:
                 self._percent_labels = active_learning['percent_label_experiments']['percent_labels']
                 assert(self._percent_labels >= 0 and self._percent_labels <= 1)
+            pdb.set_trace()
             self._selector = active_learning['selector']['type'] if 'selector' in active_learning else 'entropy'
-            self._selector_clusters = active_learning['selector']['use_clusters'] if 'use_clusters' in active_learning else True
+            self._selector_clusters = active_learning['selector']['use_clusters'] if 'selector' in active_learning else True
             assert(self._selector == 'random' or self._selector == 'score' or self._selector == 'entropy')
             self._query_type = active_learning['query_type'] if 'query_type' in active_learning else 'discrete'
             assert(self._query_type == 'pairwise' or self._query_type == 'discrete')
@@ -1108,8 +1109,8 @@ class Trainer(Registrable):
                 # Get scores of mentions pointing to elements in clusters
                 clustered_mask = antecedent_clusters != -1  # mask for mentions selected antecedents in clusters
                 if self._selector == 'entropy':
+                    mention_pair_cluster_mask = (model_output_mention_pair_clusters != -1)
                     if len(clustered_mask.nonzero()) > 0:
-                        mention_pair_cluster_mask = (model_output_mention_pair_clusters != -1)
                         # get rows of those in selected clusters, add scores of each cluster
                         num_clusters = model_output_mention_pair_clusters.max() + 1
                         row_increment_range_vec = torch.arange(0, model_output_mention_pair_clusters.size(0) * num_clusters, num_clusters, dtype=torch.long).cuda(self._cuda_devices[0]).unsqueeze(1)
