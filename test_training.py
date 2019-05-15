@@ -19,6 +19,7 @@ from allennlp.data.dataset_readers.dataset_reader import DatasetReader
 from allennlp.data.iterators.data_iterator import DataIterator
 from allennlp.models.archival import archive_model, CONFIG_NAME
 from allennlp.models.model import Model, _DEFAULT_WEIGHTS
+from allennlp.models.coreference_resolution import CorefEnsemble
 from allennlp.training.trainer import Trainer
 import tempfile
 
@@ -138,6 +139,7 @@ def create_serialization_dir(
 
 def train_model(params: Params,
                 serialization_dir: str,
+                selector: str,
                 file_friendly_logging: bool = False,
                 recover: bool = False,
                 force: bool = False) -> Model:
@@ -194,7 +196,12 @@ def train_model(params: Params,
              if key in datasets_for_vocab_creation)
     )
 
-    model = Model.from_params(vocab=vocab, params=params.pop('model'))
+    model_params = params.pop('model')
+    if selector == 'qbc':
+        models_list = [Model.from_params(vocab=vocab, params=model_params.duplicate()) for i in range(5)]
+        model = CorefEnsemble(models_list)
+    else:
+        model = Model.from_params(vocab=vocab, params=model_params)
 
     # Initializing the model can have side effect of expanding the vocabulary
     vocab.save_to_files(os.path.join(serialization_dir, "vocabulary"))
@@ -290,12 +297,15 @@ def train_model(params: Params,
 #   $ allennlp train tutorials/tagger/experiment.jsonnet -s /tmp/serialization_dir
 #
 def main(cuda_device, testing=False, testing_vocab=False, experiments=None, pairwise=False, selector='entropy'):
-    assert(selector == 'entropy' or selector == 'score' or selector == 'random')
+    assert(selector == 'entropy' or selector == 'score' or selector == 'random' or selector == 'qbc')
+    if selector == 'qbc':
+        cuda_device = [2,0,1]
+        percent_list = [100, 0, 20, 10, 5, 50, 80]
     use_percents=True
     if cuda_device == 0 or cuda_device == 2:
-        percent_list = [100, 20, 10]
+        percent_list = [100, 20, 50]
     if cuda_device == 1:
-        percent_list = [0, 50, 5, 80]
+        percent_list = [0, 10, 5, 80]
     # ''' Make training happen
     if experiments:
         save_dir = experiments
@@ -313,19 +323,22 @@ def main(cuda_device, testing=False, testing_vocab=False, experiments=None, pair
             #params.params['trainer']['active_learning']['selector'] = selector if selector else "entropy"
             params.params['trainer']['active_learning']['use_percent'] = use_percents
             params.params['trainer']['active_learning']['num_labels'] = round(0.01 * x, 2) if use_percents else x
-            best_model, metrics = train_model(params, serialization_dir, recover=False)
+            best_model, metrics = train_model(params, serialization_dir, selector, recover=False)
             dump_metrics(os.path.join(save_dir, str(x) + ".json"), metrics, log=True)
     else:
         params = Params.from_file('training_config/coref.jsonnet')
         if testing or testing_vocab:
             params.params['trainer']['active_learning']['epoch_interval'] = 0
+            #params.params['train_data_path'] = "../data/coref_ontonotes/dev.english.v4_gold_conll"
+            del params.params['test_data_path']
+            #params.params['dataset_reader']['fully_labelled_threshold'] = 100
             if testing:
                 params.params['model']['text_field_embedder']['token_embedders']['tokens'] = {'type': 'embedding', 'embedding_dim': 300}
         serialization_dir = tempfile.mkdtemp()
         params.params['trainer']['cuda_device'] = cuda_device
         params.params['trainer']['active_learning']['query_type'] = "pairwise" if pairwise else "discrete"
         #params.params['trainer']['active_learning']['selector'] = selector if selector else "entropy"
-        best_model, metrics = train_model(params, serialization_dir)
+        best_model, metrics = train_model(params, serialization_dir, selector)
 
 
 if __name__ == "__main__":

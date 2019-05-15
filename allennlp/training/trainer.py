@@ -31,6 +31,7 @@ from allennlp.data.instance import Instance
 from allennlp.data.iterators.data_iterator import DataIterator
 from allennlp.data.fields import SequenceLabelField
 from allennlp.models.model import Model
+from allennlp.models.coreference_resolution import CoreferenceResolver, CorefEnsemble
 from allennlp.nn import util
 from allennlp.training import active_learning_coref_utils
 from allennlp.training.learning_rate_schedulers import LearningRateScheduler
@@ -373,10 +374,13 @@ class Trainer(Registrable):
             if self._percent_label_experiments:
                 self._percent_labels = active_learning['percent_label_experiments']['percent_labels']
                 assert(self._percent_labels >= 0 and self._percent_labels <= 1)
-            pdb.set_trace()
             self._selector = active_learning['selector']['type'] if 'selector' in active_learning else 'entropy'
+            if self._selector == 'qbc':
+                assert(isinstance(model, CorefEnsemble))
+#BOOKMARK
+                pdb.set_trace()
+                self.submodels = self.model.submodels
             self._selector_clusters = active_learning['selector']['use_clusters'] if 'selector' in active_learning else True
-            assert(self._selector == 'random' or self._selector == 'score' or self._selector == 'entropy')
             self._query_type = active_learning['query_type'] if 'query_type' in active_learning else 'discrete'
             assert(self._query_type == 'pairwise' or self._query_type == 'discrete')
 
@@ -452,6 +456,9 @@ class Trainer(Registrable):
         used_device_ids = self._cuda_devices[:len(inputs)]
         replicas = replicate(self.model, used_device_ids)
         outputs = parallel_apply(replicas, inputs, module_kwargs, used_device_ids)
+        if self._do_active_learning:
+            assert(len(outputs) == 1)
+            return outputs[0]
 
         # Only the 'loss' is needed.
         # a (num_gpu, ) tensor with loss on each GPU
@@ -464,6 +471,11 @@ class Trainer(Registrable):
         If ``for_training`` is `True` also applies regularization penalty.
         """
         if self._multiple_gpu:
+            '''
+            if self.query_type == 'qbc' and not for_training:
+                output_dict = self.ensemble_model(**batch)
+            else:
+            '''
             output_dict = self._data_parallel(batch)
         else:
             batch = util.move_to_device(batch, self._cuda_devices[0])
@@ -538,7 +550,8 @@ class Trainer(Registrable):
                 loss.backward()
             except:
                 pdb.set_trace()
-
+                for param in self.model.parameters():
+                    print(param.grad)
             train_loss += loss.item()
 
             batch_grad_norm = self.rescale_gradients()
@@ -827,7 +840,7 @@ class Trainer(Registrable):
             indA_antecedents = ((antecedent_spans.unsqueeze(1) - all_spans[instances]).abs().sum(-1) == 0).nonzero()[:, 1]
         return torch.stack([instances, indA_proforms, indA_antecedents], dim=-1)
 
-    def _get_sorted_masked_edges(self, coreference_mask, output_dict, all_spans, farthest_from_zero=False) -> torch.LongTensor:
+    def _get_sorted_masked_edges(self, coreference_mask, output_dict, all_spans, translation_reference, farthest_from_zero=False) -> torch.LongTensor:
         """
         :param coreference_mask: should be a boolean tensor with size equal to output_dict["coreference_scores"]
         :param output_dict: should have a field "coreference_scores"
@@ -851,8 +864,18 @@ class Trainer(Registrable):
             # using random selector
             ind_max_edge_scores = torch.randperm(len(masked_edge_inds))
         else: # selector is entropy
-            pdb.set_trace()
-        sorted_edges = self._translate_to_indA(masked_edge_inds[ind_max_edge_scores], output_dict, all_spans)
+            coreference_probs = torch.zeros(output_dict['coreference_scores'].size(), dtype=torch.float).cuda(self._cuda_devices[0])
+            for b in range(len(output_dict['top_spans'])):
+                top_span_mask = torch.ones(output_dict['top_spans'][b].size(0), dtype=torch.float).cuda(self._cuda_devices[0]).unsqueeze(-1)
+                coreference_probs[b] = util.masked_log_softmax(output_dict['coreference_scores'][b], top_span_mask)
+            mentions_to_query = coreference_mask.max(-1)[0].nonzero()
+            mention_entropies = coreference_probs.exp() * coreference_probs
+            # delete nan caused by log-ing 0s
+            mention_entropies[mention_entropies != mention_entropies] = 0
+            mention_entropies = mention_entropies[mentions_to_query[:,1]]
+            edge_entropies = -mention_entropies.sum(-1)
+            _, ind_max_edge_entropies = edge_entropies.sort(descending=True)
+        sorted_edges = self._translate_to_indA(masked_edge_inds[ind_max_edge_scores], output_dict, all_spans, translation_reference=translation_reference)
         return sorted_edges, edge_scores[ind_max_edge_scores]
 
     def _filter_gold_cluster_edges(self, chosen_edges, span_labels):
@@ -1085,8 +1108,15 @@ class Trainer(Registrable):
         model_labels: batch x num_spans tensor detailing cluster ID of cluster each span belongs to, according to model edges
         and user corrections. IMPORTANT: indexes into TOP_SPANS, not all spans.
         '''
+        if self._selector == 'random':
+            # choose random one which hasn't been queried before
+            batch_and_mentions = (~queried_mentions_mask).nonzero()
+            batch_and_mention = batch_and_mentions[torch.randint(len(batch_and_mentions), (), dtype=torch.int).cuda(self._cuda_devices[0])]
+            return batch_and_mention, torch.rand(())
+
         coref_scores_mask = output_dict['coreference_scores'] != -float("inf")
         mention_confidence_scores = torch.zeros(output_dict['top_spans'].size()[:2], dtype=torch.float).cuda(self._cuda_devices[0])
+
         for b, score_instance in enumerate(output_dict['coreference_scores']):
             # Sum across all probabilities link to each cluster for each mention
             top_span_mask = torch.ones(output_dict['top_spans'][b].size(0), dtype=torch.float).cuda(self._cuda_devices[0]).unsqueeze(-1)
@@ -1100,44 +1130,95 @@ class Trainer(Registrable):
 
             using_sum = True
             if using_sum:
-                # select cluster corresponding to predicted antecedent for each mention
-                predicted_antecedents = output_dict['predicted_antecedents'][b].unsqueeze(-1).expand_as(
-                    model_output_mention_pair_clusters) + 1
-                # all elements of each rows should be the same (since we replicated predicted_antecedents)
-                antecedent_clusters = torch.gather(model_output_mention_pair_clusters, 1, predicted_antecedents)[:,0]
-
-                # Get scores of mentions pointing to elements in clusters
-                clustered_mask = antecedent_clusters != -1  # mask for mentions selected antecedents in clusters
-                if self._selector == 'entropy':
-                    mention_pair_cluster_mask = (model_output_mention_pair_clusters != -1)
+                if self._selector == 'qbc':
+                    num_models = output_dict['coreference_scores_models'].size(0)
+                    _, model_pred_ants = output_dict['coreference_scores_models'][:,b].max(-1)
+                    model_pred_ants = model_pred_ants.unsqueeze(-1).expand(-1, -1, model_output_mention_pair_clusters.size(1))
+                    model_output_mention_pair_clusters = model_output_mention_pair_clusters.unsqueeze(0).expand_as(model_pred_ants)
+                    # (model x num_mentions) for whether mention is predicted to be pointing to something in a cluster
+                    model_pred_clusters = torch.gather(model_output_mention_pair_clusters, -1, model_pred_ants)[:,:,0]
+                    cluster_mask = model_pred_clusters != -1
+                    # count cluster votes
+                    if len(cluster_mask.nonzero()) > 0:
+                        num_clusters = model_labels.max() + 1
+                        # columns are [m1,m2,m3,m4,m5], rows are each model
+                        # [-1,-1,-1, 0,-1]    [.,  .,  .,0+9,   .]
+                        # [-1, 1,-1, 1,-1] -> [.,1+3,  .,1+9,   .]
+                        # [-1,-1, 0, 1, 2]    [.,  .,0+6,1+9,2+12]
+                        # [-1,-1,-1,-1,-1]    [.,  .,  .,  .,   .]
+                        # model counts for all of same column (mention) and cluster (label) get mapped to the same bin
+                        # [m1c1,m1c2,m1c3,...,m2c1,m2c2,m2c3,...]
+                        mention_increment_range_vec = torch.arange(0, model_output_mention_pair_clusters.size(1) * num_clusters, num_clusters, dtype=torch.long).cuda(self._cuda_devices[0])
+                        mention_cluster_votes = (model_pred_clusters + mention_increment_range_vec)[cluster_mask].bincount(minlength=len(mention_increment_range_vec) * num_clusters)
+                        # (mentions x clusters)
+                        mention_cluster_votes = mention_cluster_votes.view(-1, num_clusters)
+                        cluster_vote_entropy = mention_cluster_votes.float() / num_models
+                        cluster_vote_entropy = cluster_vote_entropy * cluster_vote_entropy.log()
+                        # filter nan
+                        cluster_vote_entropy[cluster_vote_entropy != cluster_vote_entropy] = 0
+                        cluster_vote_entropy = cluster_vote_entropy.sum(-1)
+                        mention_confidence_scores[b] += -cluster_vote_entropy.squeeze()
+                    # count antecedent votes (including empty)
+                    model_pred_ants = model_pred_ants[:,:,0]
+                    num_antecedents = output_dict['coreference_scores'].size(2)
+                    mention_increment_range_vec = torch.arange(0, model_output_mention_pair_clusters.size(1) * num_antecedents, num_antecedents, dtype=torch.long).cuda(self._cuda_devices[0])
+                    mention_antecedent_votes = (model_pred_ants + mention_increment_range_vec)[~cluster_mask].bincount(minlength=len(mention_increment_range_vec) * num_antecedents)
+                    mention_antecedent_votes = mention_antecedent_votes.view(-1, num_antecedents)
+                    ant_vote_entropy = mention_antecedent_votes.float() / num_models
+                    ant_vote_entropy = ant_vote_entropy * ant_vote_entropy.log()
+                    ant_vote_entropy[ant_vote_entropy != ant_vote_entropy] = 0
+                    ant_vote_entropy = ant_vote_entropy.sum(-1)
+                    mention_confidence_scores[b] += -ant_vote_entropy
+                    # BOOKMARK
+                    # TODO: verify correctness
+                    '''
                     if len(clustered_mask.nonzero()) > 0:
-                        # get rows of those in selected clusters, add scores of each cluster
-                        num_clusters = model_output_mention_pair_clusters.max() + 1
-                        row_increment_range_vec = torch.arange(0, model_output_mention_pair_clusters.size(0) * num_clusters, num_clusters, dtype=torch.long).cuda(self._cuda_devices[0]).unsqueeze(1)
-                        row_cluster_sum = (model_output_mention_pair_clusters + row_increment_range_vec)[mention_pair_cluster_mask].bincount(
-                            coreference_probs[mention_pair_cluster_mask], minlength=row_increment_range_vec.max() + num_clusters)
-                        row_cluster_sum = row_cluster_sum.view(-1, num_clusters)
-                        # TODO VERIFY: for i, row in enumerate(row_cluster_sum): assert(len(coreference_probs[i][mention_pair_cluster_mask[i]]) == 0 or len(((row - model_output_mention_pair_clusters[i][mention_pair_cluster_mask[i]].bincount(coreference_probs[i][mention_pair_cluster_mask[i]], minlength=len(row))).abs() > 0.0001).nonzero()) == 0)
-                        # add entropies of clusters
-                        row_cluster_entropy = row_cluster_sum * row_cluster_sum.log()
-                        row_cluster_entropy[row_cluster_entropy != row_cluster_entropy] = 0  # don't want to add nan caused by log-ing 0 probabilities
-                        mention_confidence_scores[b] = -row_cluster_entropy.sum(1)
-                    row_non_cluster_entropy = coreference_probs * coreference_probs.log()
-                    row_non_cluster_entropy[mention_pair_cluster_mask] = 0  # don't add values in clusters (which we've already added)
-                    row_non_cluster_entropy[row_non_cluster_entropy != row_non_cluster_entropy] = 0  # don't want to add nan caused by log-ing 0 probabilities
-                    mention_confidence_scores[b] += -row_non_cluster_entropy.sum(1)
-                elif self._selector == 'score':
-                    if len(clustered_mask.nonzero()) > 0:
-                        # mask for mentions belonging in chosen cluster
-                        chosen_cluster_rows_mask = (model_output_mention_pair_clusters[clustered_mask] == antecedent_clusters[
-                                                 clustered_mask].unsqueeze(-1).expand_as(model_output_mention_pair_clusters[clustered_mask]))
-                        # get rows of those in selected clusters, add scores
-                        mention_confidence_scores[b][clustered_mask] = (coreference_probs[clustered_mask] * chosen_cluster_rows_mask.float()).sum(1)
-                    try:
-                        assert(len(predicted_antecedents[~clustered_mask].nonzero()) == 0)
-                    except:
+                        torch.save(mention_confidence_scores, "mention_confidence_scores.txt")
+                        torch.save(coreference_probs, "coreference_probs.txt")
+                        torch.save(model_output_mention_pair_clusters, "model_output_mention_pair_clusters.txt")
+                        os.system("python verify_scorer.py")
                         pdb.set_trace()
-                    mention_confidence_scores[b][~clustered_mask] = coreference_probs[~clustered_mask][:,0]
+                        self.DEBUG_BREAK_FLAG = False
+                    '''
+                else:
+                    # select cluster corresponding to predicted antecedent for each mention
+                    predicted_antecedents = output_dict['predicted_antecedents'][b].unsqueeze(-1).expand_as(
+                        model_output_mention_pair_clusters) + 1
+                    # all elements of each rows should be the same (since we replicated predicted_antecedents)
+                    antecedent_clusters = torch.gather(model_output_mention_pair_clusters, 1, predicted_antecedents)[:,0]
+
+                    # Get scores of mentions pointing to elements in clusters
+                    clustered_mask = antecedent_clusters != -1  # mask for mentions selected antecedents in clusters
+                    if self._selector == 'entropy':
+                        mention_pair_cluster_mask = (model_output_mention_pair_clusters != -1)
+                        if len(clustered_mask.nonzero()) > 0:
+                            # get rows of those in selected clusters, add scores of each cluster
+                            num_clusters = model_output_mention_pair_clusters.max() + 1
+                            row_increment_range_vec = torch.arange(0, model_output_mention_pair_clusters.size(0) * num_clusters, num_clusters, dtype=torch.long).cuda(self._cuda_devices[0]).unsqueeze(1)
+                            row_cluster_sum = (model_output_mention_pair_clusters + row_increment_range_vec)[mention_pair_cluster_mask].bincount(
+                                coreference_probs[mention_pair_cluster_mask], minlength=row_increment_range_vec.max() + num_clusters)
+                            row_cluster_sum = row_cluster_sum.view(-1, num_clusters)
+                            # TODO VERIFY: for i, row in enumerate(row_cluster_sum): assert(len(coreference_probs[i][mention_pair_cluster_mask[i]]) == 0 or len(((row - model_output_mention_pair_clusters[i][mention_pair_cluster_mask[i]].bincount(coreference_probs[i][mention_pair_cluster_mask[i]], minlength=len(row))).abs() > 0.0001).nonzero()) == 0)
+                            # add entropies of clusters
+                            row_cluster_entropy = row_cluster_sum * row_cluster_sum.log()
+                            row_cluster_entropy[row_cluster_entropy != row_cluster_entropy] = 0  # don't want to add nan caused by log-ing 0 probabilities
+                            mention_confidence_scores[b] = -row_cluster_entropy.sum(1)
+                        row_non_cluster_entropy = coreference_probs * coreference_probs.log()
+                        row_non_cluster_entropy[mention_pair_cluster_mask] = 0  # don't add values in clusters (which we've already added)
+                        row_non_cluster_entropy[row_non_cluster_entropy != row_non_cluster_entropy] = 0  # don't want to add nan caused by log-ing 0 probabilities
+                        mention_confidence_scores[b] += -row_non_cluster_entropy.sum(1)
+                    elif self._selector == 'score':
+                        if len(clustered_mask.nonzero()) > 0:
+                            # mask for mentions belonging in chosen cluster
+                            chosen_cluster_rows_mask = (model_output_mention_pair_clusters[clustered_mask] == antecedent_clusters[
+                                                     clustered_mask].unsqueeze(-1).expand_as(model_output_mention_pair_clusters[clustered_mask]))
+                            # get rows of those in selected clusters, add scores
+                            mention_confidence_scores[b][clustered_mask] = (coreference_probs[clustered_mask] * chosen_cluster_rows_mask.float()).sum(1)
+                        try:
+                            assert(len(predicted_antecedents[~clustered_mask].nonzero()) == 0)
+                        except:
+                            pdb.set_trace()
+                        mention_confidence_scores[b][~clustered_mask] = coreference_probs[~clustered_mask][:,0]
         '''
         if len(clustered_mask.nonzero()) > 0:
             torch.save(mention_confidence_scores, "mention_confidence_scores.txt")
@@ -1147,7 +1228,7 @@ class Trainer(Registrable):
             pdb.set_trace()
             self.DEBUG_BREAK_FLAG = False
         '''
-        if self._selector == 'entropy':
+        if self._selector == 'entropy' or self._selector == 'qbc':
             opt_score = mention_confidence_scores.max()
         elif self._selector == 'score':
             opt_score = mention_confidence_scores.min()
@@ -1248,10 +1329,15 @@ class Trainer(Registrable):
         if self._do_active_learning:
             # save initial model state to retrain from scratch every iteration
             # TODO: have this specified by user, and make the directory when necessary
-            init_model_path = os.path.join("active_learning_model_states", "init_model_state.th")
-            init_optimizer_path = os.path.join("active_learning_model_states", "init_optimizer_state.th")
-            if not os.path.exists("active_learning_model_states"):
-                os.makedirs("active_learning_model_states")
+            pdb.set_trace()
+            if self._selector == 'qbc':
+                dirname = "active_learning_model_states_ensemble"
+            else:
+                dirname = "active_learning_model_states"
+            init_model_path = os.path.join(dirname, "init_model_state.th")
+            init_optimizer_path = os.path.join(dirname, "init_optimizer_state.th")
+            if not os.path.exists(dirname):
+                os.makedirs(dirname)
                 init_model_state = self.model.state_dict()
                 init_optimizer_state = self.optimizer.state_dict()
                 torch.save(init_model_state, init_model_path)
@@ -1259,7 +1345,17 @@ class Trainer(Registrable):
 
         for epoch in range(epoch_counter, self._num_epochs):
             epoch_start_time = time.time()
-            train_metrics = self._train_epoch(epoch)
+            if self._selector == 'qbc':
+                ensemble_model = self.model
+                submodels = self.model.submodels
+# TODO later: set self.model back to ensemble_model
+            else:
+                submodels = [self.model]
+            for submodel in submodels:
+                self.model = submodel
+                # TODO: display which model we're training
+                train_metrics = self._train_epoch(epoch)
+            self.model = ensemble_model
             query_this_epoch = False
 
             if self._validation_data is not None:
@@ -1360,28 +1456,26 @@ class Trainer(Registrable):
                         num_batches = 0
                         held_out_loss = 0
                         for batch_ind, batch in enumerate(held_out_generator_tqdm):
+                            # transfer all of batch to GPU
+                            for key in batch:
+                                if isinstance(batch[key], torch.Tensor):
+                                    batch[key] = batch[key].cuda(self._cuda_devices[0])
                             batch['get_scores'] = True
                             if self._multiple_gpu:
+                                '''
+                                if self._selector == 'qbc':
+                                    output_dict = self.ensemble_model(**batch)
+                                else:
+                                '''
                                 output_dict = self._data_parallel(batch)
                             else:
                                 batch = util.move_to_device(batch, self._cuda_devices[0])
                                 output_dict = self.model(**batch)
 
                             batch_size = len(output_dict['predicted_antecedents'])
+                            translation_reference = output_dict['top_span_indices']
 
-                            #BOOKMARK
                             if self._query_type == 'discrete' and self._selector_clusters:
-                                # Create reference for translation to and from indA
-                                spans_in_text = torch.tensor([len(batch['metadata'][i]['original_text']) for i in range(len(batch['metadata']))],
-                                    dtype=torch.long).cuda(self._cuda_devices[0])
-                                # translate all spans and top_spans to unique integer keys
-                                all_spans_keys = batch['spans'][:,:,0] * spans_in_text + batch['spans'][:,:,1]
-                                top_spans_keys = output_dict['top_spans'][:,:,0] * spans_in_text + output_dict['top_spans'][:,:,1]
-                                top_span_to_all_span_inds = -torch.ones(output_dict['top_spans'].size()[:2], dtype=torch.long).cuda(self._cuda_devices[0])
-                                for b in range(len(top_spans_keys)):
-                                    for i, span_key in enumerate(top_spans_keys[b]):
-                                        top_span_to_all_span_inds[b,i] = (all_spans_keys[b] == span_key).nonzero()
-
                                 # history of mentions that have already been queried/exist in gold data (index in top_spans)
                                 all_queried_mentions = (batch['span_labels'] != -1).nonzero()
                                 queried_mentions_mask = torch.zeros(output_dict['coreference_scores'].size()[:2],
@@ -1404,7 +1498,7 @@ class Trainer(Registrable):
                                 model_edges = torch.empty(0, dtype=torch.long).cuda(self._cuda_devices[0])
                                 if len(has_antecedent_mask.nonzero()) > 0:
                                     model_edges = torch.cat((has_antecedent_mask.nonzero(), output_dict['predicted_antecedents'][has_antecedent_mask].unsqueeze(-1)), dim=-1)
-                                indA_model_edges = self._translate_to_indA(model_edges, output_dict, batch['spans'], translation_reference=top_span_to_all_span_inds)
+                                indA_model_edges = self._translate_to_indA(model_edges, output_dict, batch['spans'], translation_reference=translation_reference)
                                 for edge in indA_model_edges:
                                     batch['span_labels'] = self._update_clusters_with_edge(batch['span_labels'], edge)
 
@@ -1417,15 +1511,18 @@ class Trainer(Registrable):
                                     num_to_query = min(self._active_learning_num_labels, total_possible_queries)
                                 num_queried = 0
                                 while num_queried < num_to_query:
-                                    top_spans_model_labels = torch.gather(batch['span_labels'], 1, top_span_to_all_span_inds)
+                                    top_spans_model_labels = torch.gather(batch['span_labels'], 1, translation_reference)
                                     mention, mention_score = self._find_next_most_uncertain_mention(top_spans_model_labels, output_dict, queried_mentions_mask)
-                                    indA_edge, edge_asked, indA_edge_asked = self._query_user_labels_mention(mention, output_dict, batch['spans'], batch['user_labels'], translation_reference=top_span_to_all_span_inds)
+                                    indA_edge, edge_asked, indA_edge_asked = self._query_user_labels_mention(mention, output_dict, batch['spans'], batch['user_labels'], translation_reference=translation_reference)
                                     # add mention to queried before (arbitrarily set it in predicted_antecedents and coreference_scores to no cluster, even if not truly
                                     # the case--the only thing that matters is that it has a value that it is 100% confident of)
                                     queried_mentions_mask[mention[0], mention[1]] = 1
-                                    # arbitrarily set to 1st span (most of time 1st span in cluster isn't even in range of current mention)
+                                    # arbitrarily set to null antecedent
                                     output_dict['predicted_antecedents'][mention[0], mention[1]] = -1
                                     output_dict['coreference_scores'][mention[0], mention[1], 1:] = -float("inf")
+                                    if self._selector == 'qbc':
+                                        # must update for each model
+                                        output_dict['coreference_scores_models'][:, mention[0], mention[1], 1:] = -float("inf")
 
                                     # If asked edge was deemed not coreferent, delete it
                                     if indA_edge_asked[2] != indA_edge[2] and len(indA_model_edges) > 0:
@@ -1461,6 +1558,7 @@ class Trainer(Registrable):
                             elif self._query_type == 'discrete': # selector is random or score
                                 # get rid of 1st, dummy column to ensure nothing selected from it
                                 coref_scores_no_dummy = output_dict['coreference_scores'][:,:,1:]
+                                coref_scores_no_dummy[:,0,0] = 0
                                 max_mention_scores, _ = coref_scores_no_dummy.max(2, keepdim=True)
                                 max_mention_scores_mask = coref_scores_no_dummy.eq(max_mention_scores)
 
@@ -1486,7 +1584,7 @@ class Trainer(Registrable):
                                     ).cuda(self._cuda_devices[0]), max_mention_scores_mask], dim=-1)
 
                                 sorted_max_mention_edges, sorted_max_mention_edges_score = \
-                                    self._get_sorted_masked_edges(max_mention_scores_mask, output_dict, batch['spans'], farthest_from_zero=False)
+                                    self._get_sorted_masked_edges(max_mention_scores_mask, output_dict, batch['spans'], translation_reference, farthest_from_zero=False)
 
                                 if self._use_percent_labels:
                                     num_to_query = int(self._active_learning_percent_labels * len(sorted_max_mention_edges))
@@ -1500,7 +1598,7 @@ class Trainer(Registrable):
                                 # get all > 0 edges (to know which to assign next)
                                 larger_than_zero_mask = (output_dict['coreference_scores'] > 0)
                                 sorted_larger_than_zero_edges, larger_than_zero_scores = \
-                                    self._get_sorted_masked_edges(larger_than_zero_mask, output_dict, batch['spans'], farthest_from_zero=True)
+                                    self._get_sorted_masked_edges(larger_than_zero_mask, output_dict, batch['spans'], translation_reference, farthest_from_zero=True)
 
                                 # get scores of edges, and check most uncertain subset of edges
                                 predicted_scores, _ = output_dict['coreference_scores'].max(2, keepdim=True)
@@ -1513,7 +1611,7 @@ class Trainer(Registrable):
 
                                 chosen_edges_mask = (neg_edge_inds_mask + predicted_scores_mask) > 0
                                 edges_to_add, edge_scores = self._get_sorted_masked_edges(chosen_edges_mask, output_dict,
-                                                                                          batch['spans'], farthest_from_zero=False)
+                                                                                          batch['spans'], translation_reference, farthest_from_zero=False)
                                 edges_to_add = self._filter_gold_cluster_edges(edges_to_add, batch['span_labels'])
 
                                 if self._use_percent_labels:
