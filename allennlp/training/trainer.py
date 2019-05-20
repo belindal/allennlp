@@ -191,7 +191,10 @@ class Trainer(Registrable):
                  histogram_interval: int = None,
                  should_log_parameter_statistics: bool = True,
                  should_log_learning_rate: bool = False,
-                 active_learning: Optional[Dict[str, int]] = None) -> None:
+                 active_learning: Optional[Dict[str, int]] = None,
+                 ensemble_model: Optional[Model] = None,
+                 ensemble_optimizer: Optional[List[Optimizer]] = None,
+                 ensemble_scheduler: Optional[List[LearningRateScheduler]] = None) -> None:
         """
         Parameters
         ----------
@@ -280,6 +283,13 @@ class Trainer(Registrable):
             Settings for active learning, ONLY applies if model is a CorefResolver
         """
         self.model = model
+        if ensemble_model is not None:
+            self.ensemble_model = ensemble_model
+            self.ensemble_optimizer = ensemble_optimizer
+            self.ensemble_scheduler = ensemble_scheduler
+            # start by initializing model to 0th one
+            self.model_idx = 0
+            self.model = self.ensemble_model.submodels[self.model_idx]
         self.iterator = iterator
         self._held_out_iterator = held_out_iterator
         self._validation_iterator = validation_iterator
@@ -331,6 +341,8 @@ class Trainer(Registrable):
 
         if self._cuda_devices[0] != -1:
             self.model = self.model.cuda(self._cuda_devices[0])
+            if self.ensemble_model:
+                self.ensemble_model = self.ensemble_model.cuda(self._cuda_devices[0])
 
         self._log_interval = 10  # seconds
         self._summary_interval = summary_interval
@@ -376,10 +388,7 @@ class Trainer(Registrable):
                 assert(self._percent_labels >= 0 and self._percent_labels <= 1)
             self._selector = active_learning['selector']['type'] if 'selector' in active_learning else 'entropy'
             if self._selector == 'qbc':
-                assert(isinstance(model, CorefEnsemble))
-#BOOKMARK
-                pdb.set_trace()
-                self.submodels = self.model.submodels
+                assert(ensemble_model is not None)
             self._selector_clusters = active_learning['selector']['use_clusters'] if 'selector' in active_learning else True
             self._query_type = active_learning['query_type'] if 'query_type' in active_learning else 'discrete'
             assert(self._query_type == 'pairwise' or self._query_type == 'discrete')
@@ -471,11 +480,6 @@ class Trainer(Registrable):
         If ``for_training`` is `True` also applies regularization penalty.
         """
         if self._multiple_gpu:
-            '''
-            if self.query_type == 'qbc' and not for_training:
-                output_dict = self.ensemble_model(**batch)
-            else:
-            '''
             output_dict = self._data_parallel(batch)
         else:
             batch = util.move_to_device(batch, self._cuda_devices[0])
@@ -1131,6 +1135,7 @@ class Trainer(Registrable):
             using_sum = True
             if using_sum:
                 if self._selector == 'qbc':
+                    pdb.set_trace()
                     num_models = output_dict['coreference_scores_models'].size(0)
                     _, model_pred_ants = output_dict['coreference_scores_models'][:,b].max(-1)
                     model_pred_ants = model_pred_ants.unsqueeze(-1).expand(-1, -1, model_output_mention_pair_clusters.size(1))
@@ -1317,49 +1322,52 @@ class Trainer(Registrable):
         self._enable_gradient_clipping()
         self._enable_activation_logging()
 
+        if self._do_active_learning:
+            # save initial model state to retrain from scratch every iteration
+            # TODO: have this specified by user, and make the directory when necessary
+            if self._selector == 'qbc':
+                dirname = "active_learning_model_states_ensemble"
+                init_model_state = self.ensemble_model.state_dict()
+                init_optimizer_state = [optimizer.state_dict() for optimizer in self.ensemble_optimizer]
+                init_lr_scheduler_state = [scheduler.lr_scheduler.state_dict() for scheduler in self.ensemble_scheduler]
+            else:
+                dirname = "active_learning_model_states"
+                init_model_state = self.model.state_dict()
+                init_optimizer_state = self.optimizer.state_dict()
+                init_lr_scheduler_state = self._learning_rate_scheduler.lr_scheduler.state_dict()
+            init_model_path = os.path.join(dirname, "init_model_state.th")
+            init_optimizer_path = os.path.join(dirname, "init_optimizer_state.th")
+            init_lr_scheduler_path = os.path.join(dirname, "init_lr_scheduler_state.th")
+            if not os.path.exists(dirname):
+                os.makedirs(dirname)
+                torch.save(init_model_state, init_model_path)
+                torch.save(init_optimizer_state, init_optimizer_path)
+                torch.save(init_lr_scheduler_state, init_lr_scheduler_path)
+
         logger.info("Beginning training.")
 
-        train_metrics: Dict[str, float] = {}
+        train_metrics: Dict[str, float] = {}  # for submodels only
         val_metrics: Dict[str, float] = {}
+        ensemble_val_metrics: Dict[str, float] = {}
         metrics: Dict[str, Any] = {}
+        # outer list of models, inner list of epochs
+        submodel_val_metrics: List[List[float]] = [[] for i in range(len(self.ensemble_model.submodels))]
         epochs_trained = 0
         training_start_time = time.time()
         first_epoch_after_last_data_add = 0
 
-        if self._do_active_learning:
-            # save initial model state to retrain from scratch every iteration
-            # TODO: have this specified by user, and make the directory when necessary
-            pdb.set_trace()
-            if self._selector == 'qbc':
-                dirname = "active_learning_model_states_ensemble"
-            else:
-                dirname = "active_learning_model_states"
-            init_model_path = os.path.join(dirname, "init_model_state.th")
-            init_optimizer_path = os.path.join(dirname, "init_optimizer_state.th")
-            if not os.path.exists(dirname):
-                os.makedirs(dirname)
-                init_model_state = self.model.state_dict()
-                init_optimizer_state = self.optimizer.state_dict()
-                torch.save(init_model_state, init_model_path)
-                torch.save(init_optimizer_state, init_optimizer_path)
-
         for epoch in range(epoch_counter, self._num_epochs):
             epoch_start_time = time.time()
-            if self._selector == 'qbc':
-                ensemble_model = self.model
-                submodels = self.model.submodels
-# TODO later: set self.model back to ensemble_model
-            else:
-                submodels = [self.model]
-            for submodel in submodels:
-                self.model = submodel
-                # TODO: display which model we're training
-                train_metrics = self._train_epoch(epoch)
-            self.model = ensemble_model
+            train_metrics = self._train_epoch(epoch)
             query_this_epoch = False
+
+            self.model = self.ensemble_model.submodels[self.model_idx]
+            self.optimizer = self.ensemble_optimizer[self.model_idx]
+            self._learning_rate_scheduler = self.ensemble_scheduler[self.model_idx]
 
             if self._validation_data is not None:
                 with torch.no_grad():
+                    eval_ensemble = False
                     # We have a validation set, so compute all the metrics on it.
                     val_loss, num_batches = self._validation_loss()
                     val_metrics = self._get_metrics(val_loss, num_batches, reset=True)
@@ -1368,19 +1376,30 @@ class Trainer(Registrable):
                     this_epoch_val_metric = val_metrics[self._validation_metric]
 
                     # Check validation metric to see if it's the best so far
-                    is_best_so_far = self._is_best_so_far(this_epoch_val_metric, validation_metric_per_epoch)
-                    validation_metric_per_epoch.append(this_epoch_val_metric)
-                    if self._do_active_learning and len(self._held_out_train_data) > 0:
-                        if self._should_stop_early(validation_metric_per_epoch[first_epoch_after_last_data_add:],
-                                                   self._active_learning_patience):
-                            # still have more data to add
-                            query_this_epoch = True
-                            logger.info("Ran out of patience.  Adding more data.")
+                    if self._selector == 'qbc':
+                        is_best_so_far = self._is_best_so_far(this_epoch_val_metric, submodel_val_metrics[self.model_idx])
+                        submodel_val_metrics[self.model_idx].append(this_epoch_val_metric)
                     else:
-                        if self._should_stop_early(validation_metric_per_epoch[first_epoch_after_last_data_add:], self._patience):
-                            logger.info("Ran out of patience.  Stopping training.")
-                            break
+                        is_best_so_far = self._is_best_so_far(this_epoch_val_metric, validation_metric_per_epoch)
+                        validation_metric_per_epoch.append(this_epoch_val_metric)
 
+                    if self._do_active_learning and len(self._held_out_train_data) > 0:
+                        if self._should_stop_early(validation_metric_per_epoch[first_epoch_after_last_data_add:], self._active_learning_patience) or (epoch - first_epoch_after_last_data_add >= self._active_learning_epoch_interval):
+                            logger.info("Ran out of patience on model " + str(self.model_idx))
+                            self.model_idx = (self.model_idx + 1) % 3
+                            if self._selector != 'qbc' or self.model_idx == 0: # at last model, or only 1 model
+                                # still have more data to add
+                                query_this_epoch = True
+                                eval_ensemble = True
+                                logger.info("Evaluating ensemble and adding more data.")
+                    else:
+                        if self._should_stop_early(validation_metric_per_epoch[first_epoch_after_last_data_add:], self._patience) or (epoch - first_epoch_after_last_data_add >= self._active_learning_epoch_interval):
+                            logger.info("Ran out of patience on model " + str(self.model_idx))
+                            self.model_idx = (self.model_idx + 1) % 3
+                            if self._selector != 'qbc' or self.model_idx == 0: # at last model, or only 1 model
+                                eval_ensemble = True
+                                logger.info("Evaluating ensemble and stopping training.")
+                                break
             else:
                 # No validation set, so just assume it's the best so far.
                 is_best_so_far = True
@@ -1397,21 +1416,37 @@ class Trainer(Registrable):
             metrics["training_epochs"] = epochs_trained
             metrics["epoch"] = epoch
 
-            for key, value in train_metrics.items():
-                metrics["training_" + key] = value
-            for key, value in val_metrics.items():
-                metrics["validation_" + key] = value
-
             if is_best_so_far:
                 # Update all the best_ metrics.
                 # (Otherwise they just stay the same as they were.)
                 metrics['best_epoch'] = epoch
                 for key, value in val_metrics.items():
                     metrics["best_validation_" + key] = value
+                # save the best model (already incremented self.model_idx, so -1 here)
+                submodel_path = os.path.join(dirname, "best_submodel_" + str((self.model_idx - 1) % 3) + "_state.th")
+                torch.save(self.model.state_dict(), submodel_path)
+
+            if self._validation_data is not None and eval_ensemble:
+                with torch.no_grad():
+                    # evaluate ensemble of BEST models at this epoch
+                    for i in range(len(self.ensemble_model.submodels)):
+                        submodel_path = os.path.join(dirname, "best_submodel_" + str(i) + "_state.th")
+                        submodel_state = torch.load(submodel_path, map_location=util.device_mapping(-1))
+                        self.ensemble_model.submodels[i].load_state_dict(submodel_state)
+                    self.model = self.ensemble_model
+                    # We have a validation set, so compute all the metrics on it.
+                    val_loss, num_batches = self._validation_loss()
+                    ensemble_val_metrics = self._get_metrics(val_loss, num_batches, reset=True)
+
+            for key, value in train_metrics.items():
+                metrics["training_" + key] = value
+            for key, value in val_metrics.items():
+                metrics["validation_" + key] = value
+            for key, value in ensemble_val_metrics.items():
+                metrics["ensemble_validation_" + key] = value
 
             if self._serialization_dir:
                 dump_metrics(os.path.join(self._serialization_dir, f'metrics_epoch_{epoch}.json'), metrics)
-
             if self._learning_rate_scheduler and (self._held_out_train_data is None or
                                                   len(self._held_out_train_data) == 0):
                 # The LRScheduler API is agnostic to whether your schedule requires a validation metric -
@@ -1434,8 +1469,7 @@ class Trainer(Registrable):
             # 1. evaluate on held-out training data
             # 2. use active learning/gold labels to confirm/deny labels on held-out training data
             # 3. add correct instances in held-out training data to actual train data, then re-train
-            if self._do_active_learning and len(self._held_out_train_data) > 0 and (query_this_epoch or
-                                             epoch - first_epoch_after_last_data_add >= self._active_learning_epoch_interval):
+            if self._do_active_learning and len(self._held_out_train_data) > 0 and query_this_epoch:
                 # take a subset of training data to evaluate on, and add to actual training set
                 # TODO: currently arbitrarily choosing next 1 instance (by order in file), perhaps change this future(?)
                 train_data_to_add = self._held_out_train_data[:280]
@@ -1461,13 +1495,12 @@ class Trainer(Registrable):
                                 if isinstance(batch[key], torch.Tensor):
                                     batch[key] = batch[key].cuda(self._cuda_devices[0])
                             batch['get_scores'] = True
+                            pdb.set_trace()
                             if self._multiple_gpu:
-                                '''
                                 if self._selector == 'qbc':
                                     output_dict = self.ensemble_model(**batch)
                                 else:
-                                '''
-                                output_dict = self._data_parallel(batch)
+                                    output_dict = self._data_parallel(batch)
                             else:
                                 batch = util.move_to_device(batch, self._cuda_devices[0])
                                 output_dict = self.model(**batch)
@@ -1757,11 +1790,14 @@ class Trainer(Registrable):
                 # at last epoch, retrain from scratch, resetting model params to intial state
                 if len(self._held_out_train_data) == 0:
                     init_model_state = torch.load(init_model_path, map_location=util.device_mapping(-1))
-                    init_optimizer_state = torch.load(init_optimizer_path, map_location=util.device_mapping(-1))
                     self.model.load_state_dict(init_model_state)
-                    self.optimizer.load_state_dict(init_optimizer_state)
-                    move_optimizer_to_cuda(self.optimizer)
-
+                    init_optimizer_state = torch.load(init_optimizer_path, map_location=util.device_mapping(-1))
+                    for i in range(len(self.ensemble_optimizer)):
+                        self.ensemble_optimizer[i].load_state_dict(init_optimizer_state)
+                        self.ensemble_scheduler[i].lr_scheduler.load_state_dict(init_optimizer_state)
+                        move_optimizer_to_cuda(self.ensemble_optimizer[i])
+                    self.optimizer = self.ensemble_optimizer[0]
+                    self._learning_rate_scheduler = self.ensemble_scheduler[0]
             epochs_trained += 1
 
         return metrics
@@ -1957,7 +1993,8 @@ class Trainer(Registrable):
                     params: Params,
                     validation_iterator: DataIterator = None,
                     held_out_train_data: Optional[Iterable[Instance]] = None,
-                    held_out_iterator: DataIterator = None) -> 'Trainer':
+                    held_out_iterator: DataIterator = None,
+                    ensemble_model: Model = None) -> 'Trainer':
         # pylint: disable=arguments-differ
         patience = params.pop_int("patience", None)
         validation_metric = params.pop("validation_metric", "-loss")
@@ -1969,10 +2006,21 @@ class Trainer(Registrable):
         lr_scheduler_params = params.pop("learning_rate_scheduler", None)
 
         parameters = [[n, p] for n, p in model.named_parameters() if p.requires_grad]
-        optimizer = Optimizer.from_params(parameters, params.pop("optimizer"))
+        optimizer_params = params.pop("optimizer")
+        if ensemble_model:
+            ensemble_optimizer = [Optimizer.from_params(parameters, optimizer_params.duplicate())
+                                  for i in range(len(ensemble_model.submodels))]
+            optimizer = ensemble_optimizer[0]
+        else:
+            optimizer = Optimizer.from_params(parameters, optimizer_params)
 
         if lr_scheduler_params:
-            scheduler = LearningRateScheduler.from_params(optimizer, lr_scheduler_params)
+            if ensemble_model:
+                ensemble_scheduler = [LearningRateScheduler.from_params(optimizer, lr_scheduler_params.duplicate())
+                                      for i in range(len(ensemble_model.submodels))]
+                scheduler = ensemble_scheduler[0]
+            else:
+                scheduler = LearningRateScheduler.from_params(optimizer, lr_scheduler_params)
         else:
             scheduler = None
 
@@ -2009,7 +2057,10 @@ class Trainer(Registrable):
                    histogram_interval=histogram_interval,
                    should_log_parameter_statistics=should_log_parameter_statistics,
                    should_log_learning_rate=should_log_learning_rate,
-                   active_learning=active_learning)
+                   active_learning=active_learning,
+                   ensemble_model=ensemble_model,
+                   ensemble_optimizer=ensemble_optimizer,
+                   ensemble_scheduler=ensemble_scheduler)
 
 
 Trainer.register("default")(Trainer)

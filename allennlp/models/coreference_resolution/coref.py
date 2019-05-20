@@ -328,6 +328,8 @@ class CoreferenceResolver(Model):
             _, predicted_antecedents = coreference_scores.max(2)
             predicted_antecedents -= 1
             output_dict['predicted_antecedents'] = predicted_antecedents
+            if get_scores:
+                output_dict['top_span_inds'] = coref_scores_info['top_span_inds']
 
         # top_span_indices
         if span_labels is not None:

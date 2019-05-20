@@ -198,10 +198,12 @@ def train_model(params: Params,
 
     model_params = params.pop('model')
     if selector == 'qbc':
-        models_list = [Model.from_params(vocab=vocab, params=model_params.duplicate()) for i in range(5)]
-        model = CorefEnsemble(models_list)
+        models_list = [Model.from_params(vocab=vocab, params=model_params.duplicate()) for i in range(3)]
+        ensemble_model = CorefEnsemble(models_list)
+        model = ensemble_model.submodels[0]
     else:
         model = Model.from_params(vocab=vocab, params=model_params)
+        ensemble_model = None
 
     # Initializing the model can have side effect of expanding the vocabulary
     vocab.save_to_files(os.path.join(serialization_dir, "vocabulary"))
@@ -252,7 +254,8 @@ def train_model(params: Params,
                                                           validation_data=validation_data,
                                                           params=trainer_params,
                                                           validation_iterator=validation_iterator,
-                                                          held_out_iterator=held_out_iterator)
+                                                          held_out_iterator=held_out_iterator,
+                                                          ensemble_model=ensemble_model)
 
     evaluate_on_test = params.pop_bool("evaluate_on_test", False)
     params.assert_empty('base train command')
@@ -299,7 +302,7 @@ def train_model(params: Params,
 def main(cuda_device, testing=False, testing_vocab=False, experiments=None, pairwise=False, selector='entropy'):
     assert(selector == 'entropy' or selector == 'score' or selector == 'random' or selector == 'qbc')
     if selector == 'qbc':
-        cuda_device = [2,0,1]
+        cuda_device = [cuda_device, (cuda_device + 1) % 3, (cuda_device + 2) % 3]
         percent_list = [100, 0, 20, 10, 5, 50, 80]
     use_percents=True
     if cuda_device == 0 or cuda_device == 2:
@@ -320,7 +323,7 @@ def main(cuda_device, testing=False, testing_vocab=False, experiments=None, pair
             params = Params.from_file(os.path.join(save_dir, 'coref.jsonnet'))
             params.params['trainer']['cuda_device'] = cuda_device
             params.params['trainer']['active_learning']['query_type'] = "pairwise" if pairwise else "discrete"
-            #params.params['trainer']['active_learning']['selector'] = selector if selector else "entropy"
+            #params.params['trainer']['active_learning']['selector']['type'] = selector if selector else "entropy"
             params.params['trainer']['active_learning']['use_percent'] = use_percents
             params.params['trainer']['active_learning']['num_labels'] = round(0.01 * x, 2) if use_percents else x
             best_model, metrics = train_model(params, serialization_dir, selector, recover=False)
@@ -329,15 +332,16 @@ def main(cuda_device, testing=False, testing_vocab=False, experiments=None, pair
         params = Params.from_file('training_config/coref.jsonnet')
         if testing or testing_vocab:
             params.params['trainer']['active_learning']['epoch_interval'] = 0
-            #params.params['train_data_path'] = "../data/coref_ontonotes/dev.english.v4_gold_conll"
             del params.params['test_data_path']
-            #params.params['dataset_reader']['fully_labelled_threshold'] = 100
+            #comment out or keep
+            params.params['train_data_path'] = "../data/coref_ontonotes/dev.english.v4_gold_conll"
+            params.params['dataset_reader']['fully_labelled_threshold'] = 100
             if testing:
                 params.params['model']['text_field_embedder']['token_embedders']['tokens'] = {'type': 'embedding', 'embedding_dim': 300}
         serialization_dir = tempfile.mkdtemp()
         params.params['trainer']['cuda_device'] = cuda_device
         params.params['trainer']['active_learning']['query_type'] = "pairwise" if pairwise else "discrete"
-        #params.params['trainer']['active_learning']['selector'] = selector if selector else "entropy"
+        params.params['trainer']['active_learning']['selector']['type'] = selector if selector else "entropy"
         best_model, metrics = train_model(params, serialization_dir, selector)
 
 
