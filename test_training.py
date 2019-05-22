@@ -273,6 +273,8 @@ def train_model(params: Params,
     # Now tar up results
     archive_model(serialization_dir, files_to_archive=params.files_to_archive)
 
+    best_model = None
+    '''
     logger.info("Loading the best epoch weights.")
     best_model_state_path = os.path.join(serialization_dir, 'best.th')
     best_model_state = torch.load(best_model_state_path)
@@ -294,6 +296,7 @@ def train_model(params: Params,
 
     dump_metrics(os.path.join(serialization_dir, "metrics.json"), metrics, log=True)
 
+    '''
     return best_model, metrics
 
 # In practice you'd probably do this from the command line:
@@ -302,12 +305,13 @@ def train_model(params: Params,
 def main(cuda_device, testing=False, testing_vocab=False, experiments=None, pairwise=False, selector='entropy'):
     assert(selector == 'entropy' or selector == 'score' or selector == 'random' or selector == 'qbc')
     if selector == 'qbc':
-        cuda_device = [cuda_device, (cuda_device + 1) % 3, (cuda_device + 2) % 3]
-        percent_list = [100, 0, 20, 10, 5, 50, 80]
+        #cuda_device = [cuda_device, (cuda_device + 1) % 3, (cuda_device + 2) % 3]
+        #percent_list = [100, 0, 20, 10, 5, 50, 80]
+        os.system('rm -rf active_learning_model_states_ensemble_' + str(cuda_device))
     use_percents=True
-    if cuda_device == 0 or cuda_device == 2:
+    if cuda_device == 0 or cuda_device == 1:
         percent_list = [100, 20, 50]
-    if cuda_device == 1:
+    if cuda_device == 2:
         percent_list = [0, 10, 5, 80]
     # ''' Make training happen
     if experiments:
@@ -323,7 +327,8 @@ def main(cuda_device, testing=False, testing_vocab=False, experiments=None, pair
             params = Params.from_file(os.path.join(save_dir, 'coref.jsonnet'))
             params.params['trainer']['cuda_device'] = cuda_device
             params.params['trainer']['active_learning']['query_type'] = "pairwise" if pairwise else "discrete"
-            #params.params['trainer']['active_learning']['selector']['type'] = selector if selector else "entropy"
+            if selector:
+                params.params['trainer']['active_learning']['selector']['type'] = selector
             params.params['trainer']['active_learning']['use_percent'] = use_percents
             params.params['trainer']['active_learning']['num_labels'] = round(0.01 * x, 2) if use_percents else x
             best_model, metrics = train_model(params, serialization_dir, selector, recover=False)
@@ -334,8 +339,8 @@ def main(cuda_device, testing=False, testing_vocab=False, experiments=None, pair
             params.params['trainer']['active_learning']['epoch_interval'] = 0
             del params.params['test_data_path']
             #comment out or keep
-            params.params['train_data_path'] = "../data/coref_ontonotes/dev.english.v4_gold_conll"
-            params.params['dataset_reader']['fully_labelled_threshold'] = 100
+            #params.params['train_data_path'] = "../data/coref_ontonotes/dev.english.v4_gold_conll"
+            #params.params['dataset_reader']['fully_labelled_threshold'] = 100
             if testing:
                 params.params['model']['text_field_embedder']['token_embedders']['tokens'] = {'type': 'embedding', 'embedding_dim': 300}
         serialization_dir = tempfile.mkdtemp()
@@ -343,7 +348,6 @@ def main(cuda_device, testing=False, testing_vocab=False, experiments=None, pair
         params.params['trainer']['active_learning']['query_type'] = "pairwise" if pairwise else "discrete"
         params.params['trainer']['active_learning']['selector']['type'] = selector if selector else "entropy"
         best_model, metrics = train_model(params, serialization_dir, selector)
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Run setting')

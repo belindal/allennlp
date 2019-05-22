@@ -32,13 +32,6 @@ class CorefEnsemble(Ensemble):
                 #for_training: bool = True,
                 #training_model: int = 0
                 ) -> Dict[str, torch.Tensor]:
-        '''
-        compute_vote_entropies: if we are doing active learning, will look at coreference scores
-            and in output_dict return a sorted list of vote entropies,
-            and which edges they correspond to
-        if we're just training (for_training is True), don't do the averaging stuff
-        training_model is index of model we are currently training
-        '''
         num_models = len(self.submodels)
         mention_results = [submodel(text, spans, span_labels, user_labels, must_link, cannot_link, metadata, get_scores, return_mention_scores=True) for submodel in self.submodels]
         mask = mention_results[0]['mask']
