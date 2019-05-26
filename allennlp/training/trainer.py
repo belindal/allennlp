@@ -1400,7 +1400,7 @@ class Trainer(Registrable):
                                 eval_ensemble = (self._selector == 'qbc')
                                 logger.info("Evaluating ensemble and adding more data.")
                     else:
-                        if self._should_stop_early(validation_metric_per_epoch[first_epoch_for_converge:], self._patience) or (len(submodel_val_metrics[self.model_idx]) >= self._active_learning_epoch_interval):
+                        if self._should_stop_early(validation_metric_per_epoch[first_epoch_for_converge:], self._patience) or (len(submodel_val_metrics[self.model_idx]) >= self._num_epochs):
                             logger.info("Ran out of patience on model " + str(self.model_idx))
                             if self._selector == 'qbc':
                                 first_epoch_for_converge = epoch + 1
