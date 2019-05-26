@@ -304,15 +304,14 @@ def train_model(params: Params,
 #
 def main(cuda_device, testing=False, testing_vocab=False, experiments=None, pairwise=False, selector='entropy'):
     assert(selector == 'entropy' or selector == 'score' or selector == 'random' or selector == 'qbc')
-    if selector == 'qbc':
-        #cuda_device = [cuda_device, (cuda_device + 1) % 3, (cuda_device + 2) % 3]
-        #percent_list = [100, 0, 20, 10, 5, 50, 80]
-        os.system('rm -rf active_learning_model_states_ensemble_' + str(cuda_device))
     use_percents=True
     if cuda_device == 0 or cuda_device == 1:
         percent_list = [100, 20, 50]
     if cuda_device == 2:
         percent_list = [0, 10, 5, 80]
+    if selector == 'qbc':
+        cuda_device = [cuda_device, (cuda_device + 1) % 3, (cuda_device + 2) % 3]
+        os.system('rm -rf active_learning_model_states_ensemble_' + str(cuda_device))
     # ''' Make training happen
     if experiments:
         save_dir = experiments
@@ -335,12 +334,13 @@ def main(cuda_device, testing=False, testing_vocab=False, experiments=None, pair
             dump_metrics(os.path.join(save_dir, str(x) + ".json"), metrics, log=True)
     else:
         params = Params.from_file('training_config/coref.jsonnet')
+        params.params['trainer']['active_learning']['num_labels'] = 0
         if testing or testing_vocab:
             params.params['trainer']['active_learning']['epoch_interval'] = 0
             del params.params['test_data_path']
             #comment out or keep
-            #params.params['train_data_path'] = "../data/coref_ontonotes/dev.english.v4_gold_conll"
-            #params.params['dataset_reader']['fully_labelled_threshold'] = 100
+            params.params['train_data_path'] = "../data/coref_ontonotes/dev.english.v4_gold_conll"
+            params.params['dataset_reader']['fully_labelled_threshold'] = 100
             if testing:
                 params.params['model']['text_field_embedder']['token_embedders']['tokens'] = {'type': 'embedding', 'embedding_dim': 300}
         serialization_dir = tempfile.mkdtemp()

@@ -283,12 +283,12 @@ class Trainer(Registrable):
             Settings for active learning, ONLY applies if model is a CorefResolver
         """
         self.model = model
-        if ensemble_model is not None:
-            self.ensemble_model = ensemble_model
-            self.ensemble_optimizer = ensemble_optimizer
-            self.ensemble_scheduler = ensemble_scheduler
-            # start by initializing model to 0th one
-            self.model_idx = 0
+        self.ensemble_model = ensemble_model
+        self.ensemble_optimizer = ensemble_optimizer
+        self.ensemble_scheduler = ensemble_scheduler
+        # start by initializing model to 0th one
+        self.model_idx = 0
+        if self.ensemble_model is not None:
             self.model = self.ensemble_model.submodels[self.model_idx]
         self.iterator = iterator
         self._held_out_iterator = held_out_iterator
@@ -1336,11 +1336,11 @@ class Trainer(Registrable):
             init_model_path = os.path.join(dirname, "init_model_state.th")
             init_optimizer_path = os.path.join(dirname, "init_optimizer_state.th")
             init_lr_scheduler_path = os.path.join(dirname, "init_lr_scheduler_state.th")
-            if not os.path.exists(dirname):
-                os.makedirs(dirname)
-                torch.save(init_model_state, init_model_path)
-                torch.save(init_optimizer_state, init_optimizer_path)
-                torch.save(init_lr_scheduler_state, init_lr_scheduler_path)
+            os.system("rm -rf " + str(dirname))
+            os.makedirs(dirname)
+            torch.save(init_model_state, init_model_path)
+            torch.save(init_optimizer_state, init_optimizer_path)
+            torch.save(init_lr_scheduler_state, init_lr_scheduler_path)
 
         logger.info("Beginning training.")
 
@@ -1353,12 +1353,16 @@ class Trainer(Registrable):
         epochs_trained = 0
         training_start_time = time.time()
         first_epoch_for_converge = 0
-
-        for epoch in range(epoch_counter, self._num_epochs):
+        
+        max_epoch = self._num_epochs
+        if self.ensemble_model is not None:
+            max_epoch *= len(self.ensemble_model.submodels)
+        for epoch in range(epoch_counter, max_epoch):
             epoch_start_time = time.time()
-            self.model = self.ensemble_model.submodels[self.model_idx]
-            self.optimizer = self.ensemble_optimizer[self.model_idx]
-            self._learning_rate_scheduler = self.ensemble_scheduler[self.model_idx]
+            if self.ensemble_model is not None:
+                self.model = self.ensemble_model.submodels[self.model_idx]
+                self.optimizer = self.ensemble_optimizer[self.model_idx]
+                self._learning_rate_scheduler = self.ensemble_scheduler[self.model_idx]
 
             train_metrics = self._train_epoch(epoch)
             query_this_epoch = False
@@ -1396,7 +1400,7 @@ class Trainer(Registrable):
                                 eval_ensemble = (self._selector == 'qbc')
                                 logger.info("Evaluating ensemble and adding more data.")
                     else:
-                        if self._should_stop_early(validation_metric_per_epoch[first_epoch_for_converge:], self._patience) or (epoch - first_epoch_for_converge >= self._active_learning_epoch_interval):
+                        if self._should_stop_early(validation_metric_per_epoch[first_epoch_for_converge:], self._patience) or (len(submodel_val_metrics[self.model_idx]) >= self._active_learning_epoch_interval):
                             logger.info("Ran out of patience on model " + str(self.model_idx))
                             if self._selector == 'qbc':
                                 first_epoch_for_converge = epoch + 1
@@ -1512,8 +1516,6 @@ class Trainer(Registrable):
                             else:
                                 batch = util.move_to_device(batch, self._cuda_devices[0])
                                 output_dict = self.model(**batch)
-                            if self._selector == 'qbc':
-                                self.model = self.ensemble_model.submodels[self.model_idx]
                             batch_size = len(output_dict['predicted_antecedents'])
                             translation_reference = output_dict['top_span_indices']
 
@@ -1692,7 +1694,8 @@ class Trainer(Registrable):
                                 held_out_loss += output_dict['loss'].detach().cpu().numpy()
 
                             # Update the description with the latest metrics
-                            held_out_metrics = self._get_metrics(held_out_loss, num_batches)
+                            # reset metrics at last epoch
+                            held_out_metrics = self._get_metrics(held_out_loss, num_batches, reset=batch_ind == len(held_out_generator_tqdm) - 1)
                             for i, metadata in enumerate(batch['metadata']):
                                 predicted_clusters = []
                                 for cluster in range(batch['span_labels'][i].max() + 1):
@@ -1707,7 +1710,6 @@ class Trainer(Registrable):
                                     pickle.dump(mention_to_predicted, open('mention_to_predicted.pkl', 'wb'), pickle.HIGHEST_PROTOCOL)
                                     pickle.dump(mention_to_gold, open('mention_to_gold.pkl', 'wb'), pickle.HIGHEST_PROTOCOL)
                                     os.system("python verify_clusters.py")
-                                    pdb.set_trace()
                                     #for span in spans: print(str(span) + " " + str(((output_dict['top_spans'][:,:,0] == span[0]) & (output_dict['top_spans'][:,:,1] == span[1])).nonzero()))
                                 for scorer in conll_coref.scorers:
                                     scorer.update(predicted_clusters, gold_clusters, mention_to_predicted, mention_to_gold)
@@ -1716,6 +1718,8 @@ class Trainer(Registrable):
                                                    'old_R': held_out_metrics['coref_recall'], 'new_R': new_R,
                                                    'old_F1': held_out_metrics['coref_f1'], 'new_F1': new_F1,
                                                    'MR': held_out_metrics['mention_recall'], 'loss': held_out_metrics['loss']}
+                            if num_to_query == 0 and new_F1 != held_out_metrics['coref_f1']:
+                                pdb.set_trace()
                             description = self._description_from_metrics(description_display)
                             total_num_queried += num_to_query
                             total_labels += total_possible_queries
@@ -1817,6 +1821,19 @@ class Trainer(Registrable):
                         move_optimizer_to_cuda(self.optimizer)
                         self._learning_rate_scheduler.lr_scheduler.load_state_dict(init_scheduler_state)
             epochs_trained += 1
+
+        # evaluate ensemble model at the end
+        if self._validation_data is not None and self.ensemble_model is not None:
+            with torch.no_grad():
+                # evaluate ensemble of BEST models at this epoch
+                for i in range(len(self.ensemble_model.submodels)):
+                    submodel_path = os.path.join(dirname, "best_submodel_" + str(i) + "_state.th")
+                    submodel_state = torch.load(submodel_path, map_location=util.device_mapping(-1))
+                    self.ensemble_model.submodels[i].load_state_dict(submodel_state)
+                self.model = self.ensemble_model
+                # We have a validation set, so compute all the metrics on it.
+                val_loss, num_batches = self._validation_loss()
+                ensemble_val_metrics = self._get_metrics(val_loss, num_batches, reset=True)
 
         return metrics
 

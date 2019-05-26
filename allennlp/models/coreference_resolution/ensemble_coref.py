@@ -71,9 +71,12 @@ class CorefEnsemble(Ensemble):
         # feed averaged mention scores and other variables back into model
         # should produce the same results
         output_dict = self.submodels[0](text, spans, span_labels, user_labels, must_link, cannot_link, metadata, get_scores, coref_scores_info=coref_scores_info)
+        # run other models so coref scores are at the same state
+        for i in range(1, num_models):
+            self.submodels[i](text, spans, span_labels, user_labels, must_link, cannot_link, metadata, get_scores, coref_scores_info=coref_scores_info)
 
-        self._mention_recall(top_spans, metadata)
-        self._conll_coref_scores(top_spans, output_dict['antecedent_indices'], output_dict['predicted_antecedents'], metadata)
+        self._mention_recall(output_dict['top_spans'], metadata)
+        self._conll_coref_scores(output_dict['top_spans'], output_dict['antecedent_indices'], output_dict['predicted_antecedents'], metadata)
         if get_scores:
             output_dict['coreference_scores_models'] = all_coref_scores
         return output_dict
@@ -86,6 +89,9 @@ class CorefEnsemble(Ensemble):
     def get_metrics(self, reset: bool = False) -> Dict[str, float]:
         mention_recall = self._mention_recall.get_metric(reset)
         coref_precision, coref_recall, coref_f1 = self._conll_coref_scores.get_metric(reset)
+        # also reset submodels
+        for i in range(len(self.submodels)):
+            self.submodels[i].get_metrics(reset)
 
         return {"coref_precision": coref_precision,
                 "coref_recall": coref_recall,
