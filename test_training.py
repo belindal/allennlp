@@ -321,7 +321,7 @@ def main(cuda_device, testing=False, testing_vocab=False, experiments=None, pair
         for x in percent_list:
             print_str = "% of labels" if use_percents else " labels per doc"
             print("Running with " + str(x) + print_str)
-            serialization_dir = os.path.join(save_dir, "temp_" + str(cuda_device))
+            serialization_dir = os.path.join(save_dir, "temp_" + str(cuda_device[0]))
             os.system('rm -rf ' + serialization_dir)
             params = Params.from_file(os.path.join(save_dir, 'coref.jsonnet'))
             params.params['trainer']['cuda_device'] = cuda_device
@@ -339,8 +339,8 @@ def main(cuda_device, testing=False, testing_vocab=False, experiments=None, pair
             params.params['trainer']['active_learning']['epoch_interval'] = 0
             del params.params['test_data_path']
             #comment out or keep
-            params.params['train_data_path'] = "../data/coref_ontonotes/dev.english.v4_gold_conll"
-            params.params['dataset_reader']['fully_labelled_threshold'] = 100
+            #params.params['train_data_path'] = "../data/coref_ontonotes/dev.english.v4_gold_conll"
+            #params.params['dataset_reader']['fully_labelled_threshold'] = 100
             if testing:
                 params.params['model']['text_field_embedder']['token_embedders']['tokens'] = {'type': 'embedding', 'embedding_dim': 300}
         serialization_dir = tempfile.mkdtemp()
