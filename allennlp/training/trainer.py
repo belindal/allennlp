@@ -1084,7 +1084,6 @@ class Trainer(Registrable):
 
                                     num_queried += 1
 
-                                self.DEBUG_BREAK_FLAG = False
                                 edges_to_add = indA_model_edges
 
                             elif self._query_type == 'discrete': # selector is random or score
@@ -1203,6 +1202,7 @@ class Trainer(Registrable):
                                     pickle.dump(mention_to_predicted, open('mention_to_predicted.pkl', 'wb'), pickle.HIGHEST_PROTOCOL)
                                     pickle.dump(mention_to_gold, open('mention_to_gold.pkl', 'wb'), pickle.HIGHEST_PROTOCOL)
                                     os.system("python verify_clusters.py")
+                                    pdb.set_trace()
                                     #for span in spans: print(str(span) + " " + str(((output_dict['top_spans'][:,:,0] == span[0]) & (output_dict['top_spans'][:,:,1] == span[1])).nonzero()))
                                 for scorer in conll_coref.scorers:
                                     scorer.update(predicted_clusters, gold_clusters, mention_to_predicted, mention_to_gold)

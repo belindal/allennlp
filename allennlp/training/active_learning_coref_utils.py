@@ -491,7 +491,6 @@ def find_next_most_uncertain_mention(selector, model_labels, output_dict, querie
                     torch.save(output_dict['coreference_scores'], "coref_scores.txt")
                     torch.save(model_output_mention_pair_clusters, "mention_clusters.txt")
                     os.system("python verify_qbc_scorer.py")
-                    pdb.set_trace()
             else:
                 # select cluster corresponding to predicted antecedent for each mention
                 predicted_antecedents = output_dict['predicted_antecedents'][b].unsqueeze(-1).expand_as(
@@ -545,7 +544,6 @@ def find_next_most_uncertain_mention(selector, model_labels, output_dict, querie
         torch.save(coreference_probs, "coreference_probs.txt")
         torch.save(model_output_mention_pair_clusters, "model_output_mention_pair_clusters.txt")
         os.system("python verify_scorer.py")
-        pdb.set_trace()
     if selector == 'entropy' or selector == 'qbc':
         opt_score = mention_confidence_scores.max()
     elif selector == 'score':

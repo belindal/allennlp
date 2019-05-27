@@ -334,7 +334,7 @@ def main(cuda_device, testing=False, testing_vocab=False, experiments=None, pair
             dump_metrics(os.path.join(save_dir, str(x) + ".json"), metrics, log=True)
     else:
         params = Params.from_file('training_config/coref.jsonnet')
-        params.params['trainer']['active_learning']['num_labels'] = 0
+        params.params['trainer']['active_learning']['num_labels'] = 1
         if testing or testing_vocab:
             params.params['trainer']['active_learning']['epoch_interval'] = 0
             del params.params['test_data_path']
