@@ -140,6 +140,7 @@ def get_sorted_masked_edges(selector, coreference_mask, output_dict, all_spans, 
                             farthest_from_zero=False) -> torch.LongTensor:
     """
     :param coreference_mask: should be a boolean tensor with size equal to output_dict["coreference_scores"]
+                             containing 1 at each mention's most likely antecedent (excluding no antecedent)
     :param output_dict: should have a field "coreference_scores"
     :param farthest_from_zero: in the case of non-random sorting,
                                True if sort by farthest_from_zero (most certain), False if sort by closest to 0 (least certain)
@@ -160,7 +161,7 @@ def get_sorted_masked_edges(selector, coreference_mask, output_dict, all_spans, 
     elif selector == 'random':
         # using random selector
         ind_max_edge_scores = torch.randperm(len(masked_edge_inds))
-    else:  # selector is entropy
+    elif selector == 'entropy':  # selector is entropy
         coreference_probs = torch.zeros(output_dict['coreference_scores'].size(), dtype=torch.float,
                                         device=edge_scores.device)
         for b in range(len(output_dict['top_spans'])):
@@ -171,9 +172,29 @@ def get_sorted_masked_edges(selector, coreference_mask, output_dict, all_spans, 
         mention_entropies = coreference_probs.exp() * coreference_probs
         # delete nan caused by log-ing 0s
         mention_entropies[mention_entropies != mention_entropies] = 0
-        mention_entropies = mention_entropies[mentions_to_query[:, 1]]
+        # filter out mentions which we already know the antecedents to
+        mention_entropies = mention_entropies[mentions_to_query[:,0], mentions_to_query[:,1]]
         edge_entropies = -mention_entropies.sum(-1)
-        _, ind_max_edge_entropies = edge_entropies.sort(descending=True)
+        _, ind_max_edge_scores = edge_entropies.sort(descending=True)
+    else:  # selector is qbc
+        num_models = output_dict['coreference_scores_models'].size(0)
+        _, model_pred_ants = output_dict['coreference_scores_models'].max(-1)
+        max_ant = (model_pred_ants.max() + 1)
+        edge_entropies = torch.zeros(model_pred_ants.size()[1:], dtype=torch.float, device=model_pred_ants.device)
+        for b in range(len(output_dict['top_spans'])):
+            mentions_range_tensor = torch.arange(0, model_pred_ants[:,b].size(-1) * max_ant, max_ant, dtype=torch.long, device=model_pred_ants.device)
+            model_ant_votes = ((model_pred_ants[:,b] + mentions_range_tensor).view(-1)).bincount(minlength=len(mentions_range_tensor) * max_ant)
+            model_ant_votes = model_ant_votes.view(-1, max_ant).float() / num_models
+            batch_mention_entropy = model_ant_votes.log() * model_ant_votes
+            # mask out nans
+            batch_mention_entropy[batch_mention_entropy != batch_mention_entropy] = 0
+            batch_edge_entropies = -(batch_mention_entropy).sum(-1)
+            edge_entropies[b] = batch_edge_entropies
+        mentions_to_query = coreference_mask.max(-1)[0].nonzero()
+        edge_entropies = edge_entropies[mentions_to_query[:,0], mentions_to_query[:,1]]
+        _, ind_max_edge_scores = edge_entropies.sort(descending=True)
+        ind_max_edge_scores = ind_max_edge_scores.squeeze(0)
+    # TODO: only works for 1 instance/batch
     sorted_edges = translate_to_indA(masked_edge_inds[ind_max_edge_scores], output_dict, all_spans, translation_reference)
     return sorted_edges, edge_scores[ind_max_edge_scores]
 
@@ -270,7 +291,7 @@ def query_user_labels_pairwise(sample_from_training, chosen_edges, edge_scores, 
     return chosen_edges, num_labels_to_query + num_alt_edge_queried, total_possible_queries
 
 
-def query_user_labels_discrete(chosen_edges, edge_scores, num_labels_to_query, return_all_edges, output_dict, batch):
+def query_user_labels_discrete(chosen_edges, edge_scores, num_labels_to_query, return_all_edges, output_dict, batch, query_first_span_in_cluster=False):
     """
     :param chosen_edges: should be sorted with most uncertain first, with edges in which both ends in gold clusters filtered out
     :param user_labels: from batch['user_labels']
@@ -309,49 +330,52 @@ def query_user_labels_discrete(chosen_edges, edge_scores, num_labels_to_query, r
                 if len(user_spans_in_proform_cluster) > 1:  # more than 1 element in cluster
                     # if we are 1st span in cluster, choose arbitrary span outside of spans already in our cluster
                     if chosen_edges[i, 1] == user_spans_in_proform_cluster[0]:
-                        spans_in_curr_proform_cluster_mask = (proform_span_label != -1) & (
-                                    span_labels[chosen_edges[i, 0]] == proform_span_label)
-                        user_spans_outside_curr_proform_cluster = (user_spans_in_proform_cluster_mask &
-                                                                   ~spans_in_curr_proform_cluster_mask).nonzero()
-                        user_spans_outside_curr_proform_cluster = user_spans_outside_curr_proform_cluster[
-                            user_spans_outside_curr_proform_cluster != chosen_edges[i, 1]]
-                        # TODO: if there are spans in the cluster besides what we have currently, choose random among them
-                        # otherwise, no additional spans to add, delete edge (and all ingoing and outgoing edges from cluster)
-                        if len(user_spans_outside_curr_proform_cluster.nonzero()) > 0:
-                            new_antecedent = user_spans_outside_curr_proform_cluster[
-                                torch.randint(len(user_spans_outside_curr_proform_cluster), (), dtype=torch.long)]
-                            chosen_edges[i, 2] = chosen_edges[i, 1]
-                            chosen_edges[i, 1] = new_antecedent
+                        if query_first_span_in_cluster:
+                            spans_in_curr_proform_cluster_mask = (proform_span_label != -1) & (
+                                        span_labels[chosen_edges[i, 0]] == proform_span_label)
+                            user_spans_outside_curr_proform_cluster = (user_spans_in_proform_cluster_mask &
+                                                                       ~spans_in_curr_proform_cluster_mask).nonzero()
+                            user_spans_outside_curr_proform_cluster = user_spans_outside_curr_proform_cluster[
+                                user_spans_outside_curr_proform_cluster != chosen_edges[i, 1]]
+                            # TODO: if there are spans in the cluster besides what we have currently, choose random among them
+                            # otherwise, no additional spans to add, delete edge (and all ingoing and outgoing edges from cluster)
+                            if len(user_spans_outside_curr_proform_cluster.nonzero()) > 0:
+                                new_antecedent = user_spans_outside_curr_proform_cluster[
+                                    torch.randint(len(user_spans_outside_curr_proform_cluster), (), dtype=torch.long)]
+                                chosen_edges[i, 2] = chosen_edges[i, 1]
+                                chosen_edges[i, 1] = new_antecedent
 
-                            # redirect future edges out of new_antecedent -> S to go from S -> first span
-                            outgoing_new_antecedent_span_mask = (chosen_edges[:, 1] == new_antecedent)
-                            outgoing_new_antecedent_span_mask[:i + 1] = 0  # ensure only setting future edges
-                            chosen_edges[:, 1][outgoing_new_antecedent_span_mask] = chosen_edges[:, 2][
-                                outgoing_new_antecedent_span_mask]
-                            chosen_edges[:, 2][outgoing_new_antecedent_span_mask] = chosen_edges[
-                                i, 2]  # point to first span of cluster (the same as chosen_edges[i] is pointing to)
-                            # delete future edges that are now invalid (because impossible to be before first span and still in clustetr)
-                            invalid_edges_mask = (chosen_edges[:, 2] == chosen_edges[i, 2]) & (
-                                        chosen_edges[:, 1] <= chosen_edges[:, 2])
-                            invalid_edges_mask[:i + 1] = 0  # ensure edges that have been verified aren't deemed 'invalid'
-                            chosen_edges = chosen_edges[~invalid_edges_mask]
-                            edge_scores = edge_scores[~invalid_edges_mask]
+                                # redirect future edges out of new_antecedent -> S to go from S -> first span
+                                outgoing_new_antecedent_span_mask = (chosen_edges[:, 1] == new_antecedent)
+                                outgoing_new_antecedent_span_mask[:i + 1] = 0  # ensure only setting future edges
+                                chosen_edges[:, 1][outgoing_new_antecedent_span_mask] = chosen_edges[:, 2][
+                                    outgoing_new_antecedent_span_mask]
+                                chosen_edges[:, 2][outgoing_new_antecedent_span_mask] = chosen_edges[
+                                    i, 2]  # point to first span of cluster (the same as chosen_edges[i] is pointing to)
+                                # delete future edges that are now invalid (because impossible to be before first span and still in clustetr)
+                                invalid_edges_mask = (chosen_edges[:, 2] == chosen_edges[i, 2]) & (
+                                            chosen_edges[:, 1] <= chosen_edges[:, 2])
+                                invalid_edges_mask[:i + 1] = 0  # ensure edges that have been verified aren't deemed 'invalid'
+                                chosen_edges = chosen_edges[~invalid_edges_mask]
+                                edge_scores = edge_scores[~invalid_edges_mask]
 
-                            coreferent = True
+                                coreferent = True
+                            else:
+                                coreferent = False
+                                # cluster is complete; delete all remaining ingoing and outgoing edges from cluster (and within cluster)
+                                if i < len(
+                                        chosen_edges) - 1:  # we are not on last edge (there are still remaining edges to check)
+                                    remaining_edges_to_and_from_cluster = ((chosen_edges[i + 1:].unsqueeze(
+                                        0) - user_spans_in_proform_cluster.unsqueeze(-1)).abs() == 0).nonzero()
+                                    if len(remaining_edges_to_and_from_cluster) > 0:
+                                        remaining_edges_to_and_from_cluster[:, 1] += i + 1
+                                        # delete rows at remaining_edges_to_and_from_cluster[:,1]
+                                        chosen_edges[remaining_edges_to_and_from_cluster[:, 1], :] = -1
+                                        mask = chosen_edges[:, 0] != -1
+                                        chosen_edges = chosen_edges[mask]
+                                        edge_scores = edge_scores[mask]
                         else:
                             coreferent = False
-                            # cluster is complete; delete all remaining ingoing and outgoing edges from cluster (and within cluster)
-                            if i < len(
-                                    chosen_edges) - 1:  # we are not on last edge (there are still remaining edges to check)
-                                remaining_edges_to_and_from_cluster = ((chosen_edges[i + 1:].unsqueeze(
-                                    0) - user_spans_in_proform_cluster.unsqueeze(-1)).abs() == 0).nonzero()
-                                if len(remaining_edges_to_and_from_cluster) > 0:
-                                    remaining_edges_to_and_from_cluster[:, 1] += i + 1
-                                    # delete rows at remaining_edges_to_and_from_cluster[:,1]
-                                    chosen_edges[remaining_edges_to_and_from_cluster[:, 1], :] = -1
-                                    mask = chosen_edges[:, 0] != -1
-                                    chosen_edges = chosen_edges[mask]
-                                    edge_scores = edge_scores[mask]
                     else:
                         # TODO: don't ask current antecedent (chosen_edges[i,2]) to ANY element of cluster involving current proform (chosen_edges[i,1])
                         new_antecedent = user_spans_in_proform_cluster[0]

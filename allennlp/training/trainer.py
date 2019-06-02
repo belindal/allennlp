@@ -1089,7 +1089,7 @@ class Trainer(Registrable):
                             elif self._query_type == 'discrete': # selector is random or score
                                 # get rid of 1st, dummy column to ensure nothing selected from it
                                 coref_scores_no_dummy = output_dict['coreference_scores'][:,:,1:]
-                                coref_scores_no_dummy[:,0,0] = 0
+                                #coref_scores_no_dummy[:,0,0] = 0
                                 max_mention_scores, _ = coref_scores_no_dummy.max(2, keepdim=True)
                                 max_mention_scores_mask = coref_scores_no_dummy.eq(max_mention_scores)
 
@@ -1113,7 +1113,7 @@ class Trainer(Registrable):
                                 max_mention_scores_mask = torch.cat([torch.zeros(
                                     batch_size, coref_scores_no_dummy.size(1), 1, dtype=torch.uint8
                                     ).cuda(self._cuda_devices[0]), max_mention_scores_mask], dim=-1)
-
+                                # returns *raw scores* rather than entropies
                                 sorted_max_mention_edges, sorted_max_mention_edges_score = \
                                     al_util.get_sorted_masked_edges(self._selector, max_mention_scores_mask, output_dict,
                                                                     batch['spans'], translation_reference, farthest_from_zero=False)
@@ -1126,7 +1126,7 @@ class Trainer(Registrable):
                                 edges_to_add, num_to_query, total_possible_queries, batch['span_labels'] = \
                                     al_util.query_user_labels_discrete(sorted_max_mention_edges,
                                                                        sorted_max_mention_edges_score, num_to_query,
-                                                                       True, output_dict, batch)
+                                                                       True, output_dict, batch, False)
                             else: # query type is pairwise
                                 # get all > 0 edges (to know which to assign next)
                                 larger_than_zero_mask = (output_dict['coreference_scores'] > 0)
@@ -1211,8 +1211,9 @@ class Trainer(Registrable):
                                                    'old_R': held_out_metrics['coref_recall'], 'new_R': new_R,
                                                    'old_F1': held_out_metrics['coref_f1'], 'new_F1': new_F1,
                                                    'MR': held_out_metrics['mention_recall'], 'loss': held_out_metrics['loss']}
-                            if num_to_query == 0 and new_F1 != held_out_metrics['coref_f1']:
-                                pdb.set_trace()
+                            if self._active_learning_percent_labels == 0 and new_F1 != held_out_metrics['coref_f1']:
+                                if self.DEBUG_BREAK_FLAG:
+                                    pdb.set_trace()
                             description = self._description_from_metrics(description_display)
                             total_num_queried += num_to_query
                             total_labels += total_possible_queries
