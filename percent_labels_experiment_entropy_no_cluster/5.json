@@ -1,0 +1,22 @@
+{
+  "training_duration": "04:49:01",
+  "training_start_epoch": 0,
+  "training_epochs": 69,
+  "epoch": 69,
+  "best_epoch": 59,
+  "best_validation_coref_precision": 0.6395654589686953,
+  "best_validation_coref_recall": 0.46827070674114074,
+  "best_validation_coref_f1": 0.5388251837002115,
+  "best_validation_mention_recall": 0.8866092404072043,
+  "best_validation_loss": 74.57974721048213,
+  "training_coref_precision": 0.6954563212009877,
+  "training_coref_recall": 0.48580502326997305,
+  "training_coref_f1": 0.5697163821479773,
+  "training_mention_recall": 0.8984687383483974,
+  "training_loss": 24.968886717837062,
+  "validation_coref_precision": 0.6272976953969642,
+  "validation_coref_recall": 0.4717659786601403,
+  "validation_coref_f1": 0.5369283454534565,
+  "validation_mention_recall": 0.8856695379796398,
+  "validation_loss": 84.91916019775778
+}
