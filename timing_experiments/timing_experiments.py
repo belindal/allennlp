@@ -7,16 +7,15 @@ parser.add_argument('policy_type',
                     type=str,
                     default='pairwise',
                     help='how to poll the user (pairwise or discrete)')
+parser.add_argument('input_document',
+                    type=str,
+                    help='input document containing examples to label')
 
 args = parser.parse_args()
 QUERY_TYPE = vars(args)['policy_type']
+doc_name = vars(args)['input_document']
 
-doc_names = ["pairwise_examples.txt", "discrete_examples.txt"]
-if QUERY_TYPE == "pairwise":
-    doc_name = doc_names[0]
-elif QUERY_TYPE == "discrete":
-    doc_name = doc_names[1]
-else:
+if QUERY_TYPE != "pairwise" and QUERY_TYPE != "discrete":
     raise ValueError("bad argument, should pass in either 'pairwise' or 'discrete'")
 
 user_doc_name = "user_" + doc_name[:len(doc_name) - 13] + "_labels.txt"
@@ -33,6 +32,8 @@ try:
     with open(user_doc_name, 'r') as wf:
         for line in wf:
             user_answers.append(bool(line.strip().split('\t')[0]))
+            if len(line.strip().split('\t')) == 3:
+                time_per_example.append(float(line.strip().split('\t')[2]))
     num_already_queried = len(user_answers)
 except:
     num_already_queried = 0
@@ -59,11 +60,14 @@ try:
                 user_answers.append(False)
             else:
                 user_answers[i] = False
-            if doc_name == "discrete_examples.txt":
+            if QUERY_TYPE == "discrete":
                 new_item = input("What is the *first* appearance of the entity that the white-highlighted text refers to? (copy from document): ")
                 new_ants[i] = new_item
         end_time = time.time()
-        time_per_example.append(end_time - start_time)
+        if i >= len(time_per_example):
+            time_per_example.append(end_time - start_time)
+        else:
+            time_per_example[i] += (end_time - start_time)
         print()
         i += 1
 except:
