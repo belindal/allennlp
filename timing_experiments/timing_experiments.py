@@ -19,7 +19,7 @@ elif QUERY_TYPE == "discrete":
 else:
     raise ValueError("bad argument, should pass in either 'pairwise' or 'discrete'")
 
-user_doc_name = "user_" + doc_name[:len(doc_name) - 14] + "_labels.txt"
+user_doc_name = "user_" + doc_name[:len(doc_name) - 13] + "_labels.txt"
 examples = []
 user_answers = []
 new_ants = {}
@@ -67,7 +67,8 @@ try:
         print()
         i += 1
 except:
-    pdb.set_trace()
+    # do nothing
+    print()
 
 wf = open(user_doc_name, 'w')
 for i, answer in enumerate(user_answers):
