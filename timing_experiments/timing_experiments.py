@@ -31,11 +31,17 @@ with open(doc_name, 'r', encoding='unicode_escape') as f:
         examples.append(line)
 
 try:
+    i = 0
     with open(user_doc_name, 'r') as wf:
         for line in wf:
-            user_answers.append(bool(line.strip().split('\t')[0]))
+            user_answers.append(bool(line.strip().split('\t')[0] == 'True'))
+            if i == 60:
+                pdb.set_trace()
             if len(line.strip().split('\t')) == 3:
+                if line.strip().split('\t')[0] != 'True':
+                    new_ants[i] = str(line.strip().split('\t')[1])
                 time_per_example.append(float(line.strip().split('\t')[2]))
+            i += 1
     num_already_queried = len(user_answers)
 except:
     num_already_queried = 0
