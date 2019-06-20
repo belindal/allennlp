@@ -31,6 +31,7 @@ examples = []
 user_answers = []
 new_ants = {}
 time_per_example = []
+discrete_time_per_example = {}
 
 with open(doc_name, 'r', encoding='unicode_escape') as f:
     for line in f:
@@ -40,11 +41,14 @@ try:
     i = 0
     with open(user_doc_name, 'r') as wf:
         for line in wf:
-            user_answers.append(bool(line.strip().split('\t')[0] == 'True'))
-            if len(line.strip().split('\t')) >= 3:
-                if line.strip().split('\t')[0] != 'True':
-                    new_ants[i] = str(line.strip().split('\t')[1])
-                time_per_example.append(float(line.strip().split('\t')[2]))
+            line = line.strip().split('\t')
+            user_answers.append(bool(line[0] == 'True'))
+            assert len(line) >= 3
+            if line[0] != 'True':
+                new_ants[i] = str(line[1])
+            time_per_example.append(float(line[2]))
+            if len(line) >= 4:
+                discrete_time_per_example[i] = float(line[3])
             i += 1
     num_already_queried = len(user_answers)
 except:
@@ -56,6 +60,7 @@ try:
         os.system("clear")
         print(examples[i].strip())
         start_time = time.time()
+        discrete_start_time = 0
         print("Are these two coreferent? y/[n] ('q' to quit with save, 'p' to go back to previous example): ")
         val = getch()
         if val.startswith('y') or val.startswith('Y'):
@@ -75,13 +80,19 @@ try:
             else:
                 user_answers[i] = False
             if QUERY_TYPE == "discrete":
+                discrete_start_time = time.time()
                 new_item = input("What is the *first* appearance of the entity that the white-highlighted text refers to? (copy from document): ")
                 new_ants[i] = new_item
         end_time = time.time()
-        if i >= len(time_per_example):
-            time_per_example.append(end_time - start_time)
-        else:
-            time_per_example[i] += (end_time - start_time)
+        if val.startswith('y') or val.startswith('Y') or val.startswith('n') or val.startswith('N'):
+            if QUERY_TYPE == "discrete" and discrete_start_time != 0:
+                if i not in discrete_time_per_example:
+                    discrete_time_per_example[i] = 0
+                discrete_time_per_example[i] += (end_time - discrete_start_time)
+            if i >= len(time_per_example):
+                time_per_example.append(end_time - start_time)
+            else:
+                time_per_example[i] += (end_time - start_time)
         print()
         i += 1
 except:
@@ -94,6 +105,8 @@ for i, answer in enumerate(user_answers):
     if i in new_ants:
         wf.write(new_ants[i])
     wf.write("\t" + str(time_per_example[i]))
+    if i in discrete_time_per_example:
+        wf.write("\t" + str(discrete_time_per_example[i]))
     wf.write("\n")
 wf.close()
 

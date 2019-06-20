@@ -1,0 +1,5000 @@
+False	 Brian	[233, 233]
+False
+False	 only 53 of the 67 counties	[277, 282]
+False	 It	[65, 65]
+False
+False	 Gore officials	[228, 229]
+False
+False	 we	[242, 242]
+True
+False	 Daley	[184, 184]
+True
+True
+False	 more and more people	[267, 270]
+False	 a legitimate recount	[413, 415]
+True
+False	 Israelis	[43, 43]
+False
+False	 Lea Rabin , widow of Yitzhak Rabin	[478, 484]
+False
+False	 we	[221, 221]
+False	 We	[193, 193]
+False
+False
+False
+False
+False
+True
+False	 those counties contemplating manual vote recounts	[23, 28]
+False	 Colier County	[101, 102]
+False	 the Secretary of State in Florida	[7, 12]
+False
+False
+False
+True
+False	 the opinion	[198, 199]
+False	 a conciliatory meeting with Vice President Gore next week	[67, 75]
+False	 America	[233, 233]
+True
+False
+False
+False	 something tremendously important to this country , literacy	[238, 245]
+False
+False	 this country	[242, 243]
+False
+False	 That	[549, 549]
+False	 it	[41, 41]
+True
+False	 it	[41, 41]
+False
+False	 Mexico City	[35, 36]
+False	 its	[22, 22]
+True
+False	 another 20,000	[303, 304]
+False	 its	[22, 22]
+True
+True
+False	 the nation 's	[185, 187]
+False	 the presidential candidates	[34, 36]
+False	 the presidential candidates	[34, 36]
+False	 the presidential candidates	[34, 36]
+True
+True
+False	 Trudeau	[51, 51]
+False	 The former Prime Minister 's son Justin	[58, 64]
+False	 Trudeau	[51, 51]
+False	 this Charleston , South Carolina , hospital	[82, 88]
+True
+False
+False	 many of the nation 's doctors	[278, 283]
+False	 Many of the nation 's big medical groups	[235, 242]
+False
+True
+True
+False	 the physician	[455, 456]
+True
+False	 Serbia	[168, 168]
+False	 Slobodan Milosevic	[37, 38]
+True
+False	 Milosevic 's party , which still controls the parliament	[108, 116]
+True
+False
+False	 Dick Cheney	[33, 34]
+True
+False	 the race for President	[42, 45]
+False	 NBC 's	[19, 20]
+False	 the meeting	[333, 334]
+True
+True
+True
+False
+False	 the `` USS Cole ''	[6, 10]
+False	 The crew	[158, 159]
+True
+False	 The crew	[158, 159]
+False	 the `` USS Cole ''	[6, 10]
+False	 the country	[14, 15]
+False	 the paud name of Firestone , once a premium tire	[234, 243]
+False	 Tire dealer Bryan Tashjian	[102, 105]
+True
+False
+False	 some	[601, 601]
+False	 North Carolina	[567, 568]
+False	 any family	[341, 342]
+False	 many of the other schools	[71, 75]
+False
+True
+True
+True
+False	 the weapon itself	[120, 122]
+False	 the Yemen President	[98, 100]
+False	 threatens	[70, 70]
+False	 that against the `` USS Cole	[27, 32]
+True
+False
+True
+False	 the suicide bombers	[249, 251]
+False	 attacked	[58, 58]
+False	 One senior official	[307, 309]
+False	 they	[313, 313]
+False	 American troops in the Persian Gulf	[6, 11]
+False	 today 's	[40, 41]
+True
+False
+False	 this election	[267, 268]
+True
+True
+False
+False
+False
+False	 beefed	[14, 14]
+False	 at least 23 crew members	[159, 163]
+False	 any survivors	[327, 328]
+False	 at least 23 crew members	[159, 163]
+False	 the crew	[96, 97]
+False
+True
+False	 the U.N.	[9, 10]
+False	 the U.N.	[9, 10]
+False
+False
+False	 the surviving crew members of the `` USS Cole	[5, 13]
+True
+False
+False
+False
+True
+False	 four men	[4, 5]
+False	 Yemen	[1, 1]
+True
+True
+True
+False	 the new Prez	[449, 451]
+False	 the new Prez	[449, 451]
+False	 his	[265, 265]
+True
+False	 Yemen	[56, 56]
+False	 at least one of the suspects	[76, 81]
+False	 a major development	[46, 48]
+False
+False	 they	[173, 173]
+False	 he and his team	[127, 130]
+False	 Gore and his family	[379, 382]
+False	 we	[205, 205]
+False
+False	 all Americans	[184, 185]
+False
+False
+False	 a World War II memorial	[34, 38]
+True
+False
+False	 The Gore team	[328, 330]
+True
+False
+True
+False	 ballots	[311, 311]
+False	 the country	[108, 109]
+False	 the country	[108, 109]
+False
+False	 going	[93, 93]
+False
+True
+True
+False
+False	 Republican Majority Whip Tom DeLay	[16, 20]
+True
+False	 The order	[176, 177]
+True
+True
+False	 eToys , one of the symbols of the new economy	[32, 41]
+False	 eToys , one of the symbols of the new economy	[32, 41]
+False	 Monica	[199, 199]
+False	 Hillary Rodham Clinton	[8, 10]
+False	 NBC 's Andrea Mitchell	[89, 92]
+True
+False	 equals	[98, 98]
+False	 She	[34, 34]
+False	 She	[34, 34]
+False	 his	[56, 56]
+False
+False
+False	 them	[60, 60]
+True
+False	 the first American shot down in the Gulf War	[33, 41]
+True
+False
+False	 's	[18, 18]
+False	 his wife	[58, 59]
+True
+False	 his wife	[58, 59]
+True
+False
+False
+False
+False
+False
+True
+True
+True
+False	 NPR 's	[26, 27]
+False
+False
+True
+True
+False	 Yugoslavia	[4, 4]
+True
+False	 been	[67, 67]
+True
+False
+False	 Russia and India	[108, 110]
+False
+False	 More than 200 people	[26, 29]
+False
+False
+True
+False
+True
+False	 the Kursk , a Russian nuclear submarine	[4, 10]
+False
+False	 the Kursk , a Russian nuclear submarine	[4, 10]
+True
+True
+True
+False
+False	 hundreds of thousands	[442, 444]
+False	 the parliament building	[121, 123]
+False	 opposition leader Alexander Popovic	[167, 170]
+False	 the Federal Parliament building , which was set on fire	[78, 87]
+True
+False
+False	 Demonstrators	[124, 124]
+False
+False
+False
+True
+False
+True
+False	 It	[122, 122]
+False
+False	 both Russia and China	[129, 132]
+True
+False	 Slobodan Milosevic	[4, 5]
+False	 the Serbian Interior Minister	[17, 20]
+True
+False
+False
+False	 the Colombian civil conflict	[139, 142]
+True
+False	 right - wing paramilitaries	[22, 25]
+False	 those they found on the list	[99, 104]
+True
+True
+False	 they	[28, 28]
+True
+False
+False	 settled	[15, 15]
+True
+True
+True
+False	 Two American professors	[0, 2]
+False	 Daniel Mcfedden of the University of California , Berkeley	[23, 31]
+True
+False	 Kosovo	[517, 517]
+True
+False	 they	[732, 732]
+False	 Yugoslavia 's new President Vojislav Kostunica	[66, 71]
+False	 The violence	[86, 87]
+False	 the region	[197, 198]
+False	 The violence	[86, 87]
+True
+False	 rocketed	[14, 14]
+False
+True
+False
+False
+False	 An apparent attack on a US warship	[0, 6]
+True
+False	 attempting	[233, 233]
+True
+False	 extremists that look at Yemen as , say , heaven	[345, 354]
+False	 your men and women	[647, 650]
+False	 itself	[52, 52]
+True
+True
+True
+False
+False	 the peace process	[131, 133]
+False
+True
+False	 19 prisoners that are currently being held in Israeli jails	[515, 524]
+False	 Israel	[0, 0]
+True
+True
+False	 the blast	[27, 28]
+False
+False	 Yemen	[3, 3]
+False	 17 crewmembers on board the Cole	[36, 41]
+False	 the USS Cole	[11, 13]
+False
+True
+False	 a memorial service for those who died aboard the Cole	[95, 104]
+False	 Serbia	[127, 127]
+False	 The World 's Nenad Sebek	[85, 89]
+False
+True
+False	 today	[13, 13]
+True
+False	 The World 's Stephen Beard	[64, 68]
+False	 Enigma	[382, 382]
+True
+False
+False	 the Yemeni police and security authorities	[294, 299]
+False	 its own independent investigation into circumstances surrounding the bombing	[612, 620]
+False	 bomb	[116, 116]
+False	 the situation on board	[375, 378]
+False	 investigators	[474, 474]
+True
+False	 The resolution	[103, 104]
+False	 the Human Rights Enquiry Commission	[149, 153]
+False
+False	 the west banks of Gaza	[51, 55]
+True
+False	 both Israelis and Palestinians	[171, 174]
+False	 the United Nations	[67, 69]
+False
+False	 Today	[29, 29]
+False	 the USS Cole	[10, 12]
+True
+True
+False
+False
+False
+False	 gunfire	[133, 133]
+False
+True
+False
+False	 South Africa	[23, 24]
+True
+False	 Berthwana Hospital 's	[399, 401]
+True
+True
+False	 his nation	[28, 29]
+False	 his hard line opponents in parliament	[43, 48]
+False
+False	 today	[41, 41]
+False
+False	 its	[14, 14]
+False
+False	 its	[14, 14]
+False
+False	 Sarah McClauclin	[24, 25]
+True
+False
+False
+False	 this tragedy	[641, 642]
+False
+False	 their	[92, 92]
+True
+False	 The United Nations World Food Program , WFP	[0, 7]
+True
+True
+False	 violence between Israeli troops and Palestinian demonstrators	[70, 76]
+False
+True
+False	 only a minority government behind him	[9, 14]
+True
+True
+False	 agreed	[161, 161]
+False	 a non-confidence motion	[236, 238]
+False	 faces	[387, 387]
+False	 a rowdy session of parliament that Ehud Barak addressed today	[12, 21]
+False
+False
+True
+False	 we	[104, 104]
+False	 we	[104, 104]
+False	 a party called Democratic Action	[369, 373]
+False	 parliament	[105, 105]
+False	 an enabling law that would grant him special powers	[108, 116]
+False
+False
+True
+False	 Israel	[60, 60]
+True
+True
+False
+True
+False	 One survivor	[143, 144]
+False	 passengers	[129, 129]
+False
+True
+False	 suspected left wing guerillas	[205, 208]
+False	 police investigators	[835, 836]
+False	 this area	[596, 597]
+True
+False
+False	 nighttime guerilla - style action	[117, 121]
+True
+False	 A Palestinian ambush on an Israeli settler convoy	[20, 27]
+False	 Yasser Arafat 's police and security organizations	[148, 154]
+True
+True
+False	 Palestinians	[170, 170]
+False
+True
+False
+False	 Major Mikiang , a Floridian based in Germany	[643, 650]
+False
+False
+False	 Karen London originally from Hollywood , Florida	[405, 411]
+False
+False
+False	 restored	[6, 6]
+False
+False
+False
+True
+True
+True
+False
+True
+False
+True
+False
+False
+False
+False	 certification of election results in the state	[47, 53]
+False	 the state	[52, 53]
+True
+False
+False
+False	 an Israeli school bus in the occupied Gaza Strip	[25, 33]
+False
+False
+True
+False
+False	 The Palestinian faction headed by Yasser Arafat	[0, 6]
+True
+False
+True
+False
+False
+True
+True
+False	 this	[157, 157]
+False	 The BBC 's	[73, 75]
+True
+False	 GOP vice - presidential nominee Dick Cheney	[0, 6]
+False
+True
+False
+False	 Pizza delivery chain Dominos	[460, 463]
+False	 The American fast food giant	[83, 87]
+False	 McDonalds India	[141, 142]
+False	 McDonalds India	[141, 142]
+False	 fast food companies	[650, 652]
+False	 its	[146, 146]
+False	 The phone call	[37, 39]
+False	 the two sides	[85, 87]
+True
+True
+False	 Washington State	[376, 377]
+False	 Washington State	[376, 377]
+False	 thousands of ballots	[24, 26]
+True
+False	 them	[468, 468]
+False
+True
+False
+False	 the opposition	[57, 58]
+False
+False
+False
+False	 said	[18, 18]
+False
+False
+False	 individuals who are entrepreneurs	[487, 490]
+False
+False
+False	 Japanese political leaders such as Prime Minister Yoshiro Mori	[550, 558]
+True
+True
+False
+False	 North Korea	[10, 11]
+False
+False	 North Korea	[10, 11]
+True
+True
+False	 that	[509, 509]
+False
+False
+False
+False	 the writer and academic Jorge Castaneda	[358, 363]
+True
+True
+True
+False
+False	 the Florida Supreme Court 's	[97, 101]
+True
+False	 the Florida Supreme Court 's	[97, 101]
+False
+False	 our	[172, 172]
+False	 A Chinese cancer patient	[0, 3]
+True
+True
+False	 our daughter	[172, 173]
+False
+False	 The scene	[90, 91]
+False	 a certain little boy named Elian	[62, 67]
+False	 a certain little boy named Elian	[62, 67]
+False	 a sophisticated eavesdropping operation	[23, 26]
+False
+True
+False
+True
+False	 the whole incident	[563, 565]
+True
+False	 our	[300, 300]
+False
+False	 we	[262, 262]
+True
+False	 the territory	[29, 30]
+True
+True
+False
+False
+False	 a little paper ballotenne with a name on it	[518, 526]
+True
+False
+False
+False	 our justice system	[186, 188]
+True
+False
+False	 incumbent Ehud Barak	[30, 32]
+True
+True
+False	 Ireland	[5, 5]
+False	 people from north and south of the island	[96, 103]
+False	 NPR 's Marianne McGuire	[40, 43]
+False
+False	 Belfast	[23, 23]
+False	 Serbia	[248, 248]
+False
+True
+False	 Kostunica and his allies	[392, 395]
+False
+False	 the man Vojislav Kostunica replaced , Slobodan Milosevic	[2, 9]
+True
+True
+True
+True
+False
+False
+True
+False
+False
+True
+False
+False
+True
+False
+False	 President - elect George W. Bush	[11, 16]
+False
+False
+False
+True
+True
+True
+False	 his wife	[466, 467]
+False	 His Socialist Party	[70, 72]
+False	 the drinkers at this bar in Belgrade	[260, 266]
+True
+False	 Scottish men	[336, 337]
+False	 the hundreds of journalists and photographers camped out there	[33, 41]
+False	 the shop	[540, 541]
+False
+False	 The White House	[21, 23]
+False
+False
+False
+False
+False	 This	[327, 327]
+False	 The Mid East peace talks in Washington	[0, 6]
+True
+True
+False	 The trouble	[264, 265]
+False
+False
+False
+False
+False
+False
+False
+False
+True
+False
+True
+True
+False	 his proposals as a starting point	[44, 49]
+False	 Israeli and Palestinian negotiating teams in Washington	[110, 116]
+True
+True
+True
+True
+True
+False	 Paul Adams	[60, 61]
+True
+False
+False	 his 6 children	[404, 406]
+False	 people	[548, 548]
+False	 their	[95, 95]
+True
+True
+True
+False	 they	[12, 12]
+False
+False	 Supporters	[161, 161]
+False	 Barak 's campaign	[641, 643]
+False	 Israel	[50, 50]
+False	 Israel	[50, 50]
+False	 him	[163, 163]
+False	 The second	[507, 508]
+False	 the Russian nuclear submarine ` Kursk '	[32, 38]
+True
+False	 it	[77, 77]
+False	 the Russian nuclear submarine ` Kursk '	[32, 38]
+False	 Tentative peace talks	[8, 10]
+True
+False
+False	 a Jewish settler	[26, 28]
+False
+True
+False
+False	 a country with 23 million people	[185, 190]
+False	 That program	[85, 86]
+True
+False
+False	 Peace talks between Israelis and Palestinians	[0, 5]
+False	 Peace talks between Israelis and Palestinians	[0, 5]
+False
+False
+False	 one of the Ecuadorian Islands	[87, 91]
+False
+False	 a tanker	[32, 33]
+False	 The BBC 's	[80, 82]
+False	 the harbor	[144, 145]
+False	 Clashes between Palestinians and security forces	[8, 13]
+True
+False
+False
+False
+False	 Spanish Prime Minister Jose Maria Aznar	[0, 5]
+False
+False
+False
+False
+True
+False
+True
+True
+False
+False	 the United Nations Refugee Agency	[3, 7]
+True
+False
+False
+False
+True
+False	 rugby	[10, 10]
+True
+False	 the British Journal of Sports Medicine	[128, 133]
+False	 be	[15, 15]
+False
+False
+False
+False
+False
+True
+False	 President Slobodan Milosevic	[17, 19]
+True
+True
+False
+False
+False	 a diary belonging to one of the accused	[13, 20]
+False
+False	 a diary belonging to one of the accused	[13, 20]
+False
+False	 US Secretary of State Madeleine Albright	[30, 35]
+False	 weeklong violence in the West Bank and Gaza Strip	[15, 23]
+True
+False
+False	 Palestinian leader Yasser Arafat and Israeli Prime Minister Ehud Barak	[0, 9]
+False	 Outgoing President Slobodan Milosevic	[37, 40]
+False
+False	 Yugoslavia 's popular uprising against Slobodan Milosevic	[220, 226]
+False	 met	[159, 159]
+True
+False
+False	 Pyong Yang	[23, 24]
+True
+False
+False
+True
+False
+False
+True
+False	 the measure	[61, 62]
+False
+True
+True
+True
+False
+False
+False
+False
+False
+False
+False
+False
+False
+False
+False
+False	 Pyongyang	[23, 23]
+False
+True
+True
+False	 the top North Korean envoy	[8, 12]
+False	 Ecuador 's	[0, 1]
+False	 Ecuador 's	[0, 1]
+False	 She	[191, 191]
+False
+False	 Ecuador 's	[0, 1]
+True
+True
+False	 VOA	[35, 35]
+False	 the country 's	[29, 31]
+False
+False	 blood vessel destroying free radicals	[192, 196]
+True
+False	 complications	[63, 63]
+False	 the diabetes	[88, 89]
+False	 their	[111, 111]
+True
+False	 Mid East	[37, 38]
+False	 Israeli Prime Minister Ehud Barak and Palestinian leader Yasser Arafat	[122, 131]
+True
+False	 the rioting	[98, 99]
+False
+False
+False
+False
+False
+True
+False	 The Toronto Blue Jays	[16, 19]
+False	 General manager Gord Ash	[88, 91]
+True
+True
+False
+False	 It	[44, 44]
+False	 The population	[78, 79]
+True
+True
+False	 Admiral Vern Clark , the Chief of Naval Operations	[133, 141]
+False	 a brief routine refueling stop	[63, 67]
+True
+False	 that small boat	[96, 98]
+True
+False
+True
+True
+True
+False
+False	 A separate work stoppage by Los Angeles transit workers	[204, 212]
+True
+False	 People at one records office	[96, 100]
+True
+False	 Los Angeles , California	[8, 11]
+False	 The blast	[68, 69]
+False
+True
+False	 The blast	[68, 69]
+True
+False	 the Balkan country 's new leader	[11, 16]
+False
+False	 the Balkan country 's new leader	[11, 16]
+False
+False	 Yugoslavia	[9, 9]
+True
+False	 their	[170, 170]
+False	 the explosion	[144, 145]
+True
+True
+True
+False	 scattered clashes in the West Bank and Gaza Strip	[14, 22]
+True
+False
+False
+False
+True
+False
+False	 President Clinton who said he will sign it	[35, 42]
+False
+False	 Israelis	[68, 68]
+False
+False	 the violence in the Mid East	[157, 162]
+False	 the violence in the Mid East	[157, 162]
+False	 the Palestinian Authority	[230, 232]
+False	 moored	[66, 66]
+True
+False	 VOA	[29, 29]
+False
+True
+False
+True
+False	 heavy fighting between soldiers and rebels	[33, 38]
+False
+False
+False
+False
+False
+False
+False
+True
+True
+False
+False
+False
+False
+False
+False
+False
+False
+False	 the two	[26, 27]
+True
+False
+True
+False
+True
+True
+True
+False
+False
+False	 both parties	[251, 252]
+False	 they	[148, 148]
+False	 Clinton	[221, 221]
+True
+False	 Middle East expert Mark Gulpan , of Tufts University	[124, 132]
+True
+False	 nominated	[6, 6]
+True
+True
+False	 this	[47, 47]
+False	 United Nation 's Secretary General Kofi Annan	[0, 6]
+False	 their	[98, 98]
+True
+True
+False	 are	[114, 114]
+False	 all military and police	[9, 12]
+False
+False
+False
+True
+True
+True
+False	 a Cuban funds bill passed by the US Congress	[99, 107]
+False
+False	 the Communist ruled Caribbean Island 's	[40, 45]
+True
+False	 blew	[29, 29]
+False
+False	 The suicide bomber	[26, 28]
+True
+False	 The election October 22nd	[74, 77]
+False	 Ivory Coast 's newly elected President Loran Gbagbo	[19, 26]
+True
+False
+False	 The election October 22nd	[74, 77]
+False	 himself	[25, 25]
+False
+False
+False
+False
+False	 The hotel	[76, 77]
+True
+False
+False	 a bomb threat	[3, 5]
+False
+False	 Parkinson 's Disease	[31, 33]
+False	 a disabled AIDS virus	[39, 42]
+True
+False	 a dopamine neuron nourishment protein	[176, 180]
+False	 monkeys	[168, 168]
+False
+False
+False
+False
+False
+False	 armed groups of the left and the right	[24, 31]
+False	 local elections	[12, 13]
+False	 armed groups of the left and the right	[24, 31]
+False	 local elections	[12, 13]
+True
+False
+True
+True
+True
+True
+False
+False
+False
+False
+False
+True
+True
+True
+True
+False	 held	[254, 254]
+True
+True
+False	 All 118 seamen on the sub	[21, 26]
+True
+False
+True
+True
+False	 tore	[21, 21]
+True
+True
+False	 the two traditional political parties	[40, 44]
+False	 Colombia	[6, 6]
+True
+True
+False	 millions	[367, 367]
+False
+True
+False	 the United Nations General Assembly	[31, 35]
+False	 United Nations	[32, 33]
+True
+True
+True
+True
+True
+True
+False
+False	 transited	[302, 302]
+False	 the apparent terrorist bombing of the destroyer Cole in Yemen	[16, 25]
+False	 alert against possible terrorist action	[71, 75]
+False
+False	 Egypt	[0, 0]
+False	 the outlawed Muslim Brotherhood	[140, 143]
+False
+True
+False
+True
+True
+False	 special session	[17, 18]
+False	 the situation	[71, 72]
+True
+True
+False
+False
+False	 the investigation of last month 's attack	[62, 68]
+False	 last month 's attack	[65, 68]
+False
+False
+True
+False
+True
+False	 Arafat	[186, 186]
+False
+False
+False
+True
+False	 restored	[3, 3]
+False
+False	 a special envoy	[199, 201]
+False	 the democratic movement in Yugoslavia	[275, 279]
+False	 a special envoy	[199, 201]
+False	 This	[56, 56]
+False
+True
+False
+False
+True
+True
+False	 the two delegations	[74, 76]
+False
+False	 the two delegations	[74, 76]
+True
+False	 several teams in our division	[120, 124]
+False	 the Cincinnati Reds	[5, 7]
+False	 the Cincinnati Reds	[5, 7]
+False	 the Cincinnati Reds	[5, 7]
+False	 West Bank	[12, 13]
+False
+False
+False
+False
+True
+True
+False
+False
+False	 Sunday	[13, 13]
+False	 your national government	[119, 121]
+False
+False	 Democratic candidate Al Gore	[77, 80]
+False
+False	 you all	[58, 59]
+False	 the banned Muslim Brotherhood	[111, 114]
+False
+False	 Muslim Brotherhood leaders	[279, 281]
+False	 parliamentary elections	[21, 22]
+True
+True
+False	 nine Middle Eastern Gulf states	[11, 15]
+True
+False
+True
+False
+False
+False
+True
+False
+False	 The shooting of her convoy	[146, 150]
+False	 Palestinian gunmen	[160, 161]
+True
+True
+False	 the territories	[36, 37]
+True
+False
+False	 The meeting of leaders from the 21 Pacific Rim countries	[23, 32]
+False
+False	 President Clinton	[0, 1]
+False
+True
+True
+False
+False	 about 400 Jewish settlers	[257, 260]
+False	 Florida Secretary of State Katherine Harris	[21, 26]
+False	 Florida 's 25 electoral votes	[140, 144]
+True
+False
+False	 This written statement	[124, 126]
+True
+False
+True
+False
+False
+False	 Mr. Clinton and his daughter Chelsea	[31, 36]
+False	 President Bill Clinton	[0, 2]
+False
+True
+False
+False	 his	[207, 207]
+False	 Israeli Prime Minister Ehud Barak	[0, 4]
+True
+True
+True
+False
+True
+False
+False
+True
+False	 Mr. Barak and Palestinian leader Yasser Arafat	[56, 62]
+False	 Both	[80, 80]
+False
+False	 Mr. Barak and Palestinian leader Yasser Arafat	[56, 62]
+False
+True
+False	 its major Wall Street backer , investment firm Goldman Sachs	[7, 16]
+True
+True
+False
+False	 Panama City	[30, 31]
+False	 the summit meeting this weekend in Panama	[17, 23]
+True
+False	 Panama City	[30, 31]
+False	 US - based Cuban exiles	[6, 10]
+False	 it	[468, 468]
+False	 one golfer 's	[252, 254]
+True
+False	 class conflict	[471, 472]
+False
+False	 Radio Canada International	[12, 14]
+False	 Radio Canada International , and YLE Radio Finland	[12, 19]
+False
+False
+False	 YLE Radio Finland	[17, 19]
+False	 the Indonesian government	[63, 65]
+False
+False
+False
+False
+False	 it	[18, 18]
+True
+True
+False
+False
+True
+False	 East Timor 's	[21, 23]
+False	 they	[357, 357]
+False
+True
+False	 such a resolution	[328, 330]
+False	 The United States	[319, 321]
+False	 2000 unarmed observers	[292, 294]
+False	 the UN	[166, 167]
+False	 UN Secretary General Kofi Annan	[176, 180]
+False	 breakaway Chechnya	[219, 220]
+False	 Russia	[7, 7]
+False	 the talks	[406, 407]
+True
+False	 the 29 other signatories to the treaty	[259, 265]
+True
+False
+False
+True
+False
+True
+False
+False	 five Balkan states	[6, 8]
+False	 the Balkan leaders	[233, 235]
+True
+False	 the talks	[48, 49]
+False
+False	 Israel 's Deputy Defense Minister Ifraem Snae	[0, 6]
+True
+False
+False	 Iraq 's Deputy Prime Minister Tariq Aziz	[0, 6]
+False	 The flight	[41, 42]
+False
+True
+False	 Syria 's	[8, 9]
+False	 the United States	[77, 79]
+False
+False	 an agreement	[63, 64]
+False	 the European Union and the United States	[73, 79]
+False	 the European Union	[73, 75]
+True
+False
+False
+True
+False
+False	 Iraq 's Deputy Prime Minister Tariq Aziz	[0, 6]
+False	 Syria 's	[8, 9]
+False
+False
+True
+True
+False
+False
+False
+False
+True
+False
+False
+False
+False
+True
+False	 the Presovo valley of Serbia	[39, 43]
+False
+False	 the Presovo valley of Serbia	[39, 43]
+False
+True
+True
+True
+True
+False
+False	 the US Supreme Court	[32, 35]
+False	 it	[548, 548]
+False
+False	 the Bush campaign	[184, 186]
+False	 their	[705, 705]
+True
+True
+False	 that green - haired costume	[506, 510]
+False
+False	 A beloved American holiday story	[0, 4]
+True
+False
+False
+True
+False
+True
+False	 Palestinian leaders	[53, 54]
+False	 a new peace proposal by Israeli Prime Minister Ehud Barak	[5, 14]
+False
+False	 Jerusalem	[41, 41]
+False
+False	 Iraqi Deputy Prime Minister Tariq Aziz	[0, 5]
+False
+False	 the resumption of UN weapons inspections	[13, 18]
+True
+True
+True
+False
+False	 the violence in the Middle East	[58, 63]
+False
+False
+False	 says	[3, 3]
+True
+False	 the clashes	[35, 36]
+True
+True
+False	 the senior Palestinian official	[63, 66]
+False
+True
+False
+False
+False
+False
+False
+False
+False
+True
+False
+False	 Four other monkeys	[94, 96]
+False
+True
+False	 Florida Supreme Court	[78, 80]
+True
+False	 they	[121, 121]
+False
+False	 HIV AIDS	[46, 47]
+False	 HIV AIDS	[46, 47]
+False
+False
+True
+False
+False
+False
+False
+False
+False	 humanitarian aid	[314, 315]
+False	 terrorism in all its forms and manifestations	[148, 154]
+True
+False	 Pakistan 's Ambassador to the United Nations Shamsed Ahmed	[118, 126]
+False	 the proposed new sanctions	[297, 300]
+False
+False
+False	 Brazilian legend Pele	[26, 28]
+False
+False
+True
+False	 pro-Gore voters	[147, 148]
+False	 The Bush campaign	[106, 108]
+False
+False	 overturn	[83, 83]
+False	 West Bank	[4, 5]
+False
+False
+False
+False
+False
+False
+False
+False
+False
+True
+False
+False
+False
+False
+False	 five Indonesian policemen	[267, 269]
+False	 five Indonesian policemen	[267, 269]
+False	 hundreds of thousands	[182, 184]
+False
+False
+False
+True
+False
+False
+True
+False
+True
+True
+False
+False
+False
+False
+False
+False
+False
+False
+False
+False
+False
+False
+True
+False
+False	 the crippled US destroyer	[38, 41]
+False
+False
+False
+False
+True
+False
+False
+False	 an official visit to Cuba	[4, 8]
+False
+False
+False	 bilateral trade	[222, 223]
+True
+False
+True
+True
+False	 a refugee camp in the Gaza Strip	[51, 57]
+False
+False	 he	[162, 162]
+False	 a terrorist bombing in Yemen two months ago	[10, 17]
+False	 numerous people	[154, 155]
+True
+True
+False
+False
+True
+False
+False
+False	 direct talks between negotiators	[37, 40]
+False
+False	 this	[154, 154]
+False
+False	 the meeting	[101, 102]
+False	 He	[58, 58]
+False	 Afghanistan 's dominant Taliban faction	[18, 22]
+False
+False
+False
+True
+False
+False	 the southern state of Alabama	[3, 7]
+False
+False
+False
+True
+False
+False
+False
+False	 armed Albanian rebels	[36, 38]
+False
+True
+True
+False
+True
+False
+False
+False
+False
+False	 Mr. Putin 's visit to Canada	[60, 65]
+True
+True
+True
+False
+False
+False	 formal negotiations	[92, 93]
+False
+False	 meet	[106, 106]
+False
+False	 President - elect George W Bush	[8, 13]
+False	 former Cuban refugee Mel Martinez	[120, 124]
+False
+True
+False	 President - elect George W Bush	[8, 13]
+False	 President Clinton	[6, 7]
+True
+True
+False
+False
+False
+False	 another team of scientists	[88, 91]
+False	 An international team	[0, 2]
+False	 the mice 's	[126, 128]
+False	 researchers	[329, 329]
+False	 talks in Washington	[23, 25]
+False
+False
+False
+False
+False
+False
+False	 his	[156, 156]
+False
+True
+False	 Mr. Milosevic 's Socialist Party	[58, 62]
+False	 Reformist allies of Yugoslav President Vojislav Kostunica	[0, 6]
+True
+False	 the vote	[37, 38]
+True
+False
+False
+True
+True
+False
+False	 Reformist allies of Yugoslavic President Vojislav Kostunica	[0, 6]
+False
+True
+True
+False
+False
+False
+False
+False
+False
+False
+False
+False
+False
+True
+False	 their talks with US officials in Washington	[22, 28]
+False	 Palestinian and Israeli negotiators	[0, 3]
+False
+False
+False
+False	 planned	[6, 6]
+False	 multiple attacks on US and Jordanian targets last January	[7, 15]
+True
+False	 A US official	[0, 2]
+False
+False	 Ousted Yugoslav President Slobodan Milosevic 's	[74, 79]
+False	 the vote	[39, 40]
+False
+False
+False	 a solid victory in Serbian parliamentary elections	[13, 19]
+False	 his government	[36, 37]
+True
+False
+False	 Palestinians	[57, 57]
+False
+True
+True
+False	 the University of Wisconsin Badgers	[11, 15]
+False	 The Badgers ' coach Barry Averett	[29, 34]
+True
+False	 fellow Norwegian Biarka Engenvick	[7, 10]
+False
+False
+True
+True
+False
+False	 Officials at London 's Millennium Dome	[16, 21]
+True
+False	 Britain 's Millennium Dome	[0, 3]
+False
+False	 his government	[33, 34]
+True
+False
+False
+True
+True
+False
+False
+False
+False
+True
+False
+False	 the country 's largest Marxist rebel group	[9, 15]
+True
+False
+True
+False
+False
+False
+False
+True
+True
+False	 Chief Palestinian negotiator Sayeeb Erekat	[34, 38]
+False
+False
+True
+False
+False
+False
+True
+True
+False
+False
+True
+False
+False	 2001	[87, 87]
+False	 the island nation	[11, 13]
+False	 sit	[138, 138]
+True
+False	 the 2000 celebrations	[124, 126]
+True
+True
+False	 the Middle East	[9, 11]
+False
+False
+False
+False
+False	 the Gaza Strip	[7, 9]
+False
+False
+False	 the United States government	[24, 27]
+False
+False
+False	 the United States government	[24, 27]
+True
+True
+True
+True
+False
+False	 Moscow	[15, 15]
+False	 his government	[6, 7]
+True
+True
+True
+False
+True
+False
+False
+False	 Israel 's	[23, 24]
+False
+False	 his country	[6, 7]
+True
+True
+False
+True
+False	 the US Senate and the incoming Republican administration	[4, 11]
+True
+False
+False
+False
+True
+True
+False
+False
+False
+True
+True
+False
+False
+False
+False
+True
+False
+False
+False
+False
+False
+False
+False
+False
+True
+False	 charged	[47, 47]
+False
+False	 Sunday	[4, 4]
+False
+True
+True
+False
+False
+False	 Admiral Robert Nader	[32, 34]
+False	 A Pentagon report	[0, 2]
+False
+False
+False
+False
+False	 US peace envoy Dennis Ross	[53, 57]
+False
+False
+False
+False	 West Bank	[13, 14]
+False	 Lawyers for the defendants	[27, 30]
+False	 two Libyans	[10, 11]
+False
+False	 Camp Side Holland	[1, 3]
+False
+True
+False	 their	[323, 323]
+False	 it	[405, 405]
+False	 the pro-independence but moderate Basque National Party	[396, 402]
+True
+False
+False	 Palestinian attacks against Jewish settlers and soldiers	[187, 193]
+True
+True
+True
+False	 Defense lawyers	[0, 1]
+False
+True
+True
+False	 bombing	[26, 26]
+False	 the two delegations	[38, 40]
+False	 the two delegations	[38, 40]
+False
+True
+False
+False
+False
+True
+False	 more than 360 victims	[388, 391]
+False	 the meetings	[55, 56]
+False
+False
+False
+False
+False
+False	 their scheduled meeting with Palestinian negotiators	[131, 136]
+True
+False
+False
+False	 the abduction and killing of a Jewish settler	[65, 72]
+False	 acts of violence	[84, 86]
+True
+False
+False
+False
+False	 two of its key witnesses	[41, 45]
+False	 the prosecution 's	[33, 35]
+False	 his American paymasters , the CIA	[245, 250]
+False	 Edwin Boje	[90, 91]
+False	 Defense lawyers	[198, 199]
+False	 killed	[5, 5]
+False
+True
+False
+False
+True
+False
+True
+False
+False
+False	 independent prosecutor Robert Ray	[7, 10]
+False	 his relationship with former White House intern Monica Lewinsky	[38, 46]
+False	 tried	[110, 110]
+True
+True
+True
+True
+False	 meet	[89, 89]
+False	 the Palestinian 's	[57, 59]
+False
+False	 Spain 's two major political parties	[60, 65]
+True
+False	 the autonomous Basque region of Spain	[243, 248]
+False	 the Basque separatist group Eta	[2, 6]
+True
+False
+True
+True
+True
+False
+True
+False
+False
+False
+False
+True
+True
+False
+True
+False
+False	 the Israeli - Palestinian peace talks in Egypt	[1, 8]
+False	 most delegates	[73, 74]
+False
+True
+False	 the agreement	[117, 118]
+False	 Kashmir 's main separatist alliance	[178, 182]
+False	 hit	[109, 109]
+False	 travel	[227, 227]
+True
+True
+True
+False	 the talks	[54, 55]
+False
+True
+True
+False	 marathon peace talks with the Palestinians	[22, 27]
+True
+True
+False
+False
+False	 Israeli - Palestinian talks	[6, 9]
+True
+True
+True
+False
+False	 opposition candidate Ariel Sharon	[129, 132]
+False
+False
+False
+False
+False
+False
+False	 Israeli - Palestinian peace talks	[0, 4]
+False
+False
+False	 Mohammed Rashid Dawood Alawali 's	[34, 38]
+False
+False
+False	 Mohammed Rashid Dawood Alawali 's	[34, 38]
+False
+False	 It	[185, 185]
+False	 Libya	[39, 39]
+False	 responsibility	[41, 41]
+False
+True
+False	 Prime Minister Ehud Barak	[62, 65]
+False
+False
+False	 49 percent of those interviewed	[72, 76]
+True
+True
+True
+False	 Libya	[15, 15]
+True
+True
+True
+False	 Prime Minister Ehud Barak	[14, 17]
+True
+True
+True
+False	 these figures	[113, 114]
+False	 53 %	[238, 239]
+True
+False	 27 %	[293, 294]
+False	 Macau and Taiwan	[137, 139]
+False	 the Macau government 's	[132, 135]
+False	 the most senior government official to have studied in Taiwan	[371, 380]
+False	 This	[299, 299]
+False	 the most senior government official to have studied in Taiwan	[371, 380]
+False	 their	[155, 155]
+False	 Macau	[50, 50]
+True
+False	 the Macau SAR government	[115, 118]
+True
+False	 the Taipei Trade and Tourism Office in Macau	[43, 50]
+False	 the Macau SAR 's	[151, 154]
+True
+False	 many returned graduates	[538, 540]
+False	 the Macau SAR 's	[151, 154]
+True
+False	 the mainland	[301, 302]
+False	 local administrators	[103, 104]
+False
+False	 the Chinese language	[255, 257]
+False
+False
+True
+False
+False	 the presence of these Taiwan alumni in Macau	[155, 162]
+True
+True
+False	 the former Portuguese administration	[166, 169]
+False	 Macau people	[119, 120]
+False	 people	[24, 24]
+False	 political divisions	[7, 8]
+False	 fighting	[344, 344]
+False	 Macau	[3, 3]
+False	 people	[365, 365]
+False	 Chen	[40, 40]
+True
+False	 Macau	[38, 38]
+False
+False
+False	 companies	[131, 131]
+False
+False	 Macau	[13, 13]
+False
+False	 Macau	[13, 13]
+True
+False
+False	 Taiwan	[26, 26]
+False	 Taiwanese	[423, 423]
+False	 the mainland	[263, 264]
+False	 around 30,000 people from Macau	[133, 137]
+False
+False
+True
+False	 people themselves	[271, 272]
+False	 Macau	[9, 9]
+False	 a " Handover Workshop "	[57, 61]
+False	 Macau	[4, 4]
+False	 it	[151, 151]
+False
+False
+False
+False	 Their	[317, 317]
+False
+False
+True
+False
+False	 Its	[198, 198]
+True
+False
+False	 the enclave 's	[3, 5]
+True
+True
+False	 its	[42, 42]
+True
+False	 its	[42, 42]
+True
+False	 the textile industry	[42, 44]
+True
+True
+False	 the textile industry	[42, 44]
+True
+False	 Taiwan 's	[0, 1]
+False
+True
+False
+False
+False	 TCH	[114, 114]
+False	 TCH	[114, 114]
+True
+False
+True
+True
+True
+False	 better breathability and water resistance	[567, 571]
+True
+True
+True
+True
+False	 firms '	[615, 616]
+False	 something new	[298, 299]
+True
+True
+False	 other areas	[431, 432]
+True
+True
+False	 The system 's inventor , Hsu Yun - peng	[39, 47]
+False	 King 's	[214, 215]
+False	 them	[193, 193]
+False	 metals '	[422, 423]
+False	 firms	[127, 127]
+False	 King 's president Rocky Chang	[214, 218]
+False	 Taiwan 's textile industry	[127, 130]
+False	 Taiwan 's textile industry	[127, 130]
+True
+False
+False	 people in the textile industry	[77, 81]
+True
+False	 members of an ROC mountaineering team	[180, 185]
+False	 president Yao Hsing - chuan -LRB- left -RRB-	[103, 110]
+False	 this	[79, 79]
+False
+True
+False	 cut - resistant gloves containing stainless steel fibers	[189, 196]
+True
+False	 their	[162, 162]
+True
+False
+False
+False	 New Party legislator Hsieh Chi - ta	[337, 343]
+True
+False
+False	 KMT party chairman Lee Teng - hui	[214, 220]
+False
+False	 James Soong	[105, 106]
+False
+False	 James Soong	[105, 106]
+False
+False
+False	 the ROC	[138, 139]
+False
+True
+True
+True
+False
+False
+False
+False	 its	[234, 234]
+False	 the past	[279, 280]
+True
+False	 a little boy listening intently to his grandfather	[262, 269]
+True
+True
+True
+False	 the protagonist , Foolish Chin ,	[56, 61]
+True
+False
+False	 parents	[489, 489]
+False	 Each of Huang 's works	[293, 297]
+False
+False
+True
+False	 the elderly Ah - wei	[235, 239]
+True
+False	 Huang 's fiction	[4, 6]
+False
+False
+True
+False	 elderly characters	[88, 89]
+False	 more of them	[113, 115]
+True
+False
+True
+True
+False	 prime - time Taiwanese drama	[42, 46]
+False	 prime - time TV serials	[96, 100]
+False
+False	 Taiwan 's prime - time shows	[132, 137]
+False	 his	[31, 31]
+False	 his	[31, 31]
+False	 his aunt	[31, 32]
+True
+False
+True
+True
+False	 Taiwanese	[33, 33]
+False
+False
+False
+True
+False	 Her	[341, 341]
+True
+False	 It	[163, 163]
+False
+False	 It	[163, 163]
+False
+False	 nativist stories using the Taiwanese language	[100, 105]
+False	 Taiwanese drama	[220, 221]
+True
+False	 the daughter - in - law series	[240, 246]
+True
+True
+False	 people	[448, 448]
+False	 her	[38, 38]
+False
+False
+False	 her	[38, 38]
+False	 the series Real Love from Hong Kong cable TV	[596, 604]
+False
+False
+True
+False	 This format	[75, 76]
+False	 the final rushes	[376, 378]
+True
+True
+False	 television actors	[168, 169]
+False
+True
+False	 She	[128, 128]
+False
+False	 the women 's	[215, 217]
+False	 the practical environment	[36, 38]
+True
+False	 They	[90, 90]
+True
+True
+False	 Hong Kong drama series	[288, 291]
+False	 limit	[185, 185]
+False	 the martial arts dramas of Yang Pei - pei	[54, 62]
+False
+False
+False	 Cross-national cooperation	[148, 149]
+False
+False	 Formosa Television	[286, 287]
+False
+False
+False
+False
+True
+False	 Chinese people	[26, 27]
+False
+False
+True
+False	 Mrs. Pu and her husband	[279, 283]
+True
+True
+True
+False	 Chinese New Year	[6, 8]
+False	 this link	[58, 59]
+False	 married women	[241, 242]
+False	 Chinese New Year	[6, 8]
+True
+False	 these	[61, 61]
+False
+True
+False	 Writer Lin Wen - yueh	[73, 77]
+False	 Mother	[237, 237]
+False
+False	 the event	[34, 35]
+True
+False	 he	[334, 334]
+True
+False
+True
+False
+True
+False
+False
+False	 his	[28, 28]
+False	 His mother	[790, 791]
+False	 his	[28, 28]
+True
+False	 author Yang Hsiao - yun	[12, 16]
+True
+False
+False	 many individuals	[781, 782]
+True
+True
+False	 its	[369, 369]
+True
+True
+False	 these	[240, 240]
+False	 The second session of the Fourth Leg - islative Yuan	[25, 34]
+False
+False
+False	 113 bills	[54, 55]
+False
+False	 this law	[41, 42]
+True
+False
+False
+False
+True
+False
+False
+False
+False
+True
+False
+False
+True
+True
+False	 its	[150, 150]
+False
+False	 individual services	[93, 94]
+False
+False
+False	 the cabinet	[73, 74]
+False	 the government	[52, 53]
+False	 establish	[18, 18]
+False
+False	 This	[16, 16]
+False	 children under 18 orphaned by the quake	[63, 69]
+False	 soil and groundwater pollution	[160, 163]
+True
+True
+True
+False
+True
+False
+True
+False
+False	 the results of ethnological fieldwork going back nearly two decades	[377, 386]
+False	 the results of ethnological fieldwork going back nearly two decades	[377, 386]
+False
+False
+True
+False
+False	 a medical testing laboratory	[249, 252]
+False	 the old folks	[152, 154]
+False
+False	 the area	[85, 86]
+False	 Teng	[13, 13]
+False
+True
+False	 Teng	[13, 13]
+False	 the ones lucky enough to survive	[343, 348]
+False	 the Thao	[120, 121]
+False
+True
+True
+False	 the Thao	[120, 121]
+False	 we	[228, 228]
+True
+True
+False	 his trips to interview old folks in the mountains	[260, 268]
+False	 old folks	[178, 179]
+False
+False	 Thick Fog , Dark Clouds	[90, 94]
+False	 The story itself	[417, 419]
+False	 Thick Fog , Dark Clouds	[90, 94]
+False	 the 16th China Times Prize for Nonfiction	[174, 180]
+False
+False
+False	 Teng	[19, 19]
+False	 Teng	[19, 19]
+False	 moved	[64, 64]
+False	 Inoue 's father	[82, 84]
+True
+False	 Inoue 's	[82, 83]
+False
+True
+False	 Teng Hsiang - yang 's	[18, 22]
+True
+False
+False
+False	 Teng Hsiang - yang 's	[18, 22]
+False
+True
+True
+False
+False	 " effective deterrence "	[385, 388]
+False
+True
+False
+False	 Sukhoi aircraft	[586, 587]
+False
+False	 the US	[29, 30]
+False	 He	[279, 279]
+True
+True
+False
+False	 missile defense	[266, 267]
+False
+False	 missile defense	[266, 267]
+False
+False
+True
+False
+False
+False	 the idea of taking a war beyond Taiwan	[334, 341]
+False	 the idea of taking a war beyond Taiwan	[334, 341]
+False
+False	 pilots	[252, 252]
+False
+False	 this problem	[137, 138]
+False
+False
+False	 pilots	[252, 252]
+False
+False
+False
+False	 Alex Kao	[40, 41]
+False
+False	 operates	[205, 205]
+True
+False	 this	[238, 238]
+False
+False	 Taiwan	[174, 174]
+False	 The military	[183, 184]
+False	 Taiwan	[174, 174]
+False	 Taiwan	[174, 174]
+False	 the PRC and Taiwan	[540, 543]
+False
+False	 The participants	[439, 440]
+False	 their	[423, 423]
+True
+False
+False	 the candidates	[72, 73]
+False	 the various candidates	[116, 118]
+False
+True
+False
+False	 he	[358, 358]
+False
+False
+True
+False	 many voters , especially in traditional constituencies	[102, 108]
+True
+False	 the KMT	[271, 272]
+True
+False
+False	 Lien Chan	[29, 30]
+False	 Lee Teng - hui	[101, 104]
+True
+False	 Lee Teng - hui	[101, 104]
+True
+False
+False
+False	 the five candidates	[253, 255]
+False	 his	[37, 37]
+False	 his	[37, 37]
+False	 the government role	[375, 377]
+True
+False	 candidates	[350, 350]
+False
+False	 The government debt	[237, 239]
+False
+False
+False	 Our house	[141, 142]
+False	 Our house	[141, 142]
+False	 big corporations	[218, 219]
+False	 the KMT	[239, 240]
+False
+True
+False	 they	[351, 351]
+False
+False	 Roughly the same percentage	[62, 65]
+True
+False	 education policy	[288, 289]
+False	 education	[271, 271]
+False	 Ting Chih - jen	[213, 216]
+False	 Taiwan 's	[27, 28]
+False	 Taiwan 's	[27, 28]
+False
+False
+False	 The people of Taiwan	[186, 189]
+True
+True
+False	 the election battle itself	[373, 376]
+False
+True
+False	 independent candidate James Soong	[377, 380]
+False
+False	 are	[320, 320]
+False	 voters	[361, 361]
+False	 base	[364, 364]
+False	 They	[124, 124]
+False	 most of its members	[316, 319]
+False
+False
+True
+False
+False	 DPP	[31, 31]
+True
+False	 the New Party	[282, 284]
+False	 the New Party	[282, 284]
+False
+False	 representatives of capital	[355, 357]
+False	 representatives of capital	[355, 357]
+False	 the Legislative Yuan	[19, 21]
+True
+False	 Li Hsien - jen	[189, 192]
+False	 Li Hsien - jen	[189, 192]
+False
+False
+False	 Lee Teng - hui 's	[49, 53]
+False	 the KMT	[52, 53]
+False
+False
+False	 only a " plurality president	[298, 302]
+True
+False	 the New Party	[51, 53]
+False	 the New Party	[51, 53]
+False	 do	[662, 662]
+False	 both the KMT and the DPP	[564, 569]
+True
+False	 Mobilization of votes based on ethnicity or provincial origin	[215, 223]
+False	 negative advertising in which candidates sling mud at one another	[99, 108]
+False	 people	[498, 498]
+True
+False	 they	[189, 189]
+True
+False	 the course	[69, 70]
+False	 these media professionals	[109, 111]
+False
+True
+True
+False	 television news producer Marcus Bailey from Maitland TV of Grenada	[214, 223]
+False	 the participants	[163, 164]
+True
+True
+True
+False	 It	[136, 136]
+False	 it	[78, 78]
+False
+False	 it	[78, 78]
+False	 National Chiaotung University	[199, 201]
+False
+False	 universities	[400, 400]
+True
+False	 their	[100, 100]
+False	 national universities	[546, 547]
+False	 National Taiwan University of Science and Technology -LRB- NTUST -RRB-	[20, 29]
+False	 five of its graduate schools	[34, 38]
+True
+True
+False	 even professionals boasting Ph.D. degrees	[79, 83]
+False
+False	 his	[403, 403]
+False	 a degree in mechanical engineering	[245, 249]
+False	 professionals in suits and ties	[28, 32]
+False	 her company	[158, 159]
+False	 I	[120, 120]
+False
+False	 the children	[458, 459]
+False
+False	 adult students	[213, 214]
+False	 professionals studying for advanced degrees	[16, 20]
+True
+True
+True
+False
+False
+False
+False	 adult students always on the run	[381, 386]
+True
+False	 professors	[406, 406]
+False	 The president	[504, 505]
+True
+False
+False
+False
+False
+False	 the boss	[398, 399]
+False	 Ma	[194, 194]
+False
+False	 academy president Stan Shih , chairman of the Acer Group	[67, 76]
+False	 emerging businesses	[117, 118]
+False	 academy president Stan Shih , chairman of the Acer Group	[67, 76]
+False	 management models from Europe and America	[84, 89]
+True
+False	 The city of Taipei	[261, 264]
+False
+False
+True
+True
+False	 TCAC	[13, 13]
+False
+False	 The two towns	[107, 109]
+True
+False	 the township of Shihkang in Taichung County	[99, 105]
+False	 50 prefab units	[353, 355]
+False	 the Work Station	[6, 8]
+False	 TCAC 's	[49, 50]
+False
+True
+False	 the project	[261, 262]
+False	 he	[242, 242]
+False	 Peipu	[3, 3]
+False	 Tzu - tien Temple , the town 's main landmark	[154, 163]
+False
+False	 TCAC	[4, 4]
+True
+False	 Shu and a few women	[35, 39]
+False
+False
+False	 Shu Shih - wei	[79, 82]
+True
+False
+False	 someone	[197, 197]
+False
+True
+False	 the people of Peipu	[277, 280]
+False	 the people of Peipu	[385, 388]
+False	 people	[236, 236]
+False	 the stone steps	[405, 407]
+False	 Taping River	[57, 58]
+False	 everyone	[427, 427]
+False	 the TCAC Taping River Preservation Team	[94, 99]
+True
+False	 lyrics about the river preservation campaign	[278, 283]
+False
+True
+False	 I	[146, 146]
+True
+False	 the people of Peipu	[99, 102]
+False	 Peipu 's	[2, 3]
+False	 it	[289, 289]
+False
+False
+True
+True
+False
+False
+False	 The " new man "	[163, 167]
+False
+False	 The American cosmetics company Clinique	[193, 197]
+False	 advertisements	[167, 167]
+False	 its	[74, 74]
+False	 them	[272, 272]
+False	 men	[426, 426]
+False	 women	[261, 261]
+False	 their	[132, 132]
+False	 rich kids	[217, 218]
+False
+False	 Few	[192, 192]
+False	 her	[289, 289]
+True
+False	 more and more women	[134, 137]
+False
+False
+False	 they	[376, 376]
+False	 their	[295, 295]
+False	 70 % of male respondents	[473, 477]
+False
+False	 they	[376, 376]
+False	 that field	[508, 509]
+False	 only women	[522, 523]
+False	 they	[338, 338]
+False	 sequins , embroidery , or skin - revealing gaps	[525, 533]
+False	 They	[170, 170]
+False	 Men 's skin care products all	[252, 257]
+False	 himself	[318, 318]
+False	 very strong cleaning agents	[274, 277]
+False	 muscles	[204, 204]
+False
+False	 she	[96, 96]
+False	 young people	[141, 142]
+False	 men	[462, 462]
+False
+True
+False	 Male politicians	[433, 434]
+True
+False
+False	 their	[237, 237]
+True
+False	 flashy " pretty boys "	[324, 328]
+True
+False
+False	 women	[306, 306]
+False	 flashy " pretty boys "	[324, 328]
+False	 lots of people	[397, 399]
+True
+True
+False
+False	 Tsung - sheng 's five - year - old nephew	[343, 352]
+False	 the Wu clan 's	[204, 207]
+False	 the Wu clan 's	[204, 207]
+True
+True
+False	 they	[112, 112]
+False
+False	 the Kuomintang government	[278, 280]
+True
+True
+False	 the Kuomintang government	[278, 280]
+True
+False	 her three sons	[173, 175]
+False
+False
+False
+False
+True
+True
+True
+False
+False
+False	 his	[260, 260]
+False	 prices	[647, 647]
+True
+False	 his older brothers	[260, 262]
+True
+True
+True
+False	 the eldest daughter	[352, 354]
+True
+False
+True
+False	 His parents	[42, 43]
+False	 His parents	[42, 43]
+False	 His parents	[42, 43]
+False	 former general Hau Pei - tsun	[239, 244]
+False	 Wu Chien - lo and his younger brothers	[212, 219]
+False
+True
+False
+False
+False
+True
+False
+True
+False
+False	 84 - year - old grandma Wu	[2, 8]
+False	 Wu Tsung - sheng	[99, 102]
+False	 his wife	[35, 36]
+True
+True
+False	 the Taipei office of the Palau Visitors Authority	[136, 143]
+True
+True
+False
+False	 a scam surrounding real estate in Palau	[255, 261]
+False	 more than 100 Taiwanese living in Palau	[440, 446]
+False	 Taiwan and Palau	[4, 6]
+False	 Taiwanese entrepreneurs	[417, 418]
+False
+False	 These islands	[462, 463]
+True
+False	 Taiwanese entrepreneurs already in Palau	[54, 58]
+True
+False
+True
+True
+False	 raised	[263, 263]
+True
+False	 The Palauan government	[504, 506]
+False	 the company	[109, 110]
+True
+True
+True
+False
+False	 Palau	[7, 7]
+False
+True
+False	 Palau	[7, 7]
+False
+False
+False	 National Assembly	[7, 8]
+False	 National Assembly	[7, 8]
+False	 This	[123, 123]
+False	 finalized	[27, 27]
+True
+False
+False	 Taiwan 's constitutional structure	[41, 44]
+True
+True
+False	 the National Assembly	[13, 15]
+False	 the ROC	[98, 99]
+False	 the Legislative Yuan	[226, 228]
+False	 the National Assembly	[13, 15]
+False	 he	[351, 351]
+False	 her late husband 's	[87, 90]
+True
+False	 Yeh Chu - lan	[5, 8]
+False	 Chen Shui - bian	[225, 228]
+False	 Yeh Chu - lan	[5, 8]
+True
+True
+False	 Yeh 's	[14, 15]
+False
+False
+False	 the Ministry of Transportation and Communications	[92, 97]
+False	 professionals in the Ministry of Transportation and Communications	[204, 211]
+True
+False
+False
+False	 The Republic of China 's	[16, 20]
+False
+True
+False
+True
+False	 the new government 's	[306, 309]
+True
+True
+False	 The new president 's	[0, 3]
+False	 the International Bill of Rights	[558, 562]
+False
+True
+False
+True
+False	 the two sides	[237, 239]
+False	 a brighter future	[201, 203]
+False
+True
+True
+False
+True
+False
+False
+True
+False	 his	[3, 3]
+False	 Taiwan	[0, 0]
+True
+True
+True
+False
+False
+False	 They	[430, 430]
+False	 all individuals	[246, 247]
+True
+False	 The government	[133, 134]
+False
+False
+False
+False	 Rule by the clean and upright	[15, 20]
+False
+False	 the Republic of China	[61, 64]
+False
+False
+False	 the new government	[239, 241]
+False
+True
+False	 The September 21 earthquake that struck last year	[285, 292]
+False	 We	[36, 36]
+True
+False
+False	 the people on the two sides of the Taiwan Strait	[458, 467]
+False	 the International Bill of Rights	[242, 246]
+False	 We	[55, 55]
+False
+False
+False
+True
+False
+True
+False	 the Republic of China	[14, 17]
+False
+False	 this land	[171, 172]
+False
+False
+False
+False
+True
+False	 The flowers out in front of the Presidential Palace	[34, 42]
+False
+False
+False	 a colleague	[57, 58]
+True
+False	 our daughter , then just over a year old ,	[34, 43]
+True
+True
+True
+False
+False	 Chien - chien	[7, 9]
+False	 a lunchbox	[218, 219]
+False
+True
+True
+True
+False	 Chien - chien	[8, 10]
+True
+False	 she	[215, 215]
+True
+False
+False
+False
+False
+True
+False
+False
+True
+False	 it	[338, 338]
+False	 the stock market	[348, 350]
+False	 the e-generation	[131, 132]
+False
+True
+True
+True
+False	 1989	[110, 110]
+False	 the property market	[303, 305]
+True
+False	 some of the older generation about to retire happily	[96, 104]
+False	 some of the older generation about to retire happily	[96, 104]
+False
+False
+False
+False
+True
+False	 one of the hottest stocks	[533, 537]
+False
+False
+False	 others	[64, 64]
+True
+False
+False	 her father , soon to retire at age 60	[304, 312]
+True
+True
+False
+True
+False	 60 % of parents	[193, 196]
+True
+False	 my money	[571, 572]
+False	 others	[113, 113]
+True
+True
+False
+False	 life itself	[464, 465]
+False	 Each individual	[266, 267]
+True
+False
+False
+False	 Foreign Minister Tien Hung - mao	[196, 201]
+False	 " national sovereignty " and " economic assistance "	[396, 404]
+False	 the new government	[178, 180]
+False	 President Chen Shui - bian	[225, 229]
+False	 ROC	[6, 6]
+False	 PRC	[35, 35]
+False	 DPP	[295, 295]
+True
+False	 the ROC and PRC	[207, 210]
+False	 PRC	[35, 35]
+False	 the new government in Taipei	[64, 68]
+False	 the ROC , PRC , and US	[188, 194]
+True
+True
+False
+True
+False
+True
+False	 the Dominican Republic	[135, 137]
+False	 Taiwan 's	[10, 11]
+False
+False	 financial assistance	[235, 236]
+False
+True
+False	 foreign aid	[92, 93]
+False	 The government	[402, 403]
+True
+True
+False	 Jason Hu	[480, 481]
+True
+False	 Costa Rica	[267, 268]
+True
+False	 the United Nations	[43, 45]
+False	 the president of that country , Miguel Angel Rodriguez ,	[272, 281]
+True
+False	 legislation	[597, 597]
+False
+True
+True
+False
+True
+False	 the two sides	[223, 225]
+True
+False
+False	 President Chen 's trip	[5, 8]
+False	 United Nations	[144, 145]
+True
+True
+False
+False	 the Ministry of Foreign Affairs '	[15, 20]
+False
+False	 NGOs	[339, 339]
+False	 the UN 's	[76, 78]
+False
+False	 NGOs	[467, 467]
+False	 NGOs	[90, 90]
+True
+False
+False	 the Chinese communist regime 's	[272, 276]
+False	 the Chinese communist regime 's	[272, 276]
+False	 Administration	[0, 0]
+False	 The Association	[115, 116]
+False
+False
+False	 President Chen	[75, 76]
+False	 the president	[57, 58]
+False	 the National Security Bureau -LRB- NSB -RRB-	[142, 148]
+False	 the government 's	[475, 477]
+False	 the National Security Bureau -LRB- NSB -RRB-	[142, 148]
+False	 the National Security Bureau -LRB- NSB -RRB-	[142, 148]
+True
+True
+True
+False	 MJIB	[249, 249]
+False	 the president	[112, 113]
+False	 intelligence operations	[199, 200]
+False	 the MJIB	[8, 9]
+False	 no government of any stripe	[258, 262]
+False
+False	 Investigators	[126, 126]
+False	 Lee Kuan Yew	[0, 2]
+False	 China 's	[561, 562]
+True
+True
+False
+False	 the ROC Ministry of Foreign Affairs -LRB- MOFA -RRB-	[83, 91]
+True
+True
+True
+False	 Lee 's trip	[1, 3]
+False
+False	 mainland China	[19, 20]
+True
+True
+False
+True
+False
+False	 the right thing to say	[210, 214]
+True
+False
+True
+False
+False
+False
+False
+False
+False
+False	 an executive summary	[125, 127]
+False	 The executive summary	[176, 178]
+False	 an executive summary	[125, 127]
+False
+False
+True
+False	 customers	[25, 25]
+False
+False
+False
+False
+False
+False
+False	 The three airlines	[181, 183]
+False
+False	 Priceline	[192, 192]
+True
+True
+False	 a start - up	[48, 51]
+False
+False	 its technology	[55, 56]
+False	 your ideas	[116, 117]
+False	 Investors	[110, 110]
+False	 the problem	[77, 78]
+False
+False
+False
+False	 the problem	[160, 161]
+False	 entrepreneurs	[64, 64]
+True
+False
+True
+False	 the management team	[106, 108]
+False
+False
+False
+False	 A price war	[96, 98]
+False
+False
+False
+False
+False
+False
+False	 the company	[64, 65]
+False	 technological entrepreneurs	[52, 53]
+False
+False
+False
+True
+False
+False
+False
+False	 these	[124, 124]
+False	 companies in the ice business	[281, 285]
+False	 non-specialists	[191, 191]
+True
+False	 these businessmen	[316, 317]
+False	 change	[320, 320]
+False
+True
+False	 the capital	[269, 270]
+False	 the central government	[324, 326]
+False
+False	 Taipei	[8, 8]
+False
+False
+False
+False	 more than 70	[130, 132]
+False
+False	 Kaohsiung	[181, 181]
+False	 Taiwan	[39, 39]
+False
+False	 the city 's port	[301, 304]
+False
+False	 the Tuntex Building	[381, 383]
+True
+True
+False
+False
+False
+False
+False
+False	 the gap between north and south	[240, 245]
+False	 Taipei 's	[35, 36]
+False	 Guests from afar	[485, 487]
+True
+True
+True
+True
+False	 the nation	[4, 5]
+False
+True
+True
+False
+False	 Hakkas	[131, 131]
+True
+True
+True
+True
+False	 people living in Taipei	[222, 225]
+True
+False	 Taipei	[12, 12]
+True
+False	 the citizens	[113, 114]
+False	 concrete plans	[92, 93]
+False	 community planning masters	[62, 64]
+True
+False
+False	 Different cities	[174, 175]
+False
+False
+False
+False	 people in Ilan and Hualien	[132, 136]
+False	 fated	[231, 231]
+False	 Taipei	[5, 5]
+False	 Taipei	[5, 5]
+False	 Lung Ying - tai	[22, 25]
+False
+False	 Taiwan	[20, 20]
+False
+False
+False
+False
+False
+False
+False	 Taipei	[14, 14]
+False
+False
+False	 artists	[232, 232]
+False
+True
+False
+True
+False	 They	[94, 94]
+False	 Internet Pioneer Heidi Hsueh	[0, 3]
+False	 Inforian	[16, 16]
+False
+False
+False	 Inforian - or pAsia as it is known today -	[8, 17]
+False	 It	[176, 176]
+False	 Inforian - or pAsia as it is known today -	[8, 17]
+True
+False	 It	[176, 176]
+False	 Hsueh	[26, 26]
+False	 pAsia	[5, 5]
+False	 the company 's office on Hsinyi Road	[80, 86]
+True
+False
+False	 Campus bands across the island	[220, 224]
+False
+True
+False
+False	 Lead singer Tsai Mi - mi	[119, 124]
+False	 a band called China Blue	[347, 351]
+False	 this album 's	[295, 297]
+True
+False
+False	 themselves	[443, 443]
+False
+False	 the 20th century	[215, 217]
+False	 the 20th century	[215, 217]
+False	 the pool of human knowledge	[193, 197]
+False
+False	 the Microsoft Corporation	[340, 342]
+True
+True
+False	 it	[91, 91]
+False	 he	[337, 337]
+False	 the material objects	[207, 209]
+False
+False	 IT	[257, 257]
+False
+False
+True
+False	 knowledge	[177, 177]
+True
+False	 a company	[217, 218]
+False
+True
+False
+False	 have	[279, 279]
+False
+False	 math	[195, 195]
+False	 the US	[127, 128]
+False
+True
+False
+False	 only the US , Japan , and the UK	[372, 380]
+False	 employees	[420, 420]
+True
+False
+False
+True
+False	 its	[46, 46]
+True
+False	 its	[46, 46]
+False	 its	[46, 46]
+True
+False	 It	[135, 135]
+True
+False	 It	[135, 135]
+False
+False	 the German giant Boehringer-Ingelheim	[284, 287]
+False	 McDonalds	[186, 186]
+False	 the headquarters	[265, 266]
+False	 companies	[536, 536]
+True
+False	 even industries like eel - raising	[423, 428]
+False
+False	 its	[281, 281]
+False	 Motorcycles	[299, 299]
+False
+False
+False
+False	 the British firm Tesco	[32, 35]
+True
+False	 the British firm Tesco	[32, 35]
+False
+False	 major retailers	[44, 45]
+False
+False
+False	 the whole family	[117, 119]
+False
+False	 Tesco from Britain	[195, 197]
+False	 Taiwan	[10, 10]
+False	 the Ruentex group , which owns RT - Mart	[165, 173]
+False	 Costco from the United States	[137, 141]
+False	 A hundred - some foreign stores	[38, 43]
+False	 the government 's	[223, 225]
+False
+False	 the first stage of the little three links	[266, 273]
+False
+False
+False	 25 million people	[292, 294]
+True
+False	 PRC economic experts	[109, 111]
+True
+False	 implement	[196, 196]
+False	 the PRC 's	[66, 68]
+False	 the two sides	[158, 160]
+False
+False
+True
+False	 human rights	[96, 97]
+False
+False
+False	 the Office of the President	[48, 52]
+False
+False	 victims and their family members	[178, 182]
+False	 their	[220, 220]
+False	 victims	[178, 178]
+False	 Taiwan	[108, 108]
+False	 their	[220, 220]
+True
+False	 their	[70, 70]
+False
+True
+False
+False	 the Ministry of Justice	[165, 168]
+False
+False
+False	 the new government 's	[31, 34]
+True
+False	 KMT	[219, 219]
+False	 the Public Officials Election and Recall Law	[11, 17]
+False	 them	[203, 203]
+False	 the amendment	[369, 370]
+False
+False	 indicted	[159, 159]
+True
+False
+False	 civil servants	[334, 335]
+False
+True
+True
+False	 it	[151, 151]
+True
+False
+False
+False	 Qin Shi Huang 's	[201, 204]
+False
+False	 The stunning discovery	[177, 179]
+False	 The stunning discovery	[177, 179]
+False	 each figure	[193, 194]
+True
+True
+True
+False	 artisans involved	[354, 355]
+False	 its	[244, 244]
+False	 its	[135, 135]
+False
+False
+False	 it	[327, 327]
+False	 Qin Shi Huang , first emperor of a unified China	[9, 18]
+False
+False
+True
+False	 this figure	[155, 156]
+False	 Taiwan	[56, 56]
+True
+False
+True
+False	 Painter Hsia Yang	[6, 8]
+True
+False	 his elder brother	[121, 123]
+False
+False
+False	 a great aunt	[87, 89]
+False	 these young art fiends	[16, 19]
+False	 Chinese art	[1, 2]
+True
+False
+False	 their exhibition leaflets	[225, 227]
+False	 the Ton - Fan Group	[145, 149]
+False	 those studying art naturally	[210, 213]
+False	 the Ton - Fan Group	[145, 149]
+False
+False
+False
+False
+False	 Fuzzy people	[0, 1]
+False
+False	 his	[6, 6]
+False	 his wife Wu Shuang - hsi	[239, 244]
+False
+False
+False	 New York	[29, 30]
+False	 Photorealism	[46, 46]
+False	 they	[86, 86]
+True
+False	 the rent	[57, 58]
+False
+False	 they	[86, 86]
+False	 We	[361, 361]
+True
+False
+False	 an aluminum ring from a broken hair - dryer	[103, 111]
+False	 We	[361, 361]
+False	 her	[219, 219]
+True
+True
+True
+True
+False	 Shanghai	[2, 2]
+False	 Du Yuesheng	[153, 154]
+False	 A Veteran	[4, 5]
+False
+False
+False	 Shanghai	[12, 12]
+False	 PRC	[43, 43]
+True
+False
+True
+False
+True
+False
+False	 their	[325, 325]
+False	 a mistress	[211, 212]
+False	 a problem	[136, 137]
+False	 someone from Shanghai	[110, 112]
+False
+False
+False	 the people on the two sides of the Taiwan Strait	[77, 86]
+True
+False
+False
+False
+False
+False
+False	 the United Daily News group	[163, 167]
+False
+False
+False	 classified ads	[342, 343]
+False	 the company	[364, 365]
+False
+False
+True
+False	 1111 public relations manager Linda Miao	[207, 212]
+False	 the market leader - 104 Job Bank	[20, 26]
+False	 many employees	[362, 363]
+True
+False	 United Daily News	[134, 136]
+False	 Acer Peripherals	[194, 195]
+False
+True
+True
+False
+True
+False
+False
+False
+False
+True
+True
+False
+False	 a country 's	[92, 94]
+False
+False	 the human rights standards of one country	[151, 157]
+True
+False	 everyone	[430, 430]
+True
+False	 they	[124, 124]
+False	 their three - year - old son	[126, 132]
+False	 children	[252, 252]
+True
+True
+False	 parents	[93, 93]
+True
+False	 parents	[26, 26]
+False	 parents	[120, 120]
+False	 the child	[233, 234]
+True
+False	 Chang	[221, 221]
+False	 children	[110, 110]
+False
+False
+False
+False
+True
+False	 Ritek 's Yeh Chin - tai	[6, 11]
+True
+True
+False
+False	 something better - laser disks -	[293, 298]
+False	 them	[332, 332]
+False	 the Mingli Plastics Factory	[33, 36]
+False	 his black plastic albums	[244, 247]
+True
+False	 CD - Rs	[203, 205]
+False
+True
+False
+False
+True
+False	 they	[294, 294]
+False	 Ritek 's	[11, 12]
+False
+False
+False	 a data storage device no larger than a wrist watch	[91, 100]
+False	 these books	[353, 354]
+False	 Taiwan Memory Technology	[202, 204]
+True
+True
+False	 Morgan Stanley	[66, 67]
+False	 Forbes Magazine	[31, 32]
+False	 Yeh Chui - jing	[142, 145]
+True
+False	 a successor	[261, 262]
+False	 They	[76, 76]
+False
+False	 their	[43, 43]
+True
+True
+False	 its	[183, 183]
+False	 a battle for market share with local firms	[114, 121]
+True
+False	 Taiwan 's	[0, 1]
+False	 large foreign health clubs	[93, 96]
+False	 numerous gyms , billing themselves as " recreation clubs	[270, 278]
+True
+True
+False
+False
+True
+False	 they	[605, 605]
+False	 Taiwanese , never known for their love of athletics	[330, 338]
+False
+False
+False
+False
+False	 women in Taiwan	[243, 245]
+False
+False
+False	 that money	[286, 287]
+False
+False
+True
+False	 their	[301, 301]
+False	 California	[418, 418]
+False	 exercise	[174, 174]
+False	 children	[167, 167]
+False
+False
+False	 its	[56, 56]
+False	 These oils	[114, 115]
+False	 aromatherapy	[77, 77]
+False
+False
+False	 Rose	[297, 297]
+False	 most health clubs in Taiwan	[111, 115]
+False
+False
+False
+False
+False
+False	 A Miss Wu , who sometimes goes to spas	[145, 153]
+False	 their	[282, 282]
+False	 aromatic oils	[197, 198]
+False	 the shopkeepers in the main streets or back alleys	[153, 161]
+True
+False
+False	 Japanese foodstuff shops and Japanese product counters at department stores	[234, 243]
+False	 these feline fortune finders	[252, 255]
+False	 Chinese	[18, 18]
+False	 wealth	[70, 70]
+True
+True
+False	 his	[209, 209]
+False	 the figure of a monk carrying a burlap sack	[550, 558]
+True
+False
+False	 the potbellied , grinning figure	[478, 482]
+True
+False	 long - branched gold money trees	[407, 412]
+False	 their	[615, 615]
+False
+False
+False	 These types of money trees	[506, 510]
+False	 those needing fish tanks to soothe their financial psyches	[299, 307]
+False	 a broadband Internet access provider	[190, 194]
+False	 those needing fish tanks to soothe their financial psyches	[299, 307]
+False	 their	[499, 499]
+False	 entrepreneurs	[111, 111]
+False	 who habitually get their fortunes told	[43, 48]
+False	 many people who are not ordinarily superstitious	[72, 78]
+False
+False	 people	[209, 209]
+False	 them	[130, 130]
+False
+False
+False	 The three - legged toad biting a coin	[87, 94]
+False
+False
+True
+False
+True
+False
+True
+False	 our children	[191, 192]
+False
+True
+False	 our family	[130, 131]
+True
+False	 this country	[187, 188]
+False	 the prime minister	[88, 90]
+False	 many New Zealand friends	[228, 231]
+False	 a special garland	[83, 85]
+False
+False	 a constitutional interpretation	[28, 30]
+True
+False
+False	 The legislature 's	[102, 104]
+False
+False	 construction of the Fourth Nuclear Power Plant	[14, 20]
+False
+False	 the Cabinet 's	[8, 10]
+True
+False	 the ROC Constitution	[175, 177]
+True
+False	 the ruling	[171, 172]
+False	 the government	[238, 239]
+False	 the Legislative Yuan 's	[39, 42]
+False	 the premier	[104, 105]
+False
+False	 the power plant	[202, 204]
+False
+True
+False	 the ruling	[141, 142]
+True
+True
+False
+False	 The earthquake	[49, 50]
+False
+True
+False	 Teams from these areas	[354, 357]
+False	 Taichung County and Nantou County	[328, 332]
+False
+True
+False	 reconstruction	[310, 310]
+False	 El Salvador	[26, 27]
+True
+False	 relief assistance	[339, 340]
+False
+False	 the National Palace Museum in Taipei	[95, 100]
+True
+False	 Calligrapher and Seal - Carver Wang Chiang - wei	[6, 14]
+False	 Calligrapher and Seal - Carver Wang Chiang - wei	[6, 14]
+False
+False
+False
+False
+False	 His grandfather	[227, 228]
+False	 his father Wang Yi - pin	[146, 151]
+False
+False	 she	[216, 216]
+False	 Wang	[6, 6]
+False	 she	[216, 216]
+False
+False
+True
+False
+False
+False	 Chang Ming - sui	[537, 540]
+False
+True
+False
+False
+False	 Wang 's calligraphic work	[655, 658]
+False
+False
+False	 ground	[250, 250]
+True
+False	 it	[270, 270]
+False
+False	 old age	[152, 153]
+False
+False
+False
+False	 Chang Ming - sui	[28, 31]
+False	 Chang Ming - sui	[28, 31]
+True
+False
+False
+False	 Cheng Yung - gwo 's	[5, 9]
+True
+False
+False
+True
+False	 find	[481, 481]
+False
+False	 the Yingko Ceramics Museum	[306, 309]
+False
+False	 a Yuanshan Culture jar	[165, 168]
+False	 a cooperation proposal	[46, 48]
+False
+True
+False
+False
+False
+False
+False
+False
+False
+False
+False
+False
+True
+False
+True
+True
+False	 a woman	[152, 153]
+True
+True
+False	 the finished jar	[453, 455]
+False	 the clay	[302, 303]
+False	 the bottom of the jar	[374, 378]
+True
+False	 the original	[128, 129]
+False	 electric kilns	[324, 325]
+False
+False
+False
+True
+False	 a small island in Indonesia where everybody makes pottery	[168, 176]
+False	 the indigenous people on this small island	[233, 239]
+False
+False	 a documentary on Japan 's NHK network	[135, 141]
+False	 he	[179, 179]
+False
+False
+False
+False	 the piece	[242, 243]
+False
+False	 build	[22, 22]
+False
+False
+False
+True
+True
+False
+False	 the square pattern	[179, 181]
+False
+False
+True
+False	 Taipei 's	[87, 88]
+False	 its	[296, 296]
+False	 Lukar Maku 's	[289, 291]
+False
+False
+False
+False	 a hundred - pacer	[506, 509]
+False	 they	[433, 433]
+False	 Remaleg 's son Lavuras -LRB- Chiang Cheng - hsin -RRB-	[188, 197]
+False	 a poison	[206, 207]
+False
+True
+False
+True
+False	 their	[342, 342]
+False
+False	 Snake venoms	[299, 300]
+False	 the snake	[170, 171]
+True
+True
+False
+True
+False	 snakes	[288, 288]
+False	 snakes	[288, 288]
+True
+False	 the female	[217, 218]
+True
+False
+False	 her eggs	[279, 280]
+True
+False	 all the biologists present	[81, 84]
+True
+False	 the snakes	[118, 119]
+False
+True
+False
+False	 The Taipei Zoo	[97, 99]
+False	 their	[185, 185]
+False	 Pu Hua - chih	[89, 92]
+False	 Ko Ching - hua 's	[49, 53]
+False	 Ko Ching - hua 's	[49, 53]
+False
+False
+False	 Essayist Pan Jen - mu	[281, 285]
+False	 the family	[268, 269]
+False	 a family named	[64, 66]
+False	 the family	[268, 269]
+True
+False
+True
+False	 Ko Ching - hua 's	[0, 4]
+False
+False	 the book	[142, 143]
+False
+False	 I	[141, 141]
+False
+False
+False	 middle age	[69, 70]
+False
+True
+True
+True
+False	 his young employees	[265, 267]
+True
+True
+False	 them	[552, 552]
+True
+True
+True
+False	 Her ex-husband	[390, 391]
+True
+True
+False
+False
+False	 the parts you 've already assembled	[198, 203]
+True
+False	 the parts you ca n't finish	[216, 221]
+False	 her ex	[109, 110]
+True
+True
+True
+False
+True
+True
+False
+False	 her	[60, 60]
+False	 her	[60, 60]
+True
+True
+True
+False	 he	[27, 27]
+True
+False
+False
+False	 CHT	[303, 303]
+False	 a friend of mine	[187, 190]
+True
+False	 I	[8, 8]
+True
+False
+False	 they	[338, 338]
+False
+False	 a group of young kids in their twenties	[490, 497]
+False	 losing	[206, 206]
+False	 this phase of her life	[302, 306]
+True
+True
+False	 many	[174, 174]
+False
+False	 people 's lives	[134, 136]
+False	 their	[128, 128]
+True
+False	 Humorous , unaffected Chao Ning	[331, 335]
+False
+False
+False	 Cyber-literature	[26, 26]
+False	 Shuang - tzu	[74, 76]
+False	 The First Intimate Contact	[142, 145]
+False
+True
+False	 cyber-literature	[248, 248]
+True
+True
+True
+False	 Taiwan	[77, 77]
+False
+False	 Gao Xingjian	[1, 2]
+True
+True
+False	 Soul Mountain	[27, 28]
+False	 the Gao frenzy	[212, 214]
+False
+True
+False	 this year 's TIBE	[57, 60]
+False	 literature	[71, 71]
+False	 writing	[161, 161]
+False	 language itself	[80, 81]
+False	 politics	[258, 258]
+False	 it	[317, 317]
+True
+False	 this year 's TIBE	[68, 71]
+False	 former Japanese porn star Iijima Ai	[148, 153]
+True
+False	 the two	[521, 522]
+False	 the plant	[69, 70]
+False
+True
+False
+False
+False	 a government	[267, 268]
+True
+True
+False	 the Fourth Nuclear Power Plant	[35, 39]
+False
+False	 its	[144, 144]
+True
+False
+False	 the first , second and third plants	[74, 80]
+False	 the first , second and third plants	[74, 80]
+False	 Taiwan	[191, 191]
+True
+True
+False	 the people 's	[299, 301]
+False	 nuclear power	[188, 189]
+False	 the intertidal zone	[186, 188]
+False
+False
+False	 the uplifted coral seashore	[177, 180]
+False
+False
+False
+False	 the Greek freighter MV Amorgos	[12, 16]
+False	 the Greek freighter MV Amorgos	[12, 16]
+False	 Premier Chang Chun - hsiung	[245, 249]
+False
+False	 the environment	[371, 372]
+False	 the people of Taiwan	[490, 493]
+False
+False
+True
+False	 the education system itself	[166, 169]
+True
+True
+False
+False	 a child who just ca n't stop sneezing	[226, 233]
+False
+False
+False
+False	 Their teacher , Shen ,	[41, 45]
+False	 Mrs. Liu , a mother living on Minsheng East Road	[228, 237]
+False	 his children	[142, 143]
+False	 English	[8, 8]
+False	 Mr. Chen	[15, 16]
+False	 it	[221, 221]
+False
+False	 he	[346, 346]
+False
+False
+False
+False	 Chunghsing Primary School	[159, 161]
+True
+False	 grades 1 to 6	[499, 502]
+True
+False	 students in the middle and elementary grades	[216, 222]
+False
+False	 they	[74, 74]
+True
+True
+False
+False
+False	 groups	[468, 468]
+True
+True
+True
+False
+False	 many	[69, 69]
+False	 Many people	[95, 96]
+False	 someone learning English as a foreign language	[152, 158]
+False
+True
+True
+False
+True
+True
+True
+False	 languages	[130, 130]
+False
+False	 English	[12, 12]
+True
+True
+False	 Pinglin ,	[0, 1]
+False	 the Peishih River	[163, 165]
+False	 the town of Pinglin	[154, 157]
+False	 Pinglin ,	[0, 1]
+False	 they	[249, 249]
+False
+False
+False	 many	[102, 102]
+False
+False	 the people in every household	[152, 156]
+False
+False	 the tea leaves	[172, 174]
+True
+True
+False
+False	 The proprietor , Mr. Chen	[109, 113]
+False	 Women in Pinglin	[39, 41]
+False	 the grower	[239, 240]
+True
+False	 about 80 % of the people in Pinglin	[167, 174]
+False	 our tea	[378, 379]
+False
+False
+False
+True
+False	 the government	[85, 86]
+False
+False
+False
+True
+False	 the Peishih River	[55, 57]
+True
+False
+False
+True
+True
+True
+False
+False
+False
+False
+False	 her	[312, 312]
+False
+True
+False	 Law	[2, 2]
+False	 their	[5, 5]
+False	 Law	[2, 2]
+False	 a film	[259, 260]
+False	 this ancient landscape	[417, 419]
+False	 this theme	[141, 142]
+False
+True
+False
+False	 Law 's second film , The Reincarnation of Golden Lotus	[292, 301]
+False	 Law 's third film , Farewell China	[0, 6]
+False
+False	 Law 's	[0, 1]
+True
+True
+False	 The girl 's	[156, 158]
+False	 The three of them	[198, 201]
+False
+True
+False	 The girl 's	[156, 158]
+False	 Floating Life	[214, 215]
+False	 her	[87, 87]
+False	 Hong Kong 's	[35, 37]
+True
+False	 The story	[275, 276]
+False
+True
+False
+False
+True
+True
+False	 a Hong Kong family with five children	[57, 63]
+False	 her new work , The Goddess of 1967	[22, 29]
+False
+False
+False
+False	 Sun 's singing voice	[389, 392]
+False	 an old song	[241, 243]
+True
+False	 it	[366, 366]
+False
+False	 The China Times entertainment weekly	[297, 301]
+False	 his	[260, 260]
+True
+True
+False	 Sun 's	[10, 11]
+False	 these	[121, 121]
+True
+True
+True
+True
+True
+False	 Southeast Asian singers	[80, 82]
+False
+False	 Sun Yan Zi 's	[2, 5]
+False	 the issue	[358, 359]
+False	 some 4,000 Russian planes	[499, 502]
+False	 The dispute over that issue	[528, 532]
+False	 the U.S.	[135, 136]
+True
+False	 debt - equity swaps	[926, 929]
+False	 potential investors	[1023, 1024]
+False	 Australia 's	[425, 426]
+False	 Hong Kong	[644, 645]
+True
+True
+False	 Banca Nazionale del Lavoro	[0, 3]
+False
+False	 its Atlanta branch	[36, 38]
+True
+False	 Some	[664, 664]
+True
+True
+False	 lawful demonstrations	[453, 454]
+True
+True
+False	 Turkey 's	[483, 484]
+False
+False	 the truce	[341, 342]
+False	 Prime Minister Ozal	[487, 489]
+False	 Vernon E. Jordan	[0, 2]
+False	 this transportation services concern	[9, 12]
+True
+True
+False
+False	 breast cancer	[1986, 1987]
+False	 these genes	[30, 31]
+False	 reported	[796, 796]
+False	 the rare tumor	[541, 543]
+True
+False	 James River Corp. , Richmond , Va. ,	[0, 7]
+False	 European ventures	[127, 128]
+False	 The combined operations	[80, 82]
+True
+False
+False	 The USS Lexington	[462, 464]
+False	 Lawmakers in Hungary	[750, 752]
+False	 Britain 's Thatcher	[693, 695]
+False
+False
+False	 its	[829, 829]
+False
+True
+False	 Psyllium	[1298, 1298]
+False
+False
+False
+False
+False
+False
+False	 Kabul	[541, 541]
+False	 Czechoslovakia	[353, 353]
+False	 The measure	[461, 462]
+False	 an Arab - sponsored peace plan	[616, 621]
+False	 activists	[342, 342]
+True
+False	 the companies doing the acquiring	[203, 207]
+False	 Unilever Group 's	[30, 32]
+True
+True
+False
+False	 this country	[19, 20]
+False	 the Senate Intelligence Committee	[53, 56]
+True
+False	 the relationship	[640, 641]
+True
+False	 giant Contel Corp.	[14, 16]
+False
+False	 an unprecedented alliance	[68, 70]
+False	 it	[258, 258]
+False	 A mild slowdown	[470, 472]
+False	 her government	[10, 11]
+False
+False	 the Tories	[538, 539]
+True
+False	 About one - third	[479, 482]
+False	 people	[314, 314]
+False	 Another one - third	[432, 435]
+False	 men and women in the 18 to 24 age bracket	[726, 735]
+False	 they	[425, 425]
+False
+False	 the Russian government	[634, 636]
+True
+True
+True
+False	 Irving 's	[34, 35]
+False
+False	 Irving 's	[34, 35]
+False	 the proposed settlement	[118, 120]
+True
+False	 A `` senior Fed official ''	[213, 218]
+False
+False
+True
+True
+False	 the volume of Banco Exterior 's export credit portfolio	[376, 384]
+True
+True
+True
+False
+False	 Ms. Chung 's	[208, 210]
+False
+False	 she	[1501, 1501]
+False	 Abbie Hoffman	[5, 6]
+False	 Abbie Hoffman	[5, 6]
+False	 Nicaraguan President Daniel Ortega	[0, 3]
+True
+False
+False	 Contra supporters	[553, 554]
+False	 I	[699, 699]
+False	 samples of glacial ice in Tibet	[34, 39]
+False	 concentrations of two forms of oxygen	[195, 200]
+False	 interior regions of Asia	[278, 281]
+False
+False
+True
+False	 the Organization of Petroleum Exporting Countries	[235, 240]
+True
+False	 Kadane Oil Co. , a small Texas independent ,	[1423, 1431]
+False	 OPEC Secretary - General Subroto	[828, 832]
+False	 Big Oil	[439, 440]
+False	 it	[616, 616]
+False	 the Exxon Valdez spill in March	[26, 31]
+False
+False	 it	[628, 628]
+False	 the U.S.	[70, 71]
+False	 consensus	[571, 571]
+False	 containment	[611, 611]
+True
+False	 Staff lawyers for both sides	[188, 192]
+False	 Its	[816, 816]
+False	 the 1940s	[1275, 1276]
+False	 a Third World slum choking on its own refuse	[314, 322]
+True
+True
+True
+False	 the country 's	[254, 256]
+False	 Lydia Brown , the program 's creator	[187, 193]
+True
+True
+False	 Takashimaya Co. , Japan 's oldest department store ,	[897, 905]
+True
+False	 visit	[1169, 1169]
+True
+False	 Japan 's Matsushita Electric Industrial Co.	[1546, 1551]
+False	 Washington 's	[80, 81]
+False	 Abscam - indicted Rep. John Jenrette	[1340, 1345]
+False	 scandal survival	[303, 304]
+True
+False	 she	[1092, 1092]
+False	 the OAS	[87, 88]
+True
+False	 Canadian membership	[122, 123]
+True
+True
+False	 the ethos of the 1980s	[1362, 1366]
+False
+False
+False	 the ethos of the 1980s	[1362, 1366]
+False
+False
+False
+False	 the 28th Tokyo Motor Show	[106, 110]
+False	 Even the Soviet Union	[310, 313]
+False
+False	 Venice	[1627, 1627]
+False	 the leading Senate proposal	[17, 20]
+False	 the project	[1704, 1705]
+False	 a statement from the information service SISAL	[1287, 1293]
+False	 France 's mint	[1125, 1127]
+False	 Kemper Financial Services Inc.	[0, 3]
+False	 Kemper Financial Services Inc.	[0, 3]
+False
+False	 the New York Stock Exchange	[250, 254]
+False
+False	 International Business Machines Corp.	[0, 3]
+False	 International Business Machines Corp.	[0, 3]
+True
+True
+False
+True
+False	 the Bendix / King Traffic Alert and Collision Avoidance System	[19, 28]
+True
+True
+False
+False
+True
+False	 today 's	[250, 251]
+False	 today 's GNP report	[462, 465]
+False	 the economy	[195, 196]
+True
+False	 its	[16, 16]
+False
+False
+True
+False	 film - makers Daniel Grodnik and Tim Matheson	[110, 117]
+False	 an experimental edition	[14, 16]
+True
+False	 named	[89, 89]
+False	 has	[61, 61]
+False	 its offer	[67, 68]
+False	 Coates	[39, 39]
+False
+False	 it	[9, 9]
+False	 it	[9, 9]
+False	 GOP	[736, 736]
+False
+False	 the bill	[169, 170]
+True
+False	 the administration	[332, 333]
+True
+True
+False
+False
+False	 the issue	[63, 64]
+False	 program trading	[330, 331]
+False	 the Dow Jones Industrial Average	[865, 869]
+False
+False	 The Securities and Exchange Commission	[100, 104]
+False	 program trading	[562, 563]
+False	 Data Systems	[52, 53]
+False	 Businessland Inc.	[0, 1]
+False	 He	[121, 121]
+False
+True
+False
+False	 Eastman Kodak Co. of Rochester , N.Y. ,	[0, 7]
+False	 its Lehn & Fink Products subsidiary	[9, 14]
+True
+False
+False
+False
+False
+False
+False	 it	[1209, 1209]
+False	 Joseph W. Robertson , 61 ,	[37, 42]
+False	 Joseph W. Robertson , 61 ,	[37, 42]
+False	 its First National Bank of Toms River subsidiary	[28, 35]
+True
+True
+True
+False
+False
+False
+False
+True
+False	 Feldemuehle AG	[112, 113]
+False	 sell	[9, 9]
+True
+False	 the joint venture Beghin Corbehem	[106, 110]
+False
+True
+True
+False	 Northrop Corp. 's radar - eluding B - 2 bombers	[528, 537]
+True
+False	 her	[307, 307]
+False	 the drug AZT	[16, 18]
+False	 her	[307, 307]
+False	 My	[584, 584]
+True
+True
+False	 UAL 's	[411, 412]
+False
+False	 UAL 's	[411, 412]
+False
+False	 Sao Paulo , Brazil ,	[842, 846]
+False	 NATO	[663, 663]
+False
+False	 the House - passed measure	[365, 369]
+False
+False
+False	 Pete and Jeff and Joe Jr.	[138, 143]
+True
+True
+True
+False	 this sector	[236, 237]
+True
+True
+False
+False	 the third quarter	[13, 15]
+False
+False	 Campeau Corp. , the chain 's owner ,	[24, 31]
+True
+False	 Investment bankers in Tokyo	[222, 225]
+False	 Campeau Corp. , the chain 's owner ,	[24, 31]
+True
+True
+False
+False
+False
+True
+False	 Commonwealth	[95, 95]
+True
+True
+True
+False	 That sign	[78, 79]
+False
+False	 The guest	[39, 40]
+True
+False
+False
+False
+False	 the year	[98, 99]
+False	 Collagen	[680, 680]
+False	 Cimflex Teknowledge	[584, 585]
+False	 Companies listed below	[0, 2]
+False
+False
+False
+False
+False	 a new series , `` Tattingers	[2036, 2041]
+False	 CBS	[50, 50]
+False	 CBS	[50, 50]
+False	 he	[3202, 3202]
+True
+False
+False	 Radio Shack	[548, 549]
+False
+False	 surveillance technology	[596, 597]
+False	 Kidder Peabody & Co.	[444, 447]
+False
+True
+False
+False
+False
+False	 awarded	[2, 2]
+True
+False
+False
+False
+True
+False
+False	 the proposed capital - gains tax cut	[8, 14]
+False
+True
+False
+True
+True
+False
+True
+False	 The products	[50, 51]
+True
+False	 American Telephone & Telegraph Co.	[0, 4]
+False	 used	[93, 93]
+True
+False	 its	[1369, 1369]
+False	 Davis Polk & Wardwell	[501, 504]
+False	 CHICAGO LAW FIRM	[1255, 1257]
+False	 CHICAGO LAW FIRM	[1255, 1257]
+False	 the office	[1338, 1339]
+False	 Delmed Inc. 's	[0, 2]
+False
+False	 Delmed and National Medical Care	[329, 333]
+False
+False	 Delmed Inc. 's	[0, 2]
+False
+False
+False
+False
+False
+False	 acquire	[6, 6]
+False
+True
+True
+False
+True
+False
+False
+False
+False
+False
+False
+False
+False
+False
+False	 Birmingham Steel Corp.	[0, 2]
+False	 its Emeryville , Calif. , minimill	[5, 10]
+True
+False
+False
+True
+True
+True
+False
+False
+False
+True
+False
+False
+False	 Hughes Aircraft Co. , a General Motors Corp. unit ,	[0, 9]
+False	 its	[30, 30]
+False
+True
+False	 its	[30, 30]
+False	 a partner for industrial and financial cooperation	[54, 60]
+True
+True
+False	 plans	[4, 4]
+False
+False
+False	 Jacobs Engineering Group Inc. 's Jacobs International unit	[0, 7]
+False	 The 150,000 - square - foot plant	[58, 64]
+True
+False	 the site	[43, 44]
+False	 the site	[43, 44]
+True
+False	 The program	[50, 51]
+True
+False
+True
+True
+True
+False	 Kansas	[57, 57]
+False	 Coda Energy Inc.	[0, 2]
+False
+True
+False	 the consumer price index	[78, 81]
+True
+True
+True
+True
+False	 they	[17, 17]
+False
+False
+False
+False	 it	[21, 21]
+False	 Sanford Kane , president ,	[72, 76]
+False
+False	 its	[100, 100]
+False	 it	[21, 21]
+False	 the Chicago Board of Trade	[3, 7]
+False
+False
+False
+False
+False
+False
+False
+False
+False
+True
+False
+False
+False	 the board of this engineering and construction company	[24, 31]
+False
+True
+True
+False
+False	 Sun 's machines	[19, 21]
+False
+False	 a lawsuit	[6, 7]
+False	 Apple Computer Inc.	[9, 11]
+False
+False	 Apple Computer Inc.	[9, 11]
+False	 a lawsuit	[6, 7]
+False
+False	 employees of an American company doing business in Japan	[261, 269]
+False	 the Japanese	[68, 69]
+False
+False	 management	[292, 292]
+False	 Cie . Generale des Eaux	[0, 4]
+False	 Cie . Generale des Eaux	[0, 4]
+False	 a gain of about 25 % for the full year	[23, 32]
+False
+False
+False	 ruled	[1138, 1138]
+True
+False	 federal funding for abortion in cases of rape and incest	[1002, 1011]
+False	 George Bush	[7, 8]
+False
+True
+False	 The 1989 Americans With Disabilities Act	[20, 25]
+True
+False	 we	[33, 33]
+False
+False	 Japan , Australia , Taiwan and New Zealand	[38, 45]
+True
+True
+True
+False	 Ford Asia - Pacific	[26, 29]
+False	 Westinghouse Electric Corp.	[0, 2]
+False
+False
+False
+False
+False	 Israel	[0, 0]
+False	 terrorism	[433, 433]
+False	 the Israeli government	[229, 231]
+False
+True
+False	 Sterling	[247, 247]
+False	 The dollar	[0, 1]
+True
+False	 He	[319, 319]
+False
+False
+True
+False
+False	 Boston Co. 's	[41, 43]
+False	 John Kriz , a Moody 's vice president ,	[237, 245]
+False	 Petroleos Mexicanos S.A.	[34, 36]
+False
+False
+False
+False
+False
+False
+False	 Imports of crude from the Middle East	[89, 95]
+False
+True
+True
+False
+False
+False
+False
+False
+False
+False
+False
+False
+False	 the orders total	[191, 193]
+False	 She	[164, 164]
+False
+False
+True
+False
+False
+False
+False	 John B. Curcio , 55 years old ,	[0, 7]
+False
+False	 Falcon Holding Group Inc.	[0, 3]
+False
+False
+False	 about 54,000 subscribers	[9, 11]
+True
+False	 Owens - Illinois Inc.	[10, 13]
+False
+True
+False
+False
+True
+False
+True
+True
+False	 the offering	[43, 44]
+True
+True
+False	 It	[28, 28]
+False	 the comment	[63, 64]
+True
+False
+False	 Schering - Plough Corp.	[26, 29]
+False
+False
+False
+False
+True
+False
+False
+False	 CALL MONEY	[123, 124]
+True
+False	 the company 's	[4, 6]
+True
+False	 named	[17, 17]
+False
+False	 The Ministry of Construction	[432, 435]
+False	 60 % of all women	[1016, 1020]
+False	 The Ministry of Construction	[432, 435]
+False	 the government	[44, 45]
+False	 The Ministry of Construction	[432, 435]
+False	 the world 's most inhospitable diamond dig	[176, 182]
+False	 Namibia	[312, 312]
+False	 it	[782, 782]
+False	 they	[946, 946]
+False	 diamonds	[145, 145]
+False	 THE IRS	[202, 203]
+False	 your income	[937, 938]
+False	 him	[1020, 1020]
+True
+True
+False	 readers	[122, 122]
+False
+False	 editor	[428, 428]
+False	 the magazine	[125, 126]
+False	 he	[244, 244]
+True
+False	 developers	[252, 252]
+False	 Developers	[330, 330]
+False	 Kenneth Leventhal Inc. a national accounting firm	[465, 471]
+False	 the country	[114, 115]
+False	 The six - story hotel	[197, 201]
+False	 Pan American World Airways	[3, 6]
+False	 two `` world - class '' hotels	[16, 22]
+False	 the joint project	[37, 39]
+True
+False
+True
+False
+False
+False
+True
+False	 It	[340, 340]
+True
+True
+False	 the Fuji	[157, 158]
+True
+True
+True
+False
+False
+False	 a suit	[100, 101]
+False	 brokers	[174, 174]
+True
+True
+True
+False
+False	 a new $ 1 direct loan	[1055, 1060]
+False	 the federal government	[5, 7]
+False
+False	 the federal deficit	[161, 163]
+True
+False
+False
+False
+False
+False	 White House spokesman Marlin Fitzwater	[151, 155]
+True
+False
+False
+False
+True
+False	 Harris Ravine , executive vice president of customer satisfaction ,	[0, 9]
+False	 this maker of data storage equipment	[20, 25]
+False	 succeeds	[29, 29]
+False
+False
+False	 members of the General Agreement on Tariffs and Trade	[216, 224]
+False
+False	 countries	[338, 338]
+True
+False	 New York	[397, 398]
+False
+False	 The Charter Revision Commission	[562, 565]
+False
+False	 all citizens	[235, 236]
+False	 the government	[26, 27]
+False	 third parties	[437, 438]
+False
+False
+False
+False
+False	 Chrysler Corp.	[443, 444]
+False	 Charlotte , N.C. ,	[410, 413]
+False	 the year	[316, 317]
+False	 its	[502, 502]
+False
+False
+True
+False
+True
+False	 Israel	[43, 43]
+False	 Jerusalem	[207, 207]
+False	 Israelis	[155, 155]
+False	 Israelis	[155, 155]
+False	 Israel	[43, 43]
+False	 this incident	[433, 434]
+False	 the Sverdlovsk assessment	[476, 478]
+False	 the Politburo	[298, 299]
+False	 the Politburo	[298, 299]
+False	 The U.S.S.R.	[128, 129]
+False	 PS of New Hampshire 's	[39, 43]
+False	 New Hampshire	[76, 77]
+True
+False
+False	 New Hampshire	[76, 77]
+False	 even Solidarity 's sympathetic new government	[112, 117]
+False	 the state 's	[30, 32]
+False	 the state 's	[30, 32]
+True
+False	 The Communists	[202, 203]
+False	 the Makwah Indian Tribe in Washington state	[978, 984]
+False	 California	[35, 35]
+False
+False	 $ 500 million for low - interest disaster loans	[262, 270]
+False	 the state 's delegation	[487, 490]
+False	 the U.S.	[13, 14]
+False	 yesterday 's third - quarter earnings report	[164, 170]
+False	 restructuring	[182, 182]
+False
+False	 slash	[5, 5]
+False
+False
+False	 Drexel Burnham Lambert	[87, 89]
+False	 Princeton / Newport	[94, 96]
+True
+False	 it	[66, 66]
+False	 it	[66, 66]
+False	 it	[66, 66]
+False	 CBS Inc.	[8, 9]
+False	 it	[66, 66]
+False	 its	[136, 136]
+False
+False	 its	[136, 136]
+False	 its	[136, 136]
+False	 The stock market 's	[0, 3]
+True
+True
+True
+True
+False
+False
+False	 Boeing Co.	[0, 1]
+False
+False
+False	 The 300 and 400 series aircraft	[21, 26]
+False	 these creatures	[522, 523]
+False	 Cambridge Prof. Harry Whittington and two sharp graduate students	[444, 452]
+False	 animal designs	[623, 624]
+False
+False
+False	 the government	[188, 189]
+False
+False	 defendants	[136, 136]
+False	 third parties	[214, 215]
+True
+True
+False	 the State Board of Control	[806, 810]
+True
+True
+False	 only one tax	[308, 310]
+False	 Impco Inc. , a Providence , R.I. , chemical company	[652, 661]
+False
+False	 business owners	[263, 264]
+True
+False
+False	 Somewhere Over the Rainbow	[800, 803]
+True
+False	 Anne Bogart	[6, 7]
+False	 Anne Bogart	[6, 7]
+False	 Anne Bogart	[6, 7]
+False
+False
+False
+False
+True
+False	 the Australian Pepsi franchise	[65, 68]
+True
+False	 agreed	[3, 3]
+False
+False
+False	 Wang Laboratories Inc.	[0, 2]
+False	 Richard Miller , president ,	[24, 28]
+False
+True
+True
+True
+False	 a subsidiary	[7, 8]
+True
+False
+False
+False	 Safeway Stores Inc.	[0, 2]
+False	 Safeway Stores Inc.	[0, 2]
+False
+False
+False	 the year - earlier period	[26, 30]
+True
+False	 David Owen , U.K. economist with Kleinwort Benson Group ,	[356, 365]
+True
+False	 this year	[266, 267]
+False	 the U.K. economy	[44, 46]
+False	 neophytes	[580, 580]
+False	 a horse	[811, 812]
+False	 another	[618, 618]
+False
+False	 this business	[86, 87]
+False	 its quarterly dividend	[4, 6]
+False	 BUELL INDUSTRIES Inc.	[0, 2]
+True
+False
+False
+True
+False	 the Axa - Midi group of companies	[364, 370]
+False	 Farmers Group Inc.	[22, 24]
+False
+False	 Farmers Group Inc.	[22, 24]
+False	 the quarterly distribution	[5, 7]
+False	 OPPENHEIMER CAPITAL LIMITED PARTNERSHIP	[0, 3]
+True
+False	 OPPENHEIMER CAPITAL LIMITED PARTNERSHIP	[0, 3]
+False
+False	 Bank of Montreal	[0, 2]
+True
+True
+False
+True
+True
+False	 she	[94, 94]
+True
+False	 common shares	[16, 17]
+False	 ALBERTA ENERGY Co. , Calgary ,	[0, 5]
+False	 The government 's	[38, 40]
+False	 General Electric Co.	[0, 2]
+False	 General Electric Co.	[0, 2]
+False	 General Electric Co.	[0, 2]
+False	 the issue	[397, 398]
+False	 the tire maker	[854, 856]
+False
+False
+True
+False	 the IG Metall labor union	[978, 982]
+False	 the proposed merger agreement	[89, 92]
+False	 the formal merger of the banks	[21, 26]
+False	 The two boards	[80, 82]
+True
+True
+False	 the savings and loan bailout bill	[263, 268]
+False
+False	 the bank and thrift regulators	[405, 409]
+True
+False	 they	[569, 569]
+False	 Time Warner Inc.	[0, 2]
+False
+False	 Tele - Communications Inc. 's	[9, 13]
+False	 Viacom Inc.	[92, 93]
+False	 Executives involved in plotting Time 's defense	[266, 272]
+False	 acquire	[6, 6]
+False	 International Business Machines Corp.	[0, 3]
+False	 agreed	[4, 4]
+False	 Paxus	[64, 64]
+False	 Paxus	[64, 64]
+False	 about $ 15.6 billion in short - term bills	[16, 24]
+False	 about $ 15.6 billion in short - term bills	[16, 24]
+True
+True
+True
+False
+True
+True
+False
+True
+True
+False	 the Dow Jones Industrial Average	[945, 949]
+False	 silver	[1172, 1172]
+False	 selling	[287, 287]
+False
+True
+False	 SCI Television	[11, 12]
+True
+False	 Kohlberg Kravis Roberts 's	[2, 5]
+False	 Mr. Gillett 's holding company , Gillett Holdings ,	[542, 550]
+False	 CONTROL DATA Corp.	[0, 2]
+True
+False	 offering	[6, 6]
+True
+True
+False	 They	[13, 13]
+False
+True
+False	 I	[42, 42]
+False
+False	 Donaldson , Lufkin & Jenrette Securities Corp.	[467, 473]
+False
+False	 the nation 's	[269, 271]
+False	 The bonds	[1524, 1525]
+False	 the nation 's	[269, 271]
+False	 BSB BANCORP Inc. , Binghamton , N.Y. ,	[0, 7]
+False	 BSB BANCORP Inc. , Binghamton , N.Y. ,	[0, 7]
+False	 increased	[10, 10]
+False
+False	 its regular quarterly dividend	[11, 14]
+True
+False	 all the directors	[60, 62]
+True
+False
+False
+False	 NATO	[629, 629]
+True
+False
+False	 Christian leader Aoun	[438, 440]
+False	 S&Ls	[522, 522]
+False
+False	 AN OIL COMPANY	[364, 366]
+False	 It	[445, 445]
+True
+False	 report	[233, 233]
+False	 The Justice Department	[0, 2]
+False
+False	 a contract to provide relocation services for federal employees	[28, 36]
+False
+True
+False	 syndicate officials	[181, 182]
+True
+False	 their	[45, 45]
+True
+True
+False
+False	 Another	[104, 104]
+True
+True
+False
+False	 the company	[19, 20]
+False
+True
+False
+False	 He	[41, 41]
+False	 Companies listed below	[0, 2]
+False
+False
+False
+False
+False
+False
+False
+False
+False
+False
+False
+False
+False
+False
+False
+False
+True
+True
+False	 Frank J. Ollari	[45, 47]
+False	 He	[101, 101]
+False
+False
+False
+False
+False
+False	 Ladenburg , Thalmann & Co.	[64, 68]
+False	 Ladenburg , Thalmann & Co.	[64, 68]
+False	 Ronald B. Koenig , 55 years old ,	[0, 7]
+False
+True
+True
+True
+True
+True
+False
+False
+False
+False
+False	 The Philippine merchandise trade deficit	[0, 4]
+False	 the company 's	[30, 32]
+True
+False	 the transaction	[54, 55]
+False
+False
+True
+False	 First Wachovia Corp.	[6, 8]
+False	 Mr. Baker	[74, 75]
+True
+False
+False	 Statistics Canada , a federal agency ,	[11, 17]
+False	 rose	[3, 3]
+False
+False
+False	 July	[9, 9]
+True
+True
+False	 The industry	[48, 49]
+False
+False
+False
+False
+False	 a year	[24, 25]
+False
+True
+False	 collagen corneal shields for animal eye surgery	[11, 17]
+False	 Bausch & Lomb Inc.	[0, 3]
+False
+False
+False
+False	 the capital - goods sector	[133, 137]
+False
+False
+True
+False
+True
+False	 sell	[10, 10]
+True
+False	 its Mallinckrodt Inc. subsidiary	[56, 59]
+False	 its Mallinckrodt Inc. subsidiary	[56, 59]
+False	 the Michigan Public Service Commission	[5, 9]
+False
+True
+True
+False	 the Palisades nuclear plant	[16, 19]
+True
+True
+True
+True
+False	 Japan	[275, 275]
+False	 I	[774, 774]
+False	 they	[625, 625]
+False	 OUSTED EXECUTIVES over 50 years old	[679, 684]
+False
+True
+False	 the Japan Association of Travel Agents	[1054, 1059]
+False	 Hong Kong	[398, 399]
+True
+False
+False	 the union and De Beers	[844, 848]
+True
+False
+False	 The report to Congress	[40, 43]
+False
+False
+True
+False	 it	[70, 70]
+False
+False
+False
+False
+False	 the World Bank	[38, 40]
+False	 adjustment loans	[399, 400]
+False	 member countries	[558, 559]
+False
+True
+False
+False
+False	 Conasupo	[27, 27]
+False	 the Conasupo restructuring	[162, 164]
+False	 The shipments	[209, 210]
+True
+False
+False
+False
+False
+True
+True
+True
+False	 a large segment of the drug market	[111, 117]
+False
+False
+False	 A sinking economy	[105, 107]
+False	 The dollar	[71, 72]
+False
+False
+False
+False
+False
+False
+False
+True
+False	 I	[153, 153]
+False
+False
+False	 The New York Times Co. 's Magazine Group	[243, 250]
+False	 Meredith Corp.	[0, 1]
+False	 Advertisers	[460, 460]
+False	 Meredith Corp.	[0, 1]
+True
+False	 the traps people fall into	[82, 86]
+False
+False
+False	 Their	[240, 240]
+False	 Their	[240, 240]
+False	 Reebok International Ltd.	[4, 6]
+False
+False	 I	[206, 206]
+False	 Paul Fireman , chairman and chief executive ,	[77, 84]
+True
+False	 Ms. magazine	[354, 355]
+True
+False	 James Autry , president of Meredith Corp. 's magazine group	[496, 505]
+False	 increased	[148, 148]
+False	 the industry 's	[41, 43]
+False	 he	[93, 93]
+True
+False
+False
+False
+False
+False
+False
+False
+False	 died	[341, 341]
+True
+True
+False	 Litigation Sciences	[153, 154]
+False	 prejudiced jurors	[1626, 1627]
+False
+False	 a fast - growing maker	[4, 8]
+False	 a fast - growing maker	[4, 8]
+True
+False	 motion - picture computing	[243, 246]
+False
+False
+True
+True
+False	 Consumers	[1325, 1325]
+False
+True
+False	 its	[767, 767]
+True
+False	 small businesses	[631, 632]
+False
+True
+False	 some commuters , relieved by the absence of gridlock ,	[933, 942]
+True
+False	 it	[665, 665]
+False	 Pacific Telesis Group	[803, 805]
+True
+False	 the world 's most advanced chess computer	[7, 13]
+False
+True
+False
+False
+False	 the investment	[138, 139]
+True
+False	 investors	[536, 536]
+False
+True
+False
+False
+True
+True
+True
+True
+False	 sold	[4, 4]
+True
+True
+False	 the plant	[28, 29]
+True
+True
+True
+False
+False	 it	[102, 102]
+False	 believe	[167, 167]
+False	 this country	[58, 59]
+True
+True
+True
+False	 her latest licensee , Jerell Inc.	[50, 55]
+False	 her latest licensee , Jerell Inc.	[50, 55]
+False	 sued	[129, 129]
+False	 Designer Sandra Garratt	[0, 2]
+False
+False	 means	[794, 794]
+False	 Conference participants	[413, 414]
+False	 industry	[578, 578]
+False	 Poland 's	[1, 2]
+False	 teachers	[432, 432]
+False
+False
+False	 parents	[293, 293]
+False	 politicians	[750, 750]
+False	 International Business Machines Corp.	[0, 3]
+False	 Sam Albert , a consultant in Scarsdale , N.Y. ,	[234, 243]
+False	 International Business Machines Corp.	[0, 3]
+False
+True
+False
+False
+False
+False
+False
+False	 He	[21, 21]
+True
+False
+False
+False
+False	 it	[17, 17]
+False	 an agreement with its creditors	[19, 23]
+False	 it	[17, 17]
+True
+False
+False	 Standard & Poor 's Corp.	[0, 4]
+False	 Standard & Poor 's Corp.	[0, 4]
+False	 American Medical	[56, 57]
+False	 the close of trading on Wednesday	[28, 33]
+False
+False
+True
+False
+False	 thrifts	[135, 135]
+False	 is	[177, 177]
+False	 the Department of Labor	[45, 48]
+True
+False	 the bureau 's estimates for the business sector	[28, 35]
+False
+False
+False	 New Hampshire	[103, 104]
+False	 these states	[200, 201]
+False	 New Hampshire	[103, 104]
+False
+False	 Drexel Burnham Lambert Inc. 's	[6, 10]
+False
+False	 this steelmaker	[15, 16]
+False	 William S. Leavitt , chairman ,	[20, 25]
+False	 His father , David S. Leavitt ,	[121, 127]
+True
+True
+True
+False	 That committee	[448, 449]
+False
+False	 Four Democrats on the House Banking Committee	[39, 45]
+False	 John B. Werner	[51, 53]
+False	 its principal unit , Sovran Bank	[23, 28]
+True
+False
+False	 the parent company and the unit	[58, 63]
+True
+True
+False	 this company	[19, 20]
+False	 Moody 's Investors Service Inc.	[0, 4]
+False
+True
+False	 Lloyd 's of London	[1, 4]
+False	 that business	[1039, 1040]
+False	 I	[526, 526]
+False	 Lloyd 's of London	[1, 4]
+False	 Compaq Computer Corp.	[420, 422]
+False	 Sanford Kane , U.S. Memories president ,	[195, 201]
+False	 Apple Computer Inc.	[40, 42]
+False
+False	 U.S. Memories	[34, 35]
