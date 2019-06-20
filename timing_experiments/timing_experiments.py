@@ -1,6 +1,7 @@
 import pdb
 import time
 import argparse
+from getch import getch
 
 parser = argparse.ArgumentParser(description='Run setting')
 parser.add_argument('policy_type',
@@ -43,7 +44,8 @@ try:
     while i < len(examples):
         print(examples[i].strip())
         start_time = time.time()
-        val = input("Are these two coreferent? y/[n] ('q' to quit with save, 'p' to go back to previous example): ")
+        print("Are these two coreferent? y/[n] ('q' to quit with save, 'p' to go back to previous example): ")
+        val = getch()
         if val.startswith('y') or val.startswith('Y'):
             if i >= len(user_answers):
                 user_answers.append(True)
