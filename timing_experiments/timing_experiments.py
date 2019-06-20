@@ -2,6 +2,7 @@ import pdb
 import time
 import argparse
 from getch import getch
+import os
 
 parser = argparse.ArgumentParser(description='Run setting')
 parser.add_argument('policy_type',
@@ -42,6 +43,7 @@ except:
 i = num_already_queried
 try:
     while i < len(examples):
+        os.system("clear")
         print(examples[i].strip())
         start_time = time.time()
         print("Are these two coreferent? y/[n] ('q' to quit with save, 'p' to go back to previous example): ")
