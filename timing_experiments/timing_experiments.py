@@ -12,15 +12,21 @@ parser.add_argument('policy_type',
 parser.add_argument('input_document',
                     type=str,
                     help='input document containing examples to label')
+parser.add_argument('output_document',
+                    type=str,
+                    help='output document in which to write labeled and timed examples')
 
-args = parser.parse_args()
-QUERY_TYPE = vars(args)['policy_type']
-doc_name = vars(args)['input_document']
+
+args = vars(parser.parse_args())
+QUERY_TYPE = args['policy_type']
+doc_name = args['input_document']
+user_doc_name = args['output_document']
+#user_doc_name = "user_" + doc_name[:len(doc_name) - 13] + "_labels.txt"
 
 if QUERY_TYPE != "pairwise" and QUERY_TYPE != "discrete":
     raise ValueError("bad argument, should pass in either 'pairwise' or 'discrete'")
 
-user_doc_name = "user_" + doc_name[:len(doc_name) - 13] + "_labels.txt"
+
 examples = []
 user_answers = []
 new_ants = {}
