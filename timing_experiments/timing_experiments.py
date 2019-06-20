@@ -35,9 +35,7 @@ try:
     with open(user_doc_name, 'r') as wf:
         for line in wf:
             user_answers.append(bool(line.strip().split('\t')[0] == 'True'))
-            if i == 60:
-                pdb.set_trace()
-            if len(line.strip().split('\t')) == 3:
+            if len(line.strip().split('\t')) >= 3:
                 if line.strip().split('\t')[0] != 'True':
                     new_ants[i] = str(line.strip().split('\t')[1])
                 time_per_example.append(float(line.strip().split('\t')[2]))
