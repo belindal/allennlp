@@ -969,8 +969,15 @@ class Trainer(Registrable):
             if self._do_active_learning and len(self._held_out_train_data) > 0 and query_this_epoch:
                 # take a subset of training data to evaluate on, and add to actual training set
                 # TODO: currently arbitrarily choosing next 1 instance (by order in file), perhaps change this future(?)
-                train_data_to_add = self._held_out_train_data[:280]
-                self._held_out_train_data = self._held_out_train_data[280:]
+                if self._query_type == "discrete" and not self._sample_from_training:
+                    train_data_to_add = self._held_out_train_data[:1000]
+                    self._held_out_train_data = self._held_out_train_data[1000:]
+                elif not self._sample_from_training:
+                    train_data_to_add = self._held_out_train_data[1000:2000]
+                    self._held_out_train_data = self._held_out_train_data[2000:]
+                else:
+                    train_data_to_add = self._held_out_train_data[:280]
+                    self._held_out_train_data = self._held_out_train_data[280:]
                 held_out_generator = self._held_out_iterator(train_data_to_add, num_epochs=1, shuffle=False)
                 num_held_out_batches = self.iterator.get_num_batches(train_data_to_add)
                 held_out_generator_tqdm = Tqdm.tqdm(held_out_generator, total=num_held_out_batches)
@@ -1002,7 +1009,7 @@ class Trainer(Registrable):
                             batch_size = len(output_dict['predicted_antecedents'])
                             translation_reference = output_dict['top_span_indices']
 
-                            if self._query_type == 'discrete' and self._selector_clusters:
+                            if self._query_type == 'discrete' and self._selector_clusters:  # discrete and using clusters
                                 # history of mentions that have already been queried/exist in gold data (index in top_spans)
                                 all_queried_mentions = (batch['span_labels'] != -1).nonzero()
                                 queried_mentions_mask = torch.zeros(output_dict['coreference_scores'].size()[:2],
@@ -1045,7 +1052,7 @@ class Trainer(Registrable):
                                                                                  self.DEBUG_BREAK_FLAG)
                                     indA_edge, edge_asked, indA_edge_asked = \
                                         al_util.query_user_labels_mention(mention, output_dict, batch['spans'],
-                                                                          batch['user_labels'], translation_reference)
+                                                                          batch['user_labels'], translation_reference, self._sample_from_training, batch)
                                     # add mention to queried before (arbitrarily set it in predicted_antecedents and coreference_scores to no cluster, even if not truly
                                     # the case--the only thing that matters is that it has a value that it is 100% confident of)
                                     queried_mentions_mask[mention[0], mention[1]] = 1
@@ -1086,7 +1093,7 @@ class Trainer(Registrable):
 
                                 edges_to_add = indA_model_edges
 
-                            elif self._query_type == 'discrete': # selector is random or score
+                            elif self._query_type == 'discrete': # discrete and not using clusters
                                 # get rid of 1st, dummy column to ensure nothing selected from it
                                 coref_scores_no_dummy = output_dict['coreference_scores'][:,:,1:]
                                 #coref_scores_no_dummy[:,0,0] = 0
@@ -1114,6 +1121,7 @@ class Trainer(Registrable):
                                     batch_size, coref_scores_no_dummy.size(1), 1, dtype=torch.uint8
                                     ).cuda(self._cuda_devices[0]), max_mention_scores_mask], dim=-1)
                                 # returns *raw scores* rather than entropies
+                                pdb.set_trace()
                                 sorted_max_mention_edges, sorted_max_mention_edges_score = \
                                     al_util.get_sorted_masked_edges(self._selector, max_mention_scores_mask, output_dict,
                                                                     batch['spans'], translation_reference, farthest_from_zero=False)
@@ -1126,41 +1134,119 @@ class Trainer(Registrable):
                                 edges_to_add, num_to_query, total_possible_queries, batch['span_labels'] = \
                                     al_util.query_user_labels_discrete(sorted_max_mention_edges,
                                                                        sorted_max_mention_edges_score, num_to_query,
-                                                                       True, output_dict, batch, False)
+                                                                       True, output_dict, batch, False, self._sample_from_training)
                             else: # query type is pairwise
-                                # get all > 0 edges (to know which to assign next)
-                                larger_than_zero_mask = (output_dict['coreference_scores'] > 0)
-                                sorted_larger_than_zero_edges, larger_than_zero_scores = \
-                                    al_util.get_sorted_masked_edges(self._selector, larger_than_zero_mask, output_dict,
-                                                                    batch['spans'], translation_reference, farthest_from_zero=True)
+                                confirmed_clusters = batch['span_labels'].clone()
+                                # TODO: fix if batch['span_labels'] is not all -1
+                                confirmed_non_coref_edges = torch.tensor([], dtype=torch.long).cuda(self._cuda_devices[0])
 
-                                # get scores of edges, and check most uncertain subset of edges
-                                predicted_scores, _ = output_dict['coreference_scores'].max(2, keepdim=True)
-                                predicted_scores_mask = output_dict['coreference_scores'].eq(predicted_scores)
-                                predicted_scores_mask[:,:,0] = 0  # get rid of negative-scoring edges (ones for which "max edge" is predicted to be w/ null)
-
-                                # get mask of scores of all possible edges originating from nodes not predicted to have any proform
-                                neg_edge_inds_mask = (output_dict['coreference_scores'] < 0) & \
-                                                     (output_dict['coreference_scores'] != -float("inf"))
-
-                                chosen_edges_mask = (neg_edge_inds_mask + predicted_scores_mask) > 0
-                                edges_to_add, edge_scores = al_util.get_sorted_masked_edges(self._selector, chosen_edges_mask, output_dict,
-                                                                                          batch['spans'], translation_reference, farthest_from_zero=False)
-                                edges_to_add = al_util.filter_gold_cluster_edges(edges_to_add, batch['span_labels'])
+                                # Update span_labels with model-predicted clusters
+                                output_dict = self.model.decode(output_dict)
+                                has_antecedent_mask = (output_dict['predicted_antecedents'] != -1)
+                                model_edges = torch.empty(0, dtype=torch.long).cuda(self._cuda_devices[0])
+                                if len(has_antecedent_mask.nonzero()) > 0:
+                                    model_edges = torch.cat((has_antecedent_mask.nonzero(), output_dict['predicted_antecedents'][has_antecedent_mask].unsqueeze(-1)), dim=-1)
+                                indA_model_edges = al_util.translate_to_indA(model_edges, output_dict, batch['spans'], translation_reference=translation_reference)
+                                for edge in indA_model_edges:
+                                    batch['span_labels'] = al_util.update_clusters_with_edge(batch['span_labels'], edge)
+                                pdb.set_trace()
 
                                 if self._use_percent_labels:
-                                    num_to_query = int(self._active_learning_percent_labels * len(edges_to_add))
-                                    num_alts_to_check = int(self._active_learning_percent_labels * len(sorted_larger_than_zero_edges))
+                                    # upper bound is asking question about every span
+                                    num_to_query = int(self._active_learning_percent_labels * len(output_dict['top_spans'][0]))
+                                    total_possible_queries = len(output_dict['top_spans'][0])
                                 else:
-                                    percent_to_alt = float(len(sorted_larger_than_zero_edges)) / float(len(edges_to_add))
-                                    num_alts_to_check = int(percent_to_alt * self._active_learning_num_labels)
+                                    total_possible_queries = len(output_dict['top_spans'][0])
+                                    num_to_query = min(self._active_learning_num_labels, total_possible_queries)
+                                num_queried = 0
+                                while num_queried < num_to_query:
+                                    top_spans_model_labels = torch.gather(batch['span_labels'], 1, translation_reference)
+                                    mention, mention_score = \
+                                        al_util.find_next_most_uncertain_pairwise_edge(self._selector, top_spans_model_labels,
+                                                                                 output_dict, queried_mentions_mask,
+                                                                                 self.DEBUG_BREAK_FLAG)
+                                    indA_edge, edge_asked, indA_edge_asked = \
+                                        al_util.query_user_labels_mention(mention, output_dict, batch['spans'],
+                                                                          batch['user_labels'], translation_reference)
+                                    # add mention to queried before (arbitrarily set it in predicted_antecedents and coreference_scores to no cluster, even if not truly
+                                    # the case--the only thing that matters is that it has a value that it is 100% confident of)
+                                    queried_mentions_mask[mention[0], mention[1]] = 1
+                                    # arbitrarily set to null antecedent
+                                    output_dict['predicted_antecedents'][mention[0], mention[1]] = -1
+                                    output_dict['coreference_scores'][mention[0], mention[1], 1:] = -float("inf")
+                                    if self._selector == 'qbc':
+                                        # must update for each model
+                                        output_dict['coreference_scores_models'][:, mention[0], mention[1], 1:] = -float("inf")
+
+                                    # If asked edge was deemed not coreferent, delete it
+                                    if not coreferent and len(indA_model_edges) > 0:
+                                        # (both lines below implicitly check whether indA_edge_asked was actually added before)
+                                        edge_asked_mask = (indA_model_edges == indA_edge_asked).sum(1)
+                                        batch['span_labels'] = al_util.update_clusters_with_edge(batch['span_labels'], indA_edge_asked, delete=True, all_edges=indA_model_edges)
+                                        indA_model_edges = indA_model_edges[edge_asked_mask < 3]
+                                        # Add to confirmed non-coreferent
+                                        if len(confirmed_non_coref_edges) == 0:
+                                            confirmed_non_coref_edges = indA_edge_asked.unsqueeze(0)
+                                        else:
+                                            confirmed_non_coref_edges = torch.cat((confirmed_non_coref_edges, indA_edge_asked.unsqueeze(0)), dim=0)
+
+                                    # Add edge deemed coreferent
+                                    else:
+                                        # Add new edge deemed coreferent, if not already in there
+                                        if len(indA_model_edges) == 0 or ((indA_model_edges == indA_edge).sum(1) == 3).sum() == 0:
+                                            indA_model_edges = torch.cat((indA_model_edges, indA_edge.unsqueeze(0)), dim=0)
+                                            batch['span_labels'] = al_util.update_clusters_with_edge(batch['span_labels'], indA_edge)
+                                        confirmed_clusters = al_util.update_clusters_with_edge(confirmed_clusters, indA_edge)
+
+                                    num_queried += 1
+                                edges_to_add = indA_model_edges
+# TODO DELETE
+                                # get all > 0 edges (to know which to assign next)
+                                larger_than_zero_mask = (output_dict['coreference_scores'] > 0)
+                                if self._selector == 'score':
+                                    sorted_larger_than_zero_edges, larger_than_zero_scores = \
+                                        al_util.get_sorted_masked_edges(self._selector, larger_than_zero_mask, output_dict,
+                                                                        batch['spans'], translation_reference, farthest_from_zero=True)
+
+                                    # get scores of edges, and check most uncertain subset of edges
+                                    predicted_scores, _ = output_dict['coreference_scores'].max(2, keepdim=True)
+                                    predicted_scores_mask = output_dict['coreference_scores'].eq(predicted_scores)
+                                    predicted_scores_mask[:,:,0] = 0  # get rid of negative-scoring edges (ones for which "max edge" is predicted to be w/ null)
+
+                                    # get mask of scores of all possible edges originating from nodes not predicted to have any proform
+                                    neg_edge_inds_mask = (output_dict['coreference_scores'] < 0) & \
+                                                         (output_dict['coreference_scores'] != -float("inf"))
+
+                                    chosen_edges_mask = (neg_edge_inds_mask + predicted_scores_mask) > 0
+                                    edges_to_add, edge_scores = al_util.get_sorted_masked_edges(self._selector, chosen_edges_mask, output_dict,
+                                                                                          batch['spans'], translation_reference, farthest_from_zero=False)
+                                elif self._selector == 'entropy':
+                                    # filter out "no antecedent" and invalids
+                                    valid_edges_mask = output_dict['coreference_scores'] != -float("inf")
+                                    valid_edges_mask[:,:,0] = 0
+                                    edges_to_add, edge_scores = al_util.get_edges_pairwise(self._selector, valid_edges_mask, output_dict, batch['spans'], translation_reference)
+                                    sorted_larger_than_zero_edges = None
+                                    larger_than_zero_scores = None
+                                elif self._selector == 'qbc':
+                                    pdb.set_trace()
+                                edges_to_add = al_util.filter_gold_cluster_edges(edges_to_add, batch['span_labels'])
+                                num_alts_to_check = 0
+                                if self._use_percent_labels:
+                                    num_to_query = int(self._active_learning_percent_labels * len(edges_to_add))
+                                    if self._selector == 'score':
+                                        num_alts_to_check = int(self._active_learning_percent_labels * len(sorted_larger_than_zero_edges))
+                                else:
+                                    num_to_query = self._active_learning_num_labels
+                                    if self._selector == 'score':
+                                        percent_to_alt = float(len(sorted_larger_than_zero_edges)) / float(len(edges_to_add))
+                                        num_alts_to_check = int(percent_to_alt * self._active_learning_num_labels)
                                     num_to_query = self._active_learning_num_labels - num_alts_to_check
                                 edges_to_add, num_to_query, total_possible_queries = \
-                                    al_util.query_user_labels_pairwise(self._sample_from_training, edges_to_add,
-                                                                       edge_scores, batch['user_labels'], num_to_query,
-                                                                       True, self._replace_with_next_pos_edge,
-                                                                       sorted_larger_than_zero_edges, num_alts_to_check,
-                                                                       larger_than_zero_scores)
+                                    al_util.query_user_labels_pairwise_score(self._sample_from_training, edges_to_add,
+                                                                           edge_scores, batch['user_labels'], num_to_query,
+                                                                           True, self._replace_with_next_pos_edge,
+                                                                           sorted_larger_than_zero_edges, num_alts_to_check,
+                                                                           larger_than_zero_scores, output_dict, batch)
 
                             # keep track of which instances we have to update in training data
                             train_instances_to_update = {}
@@ -1195,7 +1281,7 @@ class Trainer(Registrable):
                                     predicted_clusters.append(batch['spans'][i][batch['span_labels'][i] == cluster].tolist())
                                 predicted_clusters, mention_to_predicted = conll_coref.get_gold_clusters(predicted_clusters)
                                 gold_clusters, mention_to_gold = conll_coref.get_gold_clusters(batch['metadata'][i]['clusters'])
-                                if self.DEBUG_BREAK_FLAG:
+                                if self.DEBUG_BREAK_FLAG and self._active_learning_percent_labels == 1:
                                     import pickle
                                     pickle.dump(predicted_clusters, open('predicted_clusters.pkl', 'wb'), pickle.HIGHEST_PROTOCOL)
                                     pickle.dump(gold_clusters, open('gold_clusters.pkl', 'wb'), pickle.HIGHEST_PROTOCOL)
@@ -1211,7 +1297,9 @@ class Trainer(Registrable):
                                                    'old_R': held_out_metrics['coref_recall'], 'new_R': new_R,
                                                    'old_F1': held_out_metrics['coref_f1'], 'new_F1': new_F1,
                                                    'MR': held_out_metrics['mention_recall'], 'loss': held_out_metrics['loss']}
-                            if self._active_learning_percent_labels == 0 and new_F1 != held_out_metrics['coref_f1']:
+                            if ((self._use_percent_labels and self._active_learning_percent_labels == 0) 
+                                or (not self._use_percent_labels is not None and self._active_learning_num_labels == 0) 
+                                and new_F1 != held_out_metrics['coref_f1']):
                                 if self.DEBUG_BREAK_FLAG:
                                     pdb.set_trace()
                             description = self._description_from_metrics(description_display)
