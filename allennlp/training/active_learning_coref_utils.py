@@ -610,10 +610,9 @@ def find_next_most_uncertain_pairwise_edge(selector, model_labels, output_dict, 
                                                      device=model_labels.device)]
         return chosen_edge, torch.rand(())
 
-    pdb.set_trace()
     coref_scores_mask = output_dict['coreference_scores'] != -float("inf")
-    queried_edges_mask &= coref_scores_mask
-    edge_confidence_scores = torch.zeros(output_dict['coreference_scores'], dtype=torch.float,
+    queried_edges_mask |= ~coref_scores_mask
+    edge_confidence_scores = torch.zeros(output_dict['coreference_scores'].size(), dtype=torch.float,
                                          device=model_labels.device)
     if selector == 'entropy':  # selector is entropy
         coreference_probs = torch.zeros(output_dict['coreference_scores'].size(), dtype=torch.float,

@@ -1010,11 +1010,10 @@ class Trainer(Registrable):
                             translation_reference = output_dict['top_span_indices']
 
                             # create must-links and cannot-links
-                            must_link = torch.empty(0, dtype=torch.int).cuda(self._cuda_devices[0])
-                            cannot_link = torch.empty(0, dtype=torch.int).cuda(self._cuda_devices[0])
+                            must_link = torch.empty(0, dtype=torch.long).cuda(self._cuda_devices[0])
+                            cannot_link = torch.empty(0, dtype=torch.long).cuda(self._cuda_devices[0])
 
                             if (self._query_type == 'discrete' and self._selector_clusters) or self._query_type == 'pairwise':  # discrete and using clusters
-                                pdb.set_trace()
                                 # history of mentions that have already been queried/exist in gold data (index in top_spans)
                                 if self._query_type == 'discrete':
                                     all_queried_mentions = (batch['span_labels'] != -1).nonzero()
@@ -1033,6 +1032,7 @@ class Trainer(Registrable):
                                     queried_edges_mask = torch.zeros(output_dict['coreference_scores'].size(),
                                                                      dtype=torch.uint8).cuda(self._cuda_devices[0])
                                     if len(all_queried_edges) > 0:
+                                        # TODO fix this is wrong
                                         top_queried_edges = al_util.translate_to_indA(all_queried_edges, output_dict,
                                                                                       batch['spans'],
                                                                                       translation_reference=translation_reference)
@@ -1121,7 +1121,6 @@ class Trainer(Registrable):
                                             # Do pruning
                                             # pdb.set_trace()
                                     else:  # pairwise
-                                        pdb.set_trace()
                                         edge, edge_score = \
                                             al_util.find_next_most_uncertain_pairwise_edge(self._selector,
                                                                                            top_spans_model_labels,
@@ -1285,7 +1284,6 @@ class Trainer(Registrable):
                                 )
                                 train_data_to_add[ind_instance_overall].fields['must_link'] = batch['must_link']
                                 train_data_to_add[ind_instance_overall].fields['cannot_link'] = batch['cannot_link']
-                            pdb.set_trace()
 
                             if output_dict['loss'] is not None:
                                 num_batches += 1

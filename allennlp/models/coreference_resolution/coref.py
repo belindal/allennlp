@@ -121,8 +121,8 @@ class CoreferenceResolver(Model):
                 spans: torch.IntTensor,
                 span_labels: torch.IntTensor = None,
                 user_labels: torch.IntTensor = None,
-                must_link: torch.IntTensor = None,
-                cannot_link: torch.IntTensor = None,
+                must_link: torch.LongTensor = None,
+                cannot_link: torch.LongTensor = None,
                 metadata: List[Dict[str, Any]] = None,
                 get_scores: bool = False,
                 top_spans_info: Dict[str, torch.IntTensor] = None,
@@ -160,6 +160,8 @@ class CoreferenceResolver(Model):
         loss : ``torch.FloatTensor``, optional
             A scalar loss to be optimised.
         """
+        if must_link is not None:
+            pdb.set_trace()
         if not coref_scores_info:
             if not top_spans_info:
                 # Shape: (batch_size, document_length, embedding_size)
