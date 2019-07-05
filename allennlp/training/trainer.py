@@ -29,7 +29,7 @@ from allennlp.common.util import dump_metrics, gpu_memory_mb, parse_cuda_device,
 from allennlp.common.tqdm import Tqdm
 from allennlp.data.instance import Instance
 from allennlp.data.iterators.data_iterator import DataIterator
-from allennlp.data.fields import SequenceLabelField
+from allennlp.data.fields import SequenceLabelField, SpanPairField, ListField, SpanField
 from allennlp.models.model import Model
 from allennlp.models.coreference_resolution import CoreferenceResolver, CorefEnsemble
 from allennlp.nn import util
@@ -1010,8 +1010,10 @@ class Trainer(Registrable):
                             translation_reference = output_dict['top_span_indices']
 
                             # create must-links and cannot-links
-                            must_link = torch.empty(0, dtype=torch.long).cuda(self._cuda_devices[0])
-                            cannot_link = torch.empty(0, dtype=torch.long).cuda(self._cuda_devices[0])
+                            if ('must_link' not in batch) or batch['must_link'] is None:
+                                batch['must_link'] = torch.empty(0, dtype=torch.long).cuda(self._cuda_devices[0])
+                            if ('cannot_link' not in batch) or batch['cannot_link'] is None:
+                                batch['cannot_link'] = torch.empty(0, dtype=torch.long).cuda(self._cuda_devices[0])
 
                             if (self._query_type == 'discrete' and self._selector_clusters) or self._query_type == 'pairwise':  # discrete and using clusters
                                 # history of mentions that have already been queried/exist in gold data (index in top_spans)
@@ -1099,7 +1101,7 @@ class Trainer(Registrable):
                                                 confirmed_non_coref_edges = torch.cat(
                                                     (confirmed_non_coref_edges, indA_edge_asked.unsqueeze(0)), dim=0)
                                             # Add to cannot-link
-                                            cannot_link = torch.cat((cannot_link, indA_edge_asked.unsqueeze(0)), dim=0)
+                                            batch['cannot_link'] = torch.cat((batch['cannot_link'], indA_edge_asked.unsqueeze(0)), dim=0)
                                             # Do pruning
                                             cluster_ant = confirmed_clusters[indA_edge_asked[0], indA_edge_asked[2]]
                                             cluster_pro = confirmed_clusters[indA_edge_asked[0], indA_edge_asked[1]]
@@ -1117,7 +1119,7 @@ class Trainer(Registrable):
                                             confirmed_clusters = al_util.update_clusters_with_edge(confirmed_clusters,
                                                                                                    indA_edge)
                                             # Add to must-link
-                                            must_link = torch.cat((must_link, indA_edge.unsqueeze(0)), dim=0)
+                                            batch['must_link'] = torch.cat((batch['must_link'], indA_edge.unsqueeze(0)), dim=0)
                                             # Do pruning
                                             # pdb.set_trace()
                                     else:  # pairwise
@@ -1154,7 +1156,7 @@ class Trainer(Registrable):
                                                 confirmed_non_coref_edges = torch.cat(
                                                     (confirmed_non_coref_edges, indA_edge.unsqueeze(0)), dim=0)
                                             # Add to cannot-link
-                                            cannot_link = torch.cat((cannot_link, indA_edge.unsqueeze(0)), dim=0)
+                                            batch['cannot_link'] = torch.cat((batch['cannot_link'], indA_edge.unsqueeze(0)), dim=0)
                                         else:
                                             # Otherwise, add edge, if not already in there
                                             if len(indA_model_edges) == 0 or (
@@ -1166,7 +1168,7 @@ class Trainer(Registrable):
                                             confirmed_clusters = al_util.update_clusters_with_edge(confirmed_clusters,
                                                                                                    indA_edge)
                                             # Add to must-link
-                                            must_link = torch.cat((must_link, indA_edge.unsqueeze(0)), dim=0)
+                                            batch['must_link'] = torch.cat((batch['must_link'], indA_edge.unsqueeze(0)), dim=0)
                                     num_queried += 1
 
                                 edges_to_add = indA_model_edges
@@ -1261,9 +1263,6 @@ class Trainer(Registrable):
                                                                            True, self._replace_with_next_pos_edge,
                                                                            sorted_larger_than_zero_edges, num_alts_to_check,
                                                                            larger_than_zero_scores, output_dict, batch)
-
-                            batch['must_link'] = must_link
-                            batch['cannot_link'] = cannot_link
                             # keep track of which instances we have to update in training data
                             train_instances_to_update = {}
                             # Update gold clusters based on (corrected) model edges, in span_labels
@@ -1272,8 +1271,8 @@ class Trainer(Registrable):
                                     batch['span_labels'] = al_util.update_clusters_with_edge(batch['span_labels'], edge)
                                 ind_instance = edge[0].item()  # index of instance in batch
                                 if ind_instance not in train_instances_to_update:
+                                    # [[mustlinks], [cannotlinks]]
                                     train_instances_to_update[ind_instance] = 0
-                                train_instances_to_update[ind_instance] += 1
 
                             # update train data itself
                             for ind_instance in train_instances_to_update:
@@ -1282,8 +1281,28 @@ class Trainer(Registrable):
                                     batch['span_labels'][ind_instance].tolist(),
                                     train_data_to_add[ind_instance_overall].fields['span_labels'].sequence_field
                                 )
-                                train_data_to_add[ind_instance_overall].fields['must_link'] = batch['must_link']
-                                train_data_to_add[ind_instance_overall].fields['cannot_link'] = batch['cannot_link']
+
+                            # update must-links and cannot-links
+                            for edge in batch['must_link']:
+                                pdb.set_trace()
+                                ind_instance = edge[0].item()
+                                ind_instance_overall = batch_ind * batch_size + ind_instance  # index in entire train data
+                                train_data_to_add[ind_instance_overall].fields['must_link'] = ListField(
+                                    SpanPairField(
+                                        train_data_to_add[ind_instance_overall].fields['spans'][edge[1]],
+                                        train_data_to_add[ind_instance_overall].fields['spans'][edge[2]],
+                                    )
+                                )
+                            for edge in batch['cannot_link']:
+                                pdb.set_trace()
+                                ind_instance = edge[0].item()
+                                ind_instance_overall = batch_ind * batch_size + ind_instance  # index in entire train data
+                                train_data_to_add[ind_instance_overall].fields['cannot_link'] = ListField(
+                                    SpanPairField(
+                                        train_data_to_add[ind_instance_overall].fields['spans'][edge[1]],
+                                        train_data_to_add[ind_instance_overall].fields['spans'][edge[2]],
+                                    )
+                                )
 
                             if output_dict['loss'] is not None:
                                 num_batches += 1
