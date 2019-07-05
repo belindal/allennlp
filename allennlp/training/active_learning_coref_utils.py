@@ -1,12 +1,13 @@
 import pdb
 import torch
 from allennlp.nn import util
+import copy
 import os
-
+import string
 
 def translate_to_indA(edges, output_dict, all_spans, translation_reference=None) -> torch.LongTensor:
     """
-    :param edges: Tensor (Nx3) of N edges, each of form [instance in batch, indB of proform, indC of antecedent]
+    :param edges: Tensor (Nx3) of N edges, each of form [instance in batch, indB of proform, indC of antecedent]. If indC of antecedent is negative, represents expecting no antecedent
     output_dict: holds information for translation
     :param translation_reference: Tensor (BxS) of B batches and S top_spans, whereby number at [b,s] represents index of
         to translate sth *top* span in batch b in *all* spans
@@ -16,6 +17,7 @@ def translate_to_indA(edges, output_dict, all_spans, translation_reference=None)
     if len(edges) == 0:
         return edges
 
+    no_antecedent_mask = edges[:,2] == -1
     # NOTE in below code-- each span has 3 indices, will refer to them as A,B,C respectively:
     #   indA. index in all spans (i.e. in the training data)
     #   indB. index in output_dict['top_spans']
@@ -27,6 +29,7 @@ def translate_to_indA(edges, output_dict, all_spans, translation_reference=None)
         indA_edges[:,2] = output_dict['antecedent_indices'][indA_edges[:,0], indA_edges[:,1], indA_edges[:,2]]
         indA_edges[:,1] = translation_reference[indA_edges[:,0], indA_edges[:,1]]
         indA_edges[:,2] = translation_reference[indA_edges[:,0], indA_edges[:,2]]
+        indA_edges[:,2][no_antecedent_mask] = -1
         return indA_edges
 
     instances = edges[:, 0]
@@ -59,6 +62,7 @@ def translate_to_indA(edges, output_dict, all_spans, translation_reference=None)
         else:
             indA_proforms = ((proform_spans.unsqueeze(1) - all_spans[instances]).abs().sum(-1) == 0).nonzero()[:, 1]
             indA_antecedents = ((antecedent_spans.unsqueeze(1) - all_spans[instances]).abs().sum(-1) == 0).nonzero()[:, 1]
+        indA_antecedents[no_antecedent_mask] = -1
         return torch.stack([instances, indA_proforms, indA_antecedents], dim=-1)
 
 
@@ -136,6 +140,39 @@ def update_clusters_with_edge(span_labels, edge, delete=False, all_edges=None):
     return span_labels
 
 
+""" FOR PAIRWISE SELECTION (ENTROPY AND QBC) """
+def get_edges_pairwise(selector, coreference_mask, output_dict, all_spans, translation_reference=None):
+    masked_edge_inds = coreference_mask.nonzero()
+    if masked_edge_inds.size(0) == 0:
+        # no edges, just return empty arrays (note masked_edge_inds is empty)
+        return masked_edge_inds, masked_edge_inds
+    # Subtract one here because index 0 is the "no antecedent" class,
+    # so this makes the indices line up with actual spans if the prediction
+    # is greater than -1.
+    masked_edge_inds[:, 2] -= 1
+    if selector == 'entropy':  # selector is entropy
+        coreference_probs = torch.zeros(output_dict['coreference_scores'].size(), dtype=torch.float,
+                                        device=masked_edge_inds.device)
+        for b in range(len(output_dict['top_spans'])):
+            top_span_mask = torch.ones(output_dict['top_spans'][b].size(0), dtype=torch.float, device=masked_edge_inds.device
+                                       ).unsqueeze(-1)
+            # returns *LOG-d* probs
+            coreference_probs[b] = util.masked_log_softmax(output_dict['coreference_scores'][b], top_span_mask).exp()
+        coref_edge_entropies = coreference_probs * coreference_probs.log()
+        coref_edge_entropies[coref_edge_entropies != coref_edge_entropies] = 0
+        non_coref_edge_entropies = (1 - coreference_probs) * (1 - coreference_probs).log()
+        non_coref_edge_entropies[non_coref_edge_entropies != non_coref_edge_entropies] = 0
+        edge_entropies = -(coref_edge_entropies + non_coref_edge_entropies)
+        edge_entropies = edge_entropies[coreference_mask]
+        sorted_edge_entropies, ind_sorted_edge_entropies = edge_entropies.sort(descending=True)
+        # reshape indices back into correct (2D) shape
+    sorted_edges = translate_to_indA(masked_edge_inds[ind_sorted_edge_entropies], output_dict, all_spans, translation_reference)
+    masked_edge_scores = output_dict['coreference_scores'][coreference_mask]
+    sorted_edge_scores = masked_edge_scores[ind_sorted_edge_entropies]
+    return sorted_edges, sorted_edge_scores
+
+
+""" FOR UNCLUSTERED, DISCRETE SELECTION AND SCORE PAIRWISE SELECTION """
 def get_sorted_masked_edges(selector, coreference_mask, output_dict, all_spans, translation_reference,
                             farthest_from_zero=False) -> torch.LongTensor:
     """
@@ -195,13 +232,19 @@ def get_sorted_masked_edges(selector, coreference_mask, output_dict, all_spans, 
         _, ind_max_edge_scores = edge_entropies.sort(descending=True)
         ind_max_edge_scores = ind_max_edge_scores.squeeze(0)
     # TODO: only works for 1 instance/batch
+    # TODO: fix in case of negative edge (not coreferent)
     sorted_edges = translate_to_indA(masked_edge_inds[ind_max_edge_scores], output_dict, all_spans, translation_reference)
     return sorted_edges, edge_scores[ind_max_edge_scores]
 
+""" Pairwise, entropy/qbc """
+def query_user_labels_pairwise():
+    pdb.set_trace()
 
-def query_user_labels_pairwise(sample_from_training, chosen_edges, edge_scores, user_labels, num_labels_to_query,
-                               return_all_edges, use_alt_edges=False, all_candidate_alt_edges=None, num_alts_to_check=0,
-                               alt_edge_scores=None):
+
+""" Pairwise, score """
+def query_user_labels_pairwise_score(sample_from_training, chosen_edges, edge_scores, user_labels, num_labels_to_query,
+                                     return_all_edges, use_alt_edges=False, all_candidate_alt_edges=None, num_alts_to_check=0,
+                                     alt_edge_scores=None, output_dict=None, batch=None):
     """
     :param chosen_edges: should be sorted with most uncertain first, with edges in which both ends in gold clusters filtered out
     :param user_labels: from batch['user_labels']
@@ -220,69 +263,102 @@ def query_user_labels_pairwise(sample_from_training, chosen_edges, edge_scores, 
     num_labels_to_query = len(chosen_edges[:num_labels_to_query])
     num_alt_edge_queried = 0
     if num_labels_to_query > 0:
-        if sample_from_training:
-            proform_user_labels = user_labels[
-                chosen_edges[:num_labels_to_query][:, 0], chosen_edges[:num_labels_to_query][:, 1]]
-            antecedent_user_labels = user_labels[
-                chosen_edges[:num_labels_to_query][:, 0], chosen_edges[:num_labels_to_query][:, 2]]
-            coreferent_mask = (proform_user_labels == antecedent_user_labels) & (proform_user_labels != -1)
-            # ensure all edges deemed coreferent are assigned positive scores
-            edge_scores[:num_labels_to_query][coreferent_mask] = edge_scores[:num_labels_to_query][
-                coreferent_mask].abs()
-            non_coreferent_pos_edges = chosen_edges[:num_labels_to_query][~coreferent_mask & pos_edges_mask]
-            if len(non_coreferent_pos_edges) > 0 and not use_alt_edges:
-                # set all non-coreferent edges to -1
-                chosen_edges[:num_labels_to_query][~coreferent_mask & pos_edges_mask] = -1
-            elif len(non_coreferent_pos_edges) > 0:
-                # use alternate edges
-                assert all_candidate_alt_edges is not None
-                assert alt_edge_scores is not None
-                # replace non-coreferent and (+) edges with alternate edges (same proform, next largest antecedent)
-                allalt_differences = (
-                            non_coreferent_pos_edges.unsqueeze(0) - all_candidate_alt_edges.unsqueeze(1)).abs()
-                same_proform_diff_antecedent_mask = (allalt_differences[:, :, 1] == 0) & (
-                        allalt_differences[:, :, 1] == 0) & (
-                                                            allalt_differences[:, :, 2] != 0)
-                # [inds of possible alternates in all_candidate_alt_edges, inds of edges to replace in non_coreferent_pos_edges]
-                possible_alt_inds_to_query = same_proform_diff_antecedent_mask.nonzero()[:num_alts_to_check]
-                num_alt_edge_queried += len(possible_alt_inds_to_query)
-                alternate_pos_edges = -torch.ones(non_coreferent_pos_edges.size(), dtype=torch.long,
-                                                  device=edge_scores.device)
-                chosen_alternate_edge_scores = -torch.ones(non_coreferent_pos_edges.size(0), dtype=torch.float,
-                                                           device=edge_scores.device)
-                if possible_alt_inds_to_query.size(0) > 0:
-                    possible_alts_to_query = all_candidate_alt_edges[possible_alt_inds_to_query[:, 0]]
-                    alt_proforms = user_labels[possible_alts_to_query[:, 0], possible_alts_to_query[:, 1]]
-                    alt_antecedents = user_labels[possible_alts_to_query[:, 0], possible_alts_to_query[:, 2]]
-                    coreferent_alts_mask = (alt_proforms >= 0) & (alt_proforms == alt_antecedents)
-                    # flip since for the same proform, want to set to highest-scoring coreferent antecedent, which
-                    # means want highest-scoring at the end
-                    coreferent_alt_inds = possible_alt_inds_to_query[coreferent_alts_mask].flip(0)
-                    if len(coreferent_alt_inds) > 0:
-                        alternate_pos_edges[coreferent_alt_inds[:, 1]] = all_candidate_alt_edges[
-                            coreferent_alt_inds[:, 0]]
-                        # also set new edge score
-                        chosen_alternate_edge_scores[coreferent_alt_inds[:, 1]] = alt_edge_scores[
-                            coreferent_alt_inds[:, 0]]
-                # TODO: not sure why this errors out sometimes... but always fine on retry...
+        proform_user_labels = user_labels[
+            chosen_edges[:num_labels_to_query][:, 0], chosen_edges[:num_labels_to_query][:, 1]]
+        antecedent_user_labels = user_labels[
+            chosen_edges[:num_labels_to_query][:, 0], chosen_edges[:num_labels_to_query][:, 2]]
+        if not sample_from_training:
+            try:
+                num_lines = sum(1 for line in open('pairwise_examples.txt', 'r'))
+            except:
+                num_lines = 0
+            assert output_dict is not None
+            assert batch is not None
+            # print this example to document
+            with open("pairwise_examples.txt", 'a') as f:
+                af = open("pairwise_answers.txt", 'a')
+                for i, tokens in enumerate(output_dict['document']):
+                    for j in range(num_labels_to_query):
+                        if num_lines > 10000:
+                            break
+                        tokens_2 = copy.deepcopy(tokens)
+                        proform = batch['spans'][chosen_edges[j,0], chosen_edges[j,1]]
+                        antecedent = batch['spans'][chosen_edges[j,0], chosen_edges[j,2]]
+                        tokens_2[proform[0]] = '\x1b[6;30;47m' + tokens_2[proform[0]]
+                        tokens_2[proform[1]] += '\x1b[0m'
+                        tokens_2[antecedent[0]] = '\x1b[6;30;42m' + tokens_2[antecedent[0]]
+                        tokens_2[antecedent[1]] += '\x1b[0m'
+                        text = "".join([" "+i if not i.startswith("'") and i not in string.punctuation else i for i in tokens_2]).strip()
+                        f.write(text + "\n")
+                        af.write(str(bool(proform_user_labels[j] == antecedent_user_labels[j])) + "\n")
+                        num_lines += 1
+                af.close()
+        coreferent_mask = (proform_user_labels == antecedent_user_labels) & (proform_user_labels != -1)
+        # ensure all edges deemed coreferent are assigned positive scores
+        edge_scores[:num_labels_to_query][coreferent_mask] = edge_scores[:num_labels_to_query][
+            coreferent_mask].abs()
+        non_coreferent_pos_edges = chosen_edges[:num_labels_to_query][~coreferent_mask & pos_edges_mask]
+        if all_candidate_alt_edges is None:
+            all_candidate_alt_edges = chosen_edges[edge_scores > 0]
+        if len(non_coreferent_pos_edges) > 0 and not use_alt_edges:
+            # TODO: replace with next positive example? (or is unnecessary?)
+            # proform has alternate positive-scoring antecedent
+            same_proform_edges = ((all_candidate_alt_edges[:,1].unsqueeze(0) - chosen_edges[:num_labels_to_query][~coreferent_mask & pos_edges_mask][:,1].unsqueeze(-1)) == 0)
+            diff_ant_edges = (all_candidate_alt_edges[:,2].unsqueeze(0) - chosen_edges[:num_labels_to_query][~coreferent_mask & pos_edges_mask][:,2].unsqueeze(-1)) != 0
+            # inner mask is (positive edges x non-coreferent edges), max value across dim 1
+            # has_pos_edges: [0,0,0,1], last non-coreferent edge has alternate pos edge
+            # alt_pos_edges_idx: [0,0,0,a], last non-coreferent edge's alternate pos edge is at index a of all_candidate_alt_edges
+            has_pos_edges_mask, alt_pos_edges_idx = (same_proform_edges & diff_ant_edges).max(1)
+            # exclude current edge to leave
+            alt_pos_edges = all_candidate_alt_edges[alt_pos_edges_idx]
+            alt_pos_edges[~has_pos_edges_mask] = -1
+            if (has_pos_edges_mask != 0).sum() > 0:
+                assert (chosen_edges[:num_labels_to_query][~coreferent_mask & pos_edges_mask][has_pos_edges_mask][:,1] != alt_pos_edges[has_pos_edges_mask][:,1]).sum() == 0
+            chosen_edges[:num_labels_to_query][~coreferent_mask & pos_edges_mask] = alt_pos_edges
+        elif len(non_coreferent_pos_edges) > 0:
+            # use alternate edges
+            assert all_candidate_alt_edges is not None
+            assert alt_edge_scores is not None
+            allalt_differences = (
+                        non_coreferent_pos_edges.unsqueeze(0) - all_candidate_alt_edges.unsqueeze(1)).abs()
+            same_proform_diff_antecedent_mask = (allalt_differences[:, :, 1] == 0) & (
+                    allalt_differences[:, :, 1] == 0) & (
+                                                        allalt_differences[:, :, 2] != 0)
+            # [inds of possible alternates in all_candidate_alt_edges, inds of edges to replace in non_coreferent_pos_edges]
+            possible_alt_inds_to_query = same_proform_diff_antecedent_mask.nonzero()[:num_alts_to_check]
+            # replace non-coreferent and (+) edges with alternate edges (same proform, next largest antecedent)
+            num_alt_edge_queried += len(possible_alt_inds_to_query)
+            alternate_pos_edges = -torch.ones(non_coreferent_pos_edges.size(), dtype=torch.long,
+                                              device=edge_scores.device)
+            chosen_alternate_edge_scores = -torch.ones(non_coreferent_pos_edges.size(0), dtype=torch.float,
+                                                       device=edge_scores.device)
+            if possible_alt_inds_to_query.size(0) > 0:
+                possible_alts_to_query = all_candidate_alt_edges[possible_alt_inds_to_query[:, 0]]
+                alt_proforms = user_labels[possible_alts_to_query[:, 0], possible_alts_to_query[:, 1]]
+                alt_antecedents = user_labels[possible_alts_to_query[:, 0], possible_alts_to_query[:, 2]]
+                coreferent_alts_mask = (alt_proforms >= 0) & (alt_proforms == alt_antecedents)
+                # flip since for the same proform, want to set to highest-scoring coreferent antecedent, which
+                # means want highest-scoring at the end
+                coreferent_alt_inds = possible_alt_inds_to_query[coreferent_alts_mask].flip(0)
+                if len(coreferent_alt_inds) > 0:
+                    alternate_pos_edges[coreferent_alt_inds[:, 1]] = all_candidate_alt_edges[
+                        coreferent_alt_inds[:, 0]]
+                    # also set new edge score
+                    chosen_alternate_edge_scores[coreferent_alt_inds[:, 1]] = alt_edge_scores[
+                        coreferent_alt_inds[:, 0]]
+            # TODO: not sure why this errors out sometimes... but always fine on retry...
+            try:
+                chosen_edges[:num_labels_to_query][~coreferent_mask & pos_edges_mask] = alternate_pos_edges
+            except:
                 try:
                     chosen_edges[:num_labels_to_query][~coreferent_mask & pos_edges_mask] = alternate_pos_edges
                 except:
-                    try:
-                        chosen_edges[:num_labels_to_query][~coreferent_mask & pos_edges_mask] = alternate_pos_edges
-                    except:
-                        pdb.set_trace()
-                edge_scores[:num_labels_to_query][~coreferent_mask & pos_edges_mask] = chosen_alternate_edge_scores
-            # filter -1s
-            filter_deleted_edges_mask = chosen_edges[:, 0] >= 0
-            chosen_edges = chosen_edges[filter_deleted_edges_mask]
-            edge_scores = edge_scores[filter_deleted_edges_mask]
-        else:
-            # iterate through chosen edges (note iterating through inds given by ind_min_exist_edge_scores)
-            for i, edge in enumerate(chosen_edges[:num_labels_to_query]):
-                ind_instance = edge[0]  # index in batch
-                # TODO: mechanism for printing chosen_proform_span and chosen_antecedent_span to user and getting user input
-                coreferent = True
+                    pdb.set_trace()
+            edge_scores[:num_labels_to_query][~coreferent_mask & pos_edges_mask] = chosen_alternate_edge_scores
+        # filter -1s
+        filter_deleted_edges_mask = chosen_edges[:, 0] >= 0
+        chosen_edges = chosen_edges[filter_deleted_edges_mask]
+        edge_scores = edge_scores[filter_deleted_edges_mask]
     # add all edges with positive scores (including unchecked edges that the model predicted)
     if return_all_edges:
         chosen_edges = chosen_edges[edge_scores >= 0]
@@ -291,7 +367,7 @@ def query_user_labels_pairwise(sample_from_training, chosen_edges, edge_scores, 
     return chosen_edges, num_labels_to_query + num_alt_edge_queried, total_possible_queries
 
 
-def query_user_labels_discrete(chosen_edges, edge_scores, num_labels_to_query, return_all_edges, output_dict, batch, query_first_span_in_cluster=False):
+def query_user_labels_discrete(chosen_edges, edge_scores, num_labels_to_query, return_all_edges, output_dict, batch, query_first_span_in_cluster=False, sample_from_training=True):
     """
     :param chosen_edges: should be sorted with most uncertain first, with edges in which both ends in gold clusters filtered out
     :param user_labels: from batch['user_labels']
@@ -321,8 +397,32 @@ def query_user_labels_discrete(chosen_edges, edge_scores, num_labels_to_query, r
             proform_user_label = user_labels[chosen_edges[i][0], chosen_edges[i, 1]]
             antecedent_user_label = user_labels[chosen_edges[i, 0], chosen_edges[i, 2]]
             num_labels_queried += 1
-            # ask if edge is coreferent
             coreferent = (proform_user_label == antecedent_user_label) & (proform_user_label != -1)
+            # ask if edge is coreferent
+            if not sample_from_training:
+                # print this example to document
+                try:
+                    num_lines = sum(1 for line in open('discrete_examples.txt', 'r'))
+                except:
+                    num_lines = 0
+                af = open("discrete_answers.txt", 'a')
+                with open("discrete_examples.txt", 'a') as f:
+                    for i, tokens in enumerate(output_dict['document']):
+                        if num_lines > 10000:
+                            break
+                        tokens_2 = copy.deepcopy(tokens)
+                        proform = batch['spans'][chosen_edges[i,0], chosen_edges[i,1]]
+                        antecedent = batch['spans'][chosen_edges[i,0], chosen_edges[i,2]]
+                        tokens_2[proform[0]] = '\x1b[6;30;47m' + tokens_2[proform[0]]
+                        tokens_2[proform[1]] += '\x1b[0m'
+                        tokens_2[antecedent[0]] = '\x1b[6;30;42m' + tokens_2[antecedent[0]]
+                        tokens_2[antecedent[1]] += '\x1b[0m'
+                        text = "".join([" "+i if not i.startswith("'") and i not in string.punctuation else i for i in tokens_2]).strip()
+                        f.write(text + "\n")
+                        af.write(str(bool(coreferent)))
+                        num_lines += 1
+                        af.write("\n")
+                af.close()
             if not coreferent and proform_user_label != -1:
                 # query a coreferent spans from user
                 user_spans_in_proform_cluster_mask = user_labels[chosen_edges[i, 0]] == proform_user_label
@@ -403,7 +503,7 @@ def query_user_labels_discrete(chosen_edges, edge_scores, num_labels_to_query, r
     return chosen_edges, num_labels_queried, total_possible_queries, span_labels
 
 
-def query_user_labels_mention(mention, output_dict, all_spans, user_labels, translation_reference=None):
+def query_user_labels_mention(mention, output_dict, all_spans, user_labels, translation_reference=None, sample_from_training=True, batch=None):
     # returns:
     # 1. edge: indA of edge, if coreferent, will be identical to indA_edge_ask, otherwise,
     #          edge antecedent will be "fixed", pointing to -1 if there are no other spans
@@ -429,9 +529,46 @@ def query_user_labels_mention(mention, output_dict, all_spans, user_labels, tran
         else:
             # query user for correct label (point to 1st span in cluster--if it is 1st span, will point to itself)
             edge[2] = (user_labels[indA_edge_ask[0]] == proform_label).nonzero()[0]
+    if not sample_from_training:
+        try:
+            num_lines = sum(1 for line in open('discrete_examples.txt', 'r'))
+        except:
+            num_lines = 0
+        assert batch is not None
+        af = open("discrete_answers.txt", 'a')
+        # print this example to document
+        with open("discrete_examples.txt", 'a') as f:
+            for i, tokens in enumerate(output_dict['document']):
+                if num_lines > 10000:
+                    break
+                tokens_2 = copy.deepcopy(tokens)
+                proform = batch['spans'][indA_edge_ask[0], indA_edge_ask[1]]
+                antecedent = batch['spans'][indA_edge_ask[0], indA_edge_ask[2]]
+                tokens_2[proform[0]] = '\x1b[6;30;47m' + tokens_2[proform[0]]
+                tokens_2[proform[1]] += '\x1b[0m'
+                tokens_2[antecedent[0]] = '\x1b[6;30;42m' + tokens_2[antecedent[0]]
+                tokens_2[antecedent[1]] += '\x1b[0m'
+                text = "".join([" "+i if not i.startswith("'") and i not in string.punctuation else i for i in tokens_2]).strip()
+                f.write(text + "\n")
+                af.write(str(bool(coreferent)))
+                if not coreferent and edge[2] != -1:
+                    new_antecedent = batch['spans'][edge[0], edge[2]]
+                    af.write("\t")
+                    for ind in range(new_antecedent[0], new_antecedent[1] + 1):
+                        af.write(" " + tokens[ind])
+                    af.write("\t" + str(new_antecedent.tolist()))
+                af.write("\n")
+                num_lines += 1
+        af.close()
+
     return edge, edge_ask, indA_edge_ask
 
 
+def find_next_most_uncertain_pairwise_edge(selector, model_labels, output_dict, queried_mentions_mask, DEBUG_BREAK_FLAG=False):
+
+
+
+""" FOR CLUSTERED, DISCRETE SELECTION """
 def find_next_most_uncertain_mention(selector, model_labels, output_dict, queried_mentions_mask, DEBUG_BREAK_FLAG=False):
     '''
     model_labels: batch x num_spans tensor detailing cluster ID of cluster each span belongs to, according to model edges
