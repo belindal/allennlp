@@ -1127,10 +1127,10 @@ class Trainer(Registrable):
                                 else:  # pairwise
                                     if self._use_percent_labels:
                                         # upper bound is asking question about every span
-                                        total_possible_queries = len((~queried_mentions_mask).nonzero())
+                                        total_possible_queries = len((~queried_edges_mask).nonzero())
                                         num_to_query = int(self._active_learning_percent_labels * total_possible_queries)
                                     else:
-                                        total_possible_queries = len((~queried_mentions_mask).nonzero())
+                                        total_possible_queries = len((~queried_edges_mask).nonzero())
                                         num_to_query = min(self._active_learning_num_labels, total_possible_queries)
                                     top_spans_model_labels = torch.gather(batch['span_labels'], 1, translation_reference)
                                     num_queried = 0
