@@ -1276,26 +1276,24 @@ class Trainer(Registrable):
 
                             # update must-links and cannot-links
                             for edge in batch['must_link']:
-                                pdb.set_trace()
                                 ind_instance = edge[0].item()
                                 ind_instance_overall = batch_ind * batch_size + ind_instance  # index in entire train data
                                 if ind_instance not in train_instances_to_update:
                                     # [[mustlinks], [cannotlinks]]
                                     train_instances_to_update[ind_instance] = [[], []]
-                                train_instances_to_update[ind_instance_overall][0].append(
+                                train_instances_to_update[ind_instance][0].append(
                                     SpanPairField(
                                         train_data_to_add[ind_instance_overall].fields['spans'][edge[1]],
                                         train_data_to_add[ind_instance_overall].fields['spans'][edge[2]],
                                     )
                                 )
                             for edge in batch['cannot_link']:
-                                pdb.set_trace()
                                 ind_instance = edge[0].item()
                                 ind_instance_overall = batch_ind * batch_size + ind_instance  # index in entire train data
                                 if ind_instance not in train_instances_to_update:
                                     # [[mustlinks], [cannotlinks]]
                                     train_instances_to_update[ind_instance] = [[], []]
-                                train_instances_to_update[ind_instance_overall][1].append(
+                                train_instances_to_update[ind_instance][1].append(
                                     SpanPairField(
                                         train_data_to_add[ind_instance_overall].fields['spans'][edge[1]],
                                         train_data_to_add[ind_instance_overall].fields['spans'][edge[2]],
@@ -1309,13 +1307,15 @@ class Trainer(Registrable):
                                     batch['span_labels'][ind_instance].tolist(),
                                     train_data_to_add[ind_instance_overall].fields['span_labels'].sequence_field
                                 )
-                                train_data_to_add[ind_instance_overall].fields['must_link'] = ListField(
-                                    train_instances_to_update[ind_instance_overall][0]
-                                )
-                                train_data_to_add[ind_instance_overall].fields['cannot_link'] = ListField(
-                                    train_instances_to_update[ind_instance_overall][1]
-                                )
-
+                                try:
+                                    train_data_to_add[ind_instance_overall].fields['must_link'] = ListField(
+                                        train_instances_to_update[ind_instance_overall][0]
+                                    )
+                                    train_data_to_add[ind_instance_overall].fields['cannot_link'] = ListField(
+                                        train_instances_to_update[ind_instance_overall][1]
+                                    )
+                                except:
+                                    pdb.set_trace()
 
                             if output_dict['loss'] is not None:
                                 num_batches += 1
