@@ -1040,6 +1040,7 @@ class Trainer(Registrable):
                                                                                       translation_reference=translation_reference)
                                         queried_edges_mask[top_queried_edges[:, 0], top_queried_edges[:, 1],
                                                            top_queried_edges[:, 2]] = 1
+                                    queried_edges_mask[:, 0] = 1  # don't query 1st column (empty)
 
                                 confirmed_clusters = batch['span_labels'].clone()
                                 # TODO: fix if batch['span_labels'] is not all -1
@@ -1055,17 +1056,17 @@ class Trainer(Registrable):
                                 for edge in indA_model_edges:
                                     batch['span_labels'] = al_util.update_clusters_with_edge(batch['span_labels'], edge)
 
-                                if self._use_percent_labels:
-                                    # upper bound is asking question about every span
-                                    num_to_query = int(self._active_learning_percent_labels * len(output_dict['top_spans'][0]))
-                                    total_possible_queries = len(output_dict['top_spans'][0])
-                                else:
-                                    total_possible_queries = len(output_dict['top_spans'][0])
-                                    num_to_query = min(self._active_learning_num_labels, total_possible_queries)
-                                num_queried = 0
-                                while num_queried < num_to_query:
+                                if self._query_type == 'discrete':
+                                    if self._use_percent_labels:
+                                        # upper bound is asking question about every span
+                                        total_possible_queries = len(output_dict['top_spans'][0])
+                                        num_to_query = int(self._active_learning_percent_labels * total_possible_queries)
+                                    else:
+                                        total_possible_queries = len(output_dict['top_spans'][0])
+                                        num_to_query = min(self._active_learning_num_labels, total_possible_queries)
                                     top_spans_model_labels = torch.gather(batch['span_labels'], 1, translation_reference)
-                                    if self._query_type == 'discrete':
+                                    num_queried = 0
+                                    while num_queried < num_to_query:
                                         mention, mention_score = \
                                             al_util.find_next_most_uncertain_mention(self._selector, top_spans_model_labels,
                                                                                      output_dict, queried_mentions_mask,
@@ -1122,7 +1123,18 @@ class Trainer(Registrable):
                                             batch['must_link'] = torch.cat((batch['must_link'], indA_edge.unsqueeze(0)), dim=0)
                                             # Do pruning
                                             # pdb.set_trace()
-                                    else:  # pairwise
+                                        num_queried += 1
+                                else:  # pairwise
+                                    if self._use_percent_labels:
+                                        # upper bound is asking question about every span
+                                        total_possible_queries = len((~queried_mentions_mask).nonzero())
+                                        num_to_query = int(self._active_learning_percent_labels * total_possible_queries)
+                                    else:
+                                        total_possible_queries = len((~queried_mentions_mask).nonzero())
+                                        num_to_query = min(self._active_learning_num_labels, total_possible_queries)
+                                    top_spans_model_labels = torch.gather(batch['span_labels'], 1, translation_reference)
+                                    num_queried = 0
+                                    while num_queried < num_to_query:
                                         edge, edge_score = \
                                             al_util.find_next_most_uncertain_pairwise_edge(self._selector,
                                                                                            top_spans_model_labels,
@@ -1169,7 +1181,7 @@ class Trainer(Registrable):
                                                                                                    indA_edge)
                                             # Add to must-link
                                             batch['must_link'] = torch.cat((batch['must_link'], indA_edge.unsqueeze(0)), dim=0)
-                                    num_queried += 1
+                                        num_queried += 1
 
                                 edges_to_add = indA_model_edges
 

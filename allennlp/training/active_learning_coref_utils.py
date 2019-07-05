@@ -245,6 +245,7 @@ def query_user_labels_pairwise(edge, output_dict, all_spans, user_labels, transl
     antecedent_label = user_labels[indA_edge[0], indA_edge[2]]
     # proform and antecedent both belong to a cluster, and it is the same cluster
     coreferent = (proform_label == antecedent_label) & (proform_label != -1)
+    pdb.set_trace()
     if not sample_from_training:
         # print this example to document
         try:
@@ -609,7 +610,6 @@ def find_next_most_uncertain_pairwise_edge(selector, model_labels, output_dict, 
         chosen_edge = nonqueried_edges[torch.randint(len(queried_edges_mask), (), dtype=torch.int,
                                                      device=model_labels.device)]
         return chosen_edge, torch.rand(())
-
     coref_scores_mask = output_dict['coreference_scores'] != -float("inf")
     queried_edges_mask |= ~coref_scores_mask
     edge_confidence_scores = torch.zeros(output_dict['coreference_scores'].size(), dtype=torch.float,
@@ -627,7 +627,8 @@ def find_next_most_uncertain_pairwise_edge(selector, model_labels, output_dict, 
         non_coref_edge_entropies = (1 - coreference_probs) * (1 - coreference_probs).log()
         non_coref_edge_entropies[non_coref_edge_entropies != non_coref_edge_entropies] = 0
         edge_entropies = -(coref_edge_entropies + non_coref_edge_entropies)
-        edge_confidence_scores = edge_entropies
+        # avoid choosing 1st column
+        edge_confidence_scores = edge_entropies[:, 1:]
     elif selector == 'qbc': # TODO qbc selector
         pdb.set_trace()
 
@@ -636,7 +637,8 @@ def find_next_most_uncertain_pairwise_edge(selector, model_labels, output_dict, 
     elif selector == 'score':
         opt_score = edge_confidence_scores.min()
     # choose arbitrary unchosen, least-confident mention
-    chosen_edges = ((edge_confidence_scores == opt_score) & ~queried_edges_mask).nonzero()
+    chosen_edges = ((edge_confidence_scores == opt_score) & ~queried_edges_mask[:, 1:]).nonzero()
+    pdb.set_trace()
     return chosen_edges[0], opt_score
 
 
