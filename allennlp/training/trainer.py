@@ -1009,18 +1009,35 @@ class Trainer(Registrable):
                             batch_size = len(output_dict['predicted_antecedents'])
                             translation_reference = output_dict['top_span_indices']
 
-                            if self._query_type == 'discrete' and self._selector_clusters:  # discrete and using clusters
+                            # create must-links and cannot-links
+                            must_link = torch.empty(0, dtype=torch.int).cuda(self._cuda_devices[0])
+                            cannot_link = torch.empty(0, dtype=torch.int).cuda(self._cuda_devices[0])
+
+                            if (self._query_type == 'discrete' and self._selector_clusters) or self._query_type == 'pairwise':  # discrete and using clusters
+                                pdb.set_trace()
                                 # history of mentions that have already been queried/exist in gold data (index in top_spans)
-                                all_queried_mentions = (batch['span_labels'] != -1).nonzero()
-                                queried_mentions_mask = torch.zeros(output_dict['coreference_scores'].size()[:2],
-                                    dtype=torch.uint8).cuda(self._cuda_devices[0])  # should be all false
-                                # convert ot indices of top_spans for consistency's sake
-                                if len(all_queried_mentions) > 0:
-                                    all_queried_mentions_spans = batch['spans'][all_queried_mentions[:,0], all_queried_mentions[:,1]]
-                                    top_queried_mentions_spans = ((all_queried_mentions_spans.unsqueeze(1) - output_dict['top_spans']).abs().sum(-1) == 0).nonzero()
-                                    batch_inds = all_queried_mentions[top_queried_mentions_spans[:,0]][:,0]
-                                    # ASSUMES 1 INSTANCE/BATCH
-                                    queried_mentions_mask[batch_inds, top_queried_mentions_spans[:,1]] = 1
+                                if self._query_type == 'discrete':
+                                    all_queried_mentions = (batch['span_labels'] != -1).nonzero()
+                                    queried_mentions_mask = torch.zeros(output_dict['coreference_scores'].size()[:2],
+                                        dtype=torch.uint8).cuda(self._cuda_devices[0])  # should be all false
+                                    # convert to indices of top_spans for consistency's sake
+                                    if len(all_queried_mentions) > 0:
+                                        all_queried_mentions_spans = batch['spans'][all_queried_mentions[:,0], all_queried_mentions[:,1]]
+                                        top_queried_mentions_spans = ((all_queried_mentions_spans.unsqueeze(1) - output_dict['top_spans']).abs().sum(-1) == 0).nonzero()
+                                        batch_inds = all_queried_mentions[top_queried_mentions_spans[:,0]][:,0]
+                                        # ASSUMES 1 INSTANCE/BATCH
+                                        queried_mentions_mask[batch_inds, top_queried_mentions_spans[:,1]] = 1
+                                else:  # query type is pairwise
+                                    # TODO possibly correct in some way
+                                    all_queried_edges = (batch['span_labels'] != -1).nonzero()
+                                    queried_edges_mask = torch.zeros(output_dict['coreference_scores'].size(),
+                                                                     dtype=torch.uint8).cuda(self._cuda_devices[0])
+                                    if len(all_queried_edges) > 0:
+                                        top_queried_edges = al_util.translate_to_indA(all_queried_edges, output_dict,
+                                                                                      batch['spans'],
+                                                                                      translation_reference=translation_reference)
+                                        queried_edges_mask[top_queried_edges[:, 0], top_queried_edges[:, 1],
+                                                           top_queried_edges[:, 2]] = 1
 
                                 confirmed_clusters = batch['span_labels'].clone()
                                 # TODO: fix if batch['span_labels'] is not all -1
@@ -1046,49 +1063,111 @@ class Trainer(Registrable):
                                 num_queried = 0
                                 while num_queried < num_to_query:
                                     top_spans_model_labels = torch.gather(batch['span_labels'], 1, translation_reference)
-                                    mention, mention_score = \
-                                        al_util.find_next_most_uncertain_mention(self._selector, top_spans_model_labels,
-                                                                                 output_dict, queried_mentions_mask,
-                                                                                 self.DEBUG_BREAK_FLAG)
-                                    indA_edge, edge_asked, indA_edge_asked = \
-                                        al_util.query_user_labels_mention(mention, output_dict, batch['spans'],
-                                                                          batch['user_labels'], translation_reference, self._sample_from_training, batch)
-                                    # add mention to queried before (arbitrarily set it in predicted_antecedents and coreference_scores to no cluster, even if not truly
-                                    # the case--the only thing that matters is that it has a value that it is 100% confident of)
-                                    queried_mentions_mask[mention[0], mention[1]] = 1
-                                    # arbitrarily set to null antecedent
-                                    output_dict['predicted_antecedents'][mention[0], mention[1]] = -1
-                                    output_dict['coreference_scores'][mention[0], mention[1], 1:] = -float("inf")
-                                    if self._selector == 'qbc':
-                                        # must update for each model
-                                        output_dict['coreference_scores_models'][:, mention[0], mention[1], 1:] = -float("inf")
+                                    if self._query_type == 'discrete':
+                                        mention, mention_score = \
+                                            al_util.find_next_most_uncertain_mention(self._selector, top_spans_model_labels,
+                                                                                     output_dict, queried_mentions_mask,
+                                                                                     self.DEBUG_BREAK_FLAG)
+                                        indA_edge, edge_asked, indA_edge_asked = \
+                                            al_util.query_user_labels_mention(mention, output_dict, batch['spans'],
+                                                                              batch['user_labels'], translation_reference,
+                                                                              self._sample_from_training, batch)
 
-                                    # If asked edge was deemed not coreferent, delete it
-                                    if indA_edge_asked[2] != indA_edge[2] and len(indA_model_edges) > 0:
-                                        # (both lines below implicitly check whether indA_edge_asked was actually added before)
-                                        edge_asked_mask = (indA_model_edges == indA_edge_asked).sum(1)
-                                        batch['span_labels'] = al_util.update_clusters_with_edge(batch['span_labels'], indA_edge_asked, delete=True, all_edges=indA_model_edges)
-                                        indA_model_edges = indA_model_edges[edge_asked_mask < 3]
-                                        # Add to confirmed non-coreferent
-                                        if len(confirmed_non_coref_edges) == 0:
-                                            confirmed_non_coref_edges = indA_edge_asked.unsqueeze(0)
+                                        # add mention to queried before (arbitrarily set it in predicted_antecedents and coreference_scores to no cluster, even if not truly
+                                        # the case--the only thing that matters is that it has a value that it is 100% confident of)
+                                        queried_mentions_mask[mention[0], mention[1]] = 1
+                                        # arbitrarily set to null antecedent
+                                        output_dict['predicted_antecedents'][mention[0], mention[1]] = -1  # TODO why not set to indA_edge from above?
+                                        output_dict['coreference_scores'][mention[0], mention[1], 1:] = -float("inf")
+                                        if self._selector == 'qbc':
+                                            # must update for each model
+                                            output_dict['coreference_scores_models'][:, mention[0], mention[1],
+                                            1:] = -float("inf")
+
+                                        # If asked edge was deemed not coreferent, delete it
+                                        if indA_edge_asked[2] != indA_edge[2] and len(indA_model_edges) > 0:
+                                            # (both lines below implicitly check whether indA_edge_asked was actually added before)
+                                            edge_asked_mask = (indA_model_edges == indA_edge_asked).sum(1)
+                                            batch['span_labels'] = al_util.update_clusters_with_edge(
+                                                batch['span_labels'], indA_edge_asked, delete=True,
+                                                all_edges=indA_model_edges)
+                                            indA_model_edges = indA_model_edges[edge_asked_mask < 3]
+                                            # Add to confirmed non-coreferent
+                                            if len(confirmed_non_coref_edges) == 0:
+                                                confirmed_non_coref_edges = indA_edge_asked.unsqueeze(0)
+                                            else:
+                                                confirmed_non_coref_edges = torch.cat(
+                                                    (confirmed_non_coref_edges, indA_edge_asked.unsqueeze(0)), dim=0)
+                                            # Add to cannot-link
+                                            cannot_link = torch.cat((cannot_link, indA_edge_asked.unsqueeze(0)), dim=0)
+                                            # Do pruning
+                                            cluster_ant = confirmed_clusters[indA_edge_asked[0], indA_edge_asked[2]]
+                                            cluster_pro = confirmed_clusters[indA_edge_asked[0], indA_edge_asked[1]]
+                                            # pdb.set_trace()
+
+                                        # Add edge deemed coreferent
+                                        if indA_edge[2] != -1:
+                                            # Add new edge deemed coreferent, if not already in there
+                                            if len(indA_model_edges) == 0 or (
+                                                    (indA_model_edges == indA_edge).sum(1) == 3).sum() == 0:
+                                                indA_model_edges = torch.cat((indA_model_edges, indA_edge.unsqueeze(0)),
+                                                                             dim=0)
+                                                batch['span_labels'] = al_util.update_clusters_with_edge(
+                                                    batch['span_labels'], indA_edge)
+                                            confirmed_clusters = al_util.update_clusters_with_edge(confirmed_clusters,
+                                                                                                   indA_edge)
+                                            # Add to must-link
+                                            must_link = torch.cat((must_link, indA_edge.unsqueeze(0)), dim=0)
+                                            # Do pruning
+                                            # pdb.set_trace()
+                                    else:  # pairwise
+                                        pdb.set_trace()
+                                        edge, edge_score = \
+                                            al_util.find_next_most_uncertain_pairwise_edge(self._selector,
+                                                                                           top_spans_model_labels,
+                                                                                           output_dict, queried_edges_mask,
+                                                                                           self.DEBUG_BREAK_FLAG)
+                                        coreferent, indA_edge = \
+                                            al_util.query_user_labels_pairwise(edge, output_dict, batch['spans'],
+                                                                              batch['user_labels'], translation_reference,
+                                                                              self._sample_from_training, batch)
+                                        queried_edges_mask[edge[0], edge[1], edge[2]] = 1
+                                        # arbitrarily set to null antecedent
+                                        output_dict['predicted_antecedents'][edge[0], edge[1]] = edge[2]
+                                        output_dict['coreference_scores'][edge[0], edge[1], edge[2]] = -float("inf")
+                                        if self._selector == 'qbc':
+                                            # must update for each model
+                                            output_dict['coreference_scores_models'][:, edge[0], edge[1], edge[2]] = \
+                                                -float("inf")
+
+                                        if not coreferent and len(indA_model_edges) > 0:
+                                            # If asked edge was deemed not coreferent, delete it
+                                            # (both lines below implicitly check whether indA_edge_asked was actually added before)
+                                            edge_asked_mask = (indA_model_edges == indA_edge).sum(1)
+                                            batch['span_labels'] = al_util.update_clusters_with_edge(
+                                                batch['span_labels'], indA_edge, delete=True,
+                                                all_edges=indA_model_edges)
+                                            indA_model_edges = indA_model_edges[edge_asked_mask < 3]
+                                            # Add to confirmed non-coreferent
+                                            if len(confirmed_non_coref_edges) == 0:
+                                                confirmed_non_coref_edges = indA_edge.unsqueeze(0)
+                                            else:
+                                                confirmed_non_coref_edges = torch.cat(
+                                                    (confirmed_non_coref_edges, indA_edge.unsqueeze(0)), dim=0)
+                                            # Add to cannot-link
+                                            cannot_link = torch.cat((cannot_link, indA_edge.unsqueeze(0)), dim=0)
                                         else:
-                                            confirmed_non_coref_edges = torch.cat((confirmed_non_coref_edges, indA_edge_asked.unsqueeze(0)), dim=0)
-                                        # Do pruning
-                                        cluster_ant = confirmed_clusters[indA_edge_asked[0], indA_edge_asked[2]]
-                                        cluster_pro = confirmed_clusters[indA_edge_asked[0], indA_edge_asked[1]]
-                                        #pdb.set_trace()
-
-                                    # Add edge deemed coreferent
-                                    if indA_edge[2] != -1:
-                                        # Add new edge deemed coreferent, if not already in there
-                                        if len(indA_model_edges) == 0 or ((indA_model_edges == indA_edge).sum(1) == 3).sum() == 0:
-                                            indA_model_edges = torch.cat((indA_model_edges, indA_edge.unsqueeze(0)), dim=0)
-                                            batch['span_labels'] = al_util.update_clusters_with_edge(batch['span_labels'], indA_edge)
-                                        confirmed_clusters = al_util.update_clusters_with_edge(confirmed_clusters, indA_edge)
-                                        # Do pruning
-                                        #pdb.set_trace()
-
+                                            # Otherwise, add edge, if not already in there
+                                            if len(indA_model_edges) == 0 or (
+                                                    (indA_model_edges == indA_edge).sum(1) == 3).sum() == 0:
+                                                indA_model_edges = torch.cat((indA_model_edges, indA_edge.unsqueeze(0)),
+                                                                             dim=0)
+                                                batch['span_labels'] = al_util.update_clusters_with_edge(
+                                                    batch['span_labels'], indA_edge)
+                                            confirmed_clusters = al_util.update_clusters_with_edge(confirmed_clusters,
+                                                                                                   indA_edge)
+                                            # Add to must-link
+                                            must_link = torch.cat((must_link, indA_edge.unsqueeze(0)), dim=0)
                                     num_queried += 1
 
                                 edges_to_add = indA_model_edges
@@ -1136,71 +1215,7 @@ class Trainer(Registrable):
                                                                        sorted_max_mention_edges_score, num_to_query,
                                                                        True, output_dict, batch, False, self._sample_from_training)
                             else: # query type is pairwise
-                                confirmed_clusters = batch['span_labels'].clone()
-                                # TODO: fix if batch['span_labels'] is not all -1
-                                confirmed_non_coref_edges = torch.tensor([], dtype=torch.long).cuda(self._cuda_devices[0])
-
-                                # Update span_labels with model-predicted clusters
-                                output_dict = self.model.decode(output_dict)
-                                has_antecedent_mask = (output_dict['predicted_antecedents'] != -1)
-                                model_edges = torch.empty(0, dtype=torch.long).cuda(self._cuda_devices[0])
-                                if len(has_antecedent_mask.nonzero()) > 0:
-                                    model_edges = torch.cat((has_antecedent_mask.nonzero(), output_dict['predicted_antecedents'][has_antecedent_mask].unsqueeze(-1)), dim=-1)
-                                indA_model_edges = al_util.translate_to_indA(model_edges, output_dict, batch['spans'], translation_reference=translation_reference)
-                                for edge in indA_model_edges:
-                                    batch['span_labels'] = al_util.update_clusters_with_edge(batch['span_labels'], edge)
-                                pdb.set_trace()
-
-                                if self._use_percent_labels:
-                                    # upper bound is asking question about every span
-                                    num_to_query = int(self._active_learning_percent_labels * len(output_dict['top_spans'][0]))
-                                    total_possible_queries = len(output_dict['top_spans'][0])
-                                else:
-                                    total_possible_queries = len(output_dict['top_spans'][0])
-                                    num_to_query = min(self._active_learning_num_labels, total_possible_queries)
-                                num_queried = 0
-                                while num_queried < num_to_query:
-                                    top_spans_model_labels = torch.gather(batch['span_labels'], 1, translation_reference)
-                                    mention, mention_score = \
-                                        al_util.find_next_most_uncertain_pairwise_edge(self._selector, top_spans_model_labels,
-                                                                                 output_dict, queried_mentions_mask,
-                                                                                 self.DEBUG_BREAK_FLAG)
-                                    indA_edge, edge_asked, indA_edge_asked = \
-                                        al_util.query_user_labels_mention(mention, output_dict, batch['spans'],
-                                                                          batch['user_labels'], translation_reference)
-                                    # add mention to queried before (arbitrarily set it in predicted_antecedents and coreference_scores to no cluster, even if not truly
-                                    # the case--the only thing that matters is that it has a value that it is 100% confident of)
-                                    queried_mentions_mask[mention[0], mention[1]] = 1
-                                    # arbitrarily set to null antecedent
-                                    output_dict['predicted_antecedents'][mention[0], mention[1]] = -1
-                                    output_dict['coreference_scores'][mention[0], mention[1], 1:] = -float("inf")
-                                    if self._selector == 'qbc':
-                                        # must update for each model
-                                        output_dict['coreference_scores_models'][:, mention[0], mention[1], 1:] = -float("inf")
-
-                                    # If asked edge was deemed not coreferent, delete it
-                                    if not coreferent and len(indA_model_edges) > 0:
-                                        # (both lines below implicitly check whether indA_edge_asked was actually added before)
-                                        edge_asked_mask = (indA_model_edges == indA_edge_asked).sum(1)
-                                        batch['span_labels'] = al_util.update_clusters_with_edge(batch['span_labels'], indA_edge_asked, delete=True, all_edges=indA_model_edges)
-                                        indA_model_edges = indA_model_edges[edge_asked_mask < 3]
-                                        # Add to confirmed non-coreferent
-                                        if len(confirmed_non_coref_edges) == 0:
-                                            confirmed_non_coref_edges = indA_edge_asked.unsqueeze(0)
-                                        else:
-                                            confirmed_non_coref_edges = torch.cat((confirmed_non_coref_edges, indA_edge_asked.unsqueeze(0)), dim=0)
-
-                                    # Add edge deemed coreferent
-                                    else:
-                                        # Add new edge deemed coreferent, if not already in there
-                                        if len(indA_model_edges) == 0 or ((indA_model_edges == indA_edge).sum(1) == 3).sum() == 0:
-                                            indA_model_edges = torch.cat((indA_model_edges, indA_edge.unsqueeze(0)), dim=0)
-                                            batch['span_labels'] = al_util.update_clusters_with_edge(batch['span_labels'], indA_edge)
-                                        confirmed_clusters = al_util.update_clusters_with_edge(confirmed_clusters, indA_edge)
-
-                                    num_queried += 1
-                                edges_to_add = indA_model_edges
-# TODO DELETE
+                                #  TODO DELETE
                                 # get all > 0 edges (to know which to assign next)
                                 larger_than_zero_mask = (output_dict['coreference_scores'] > 0)
                                 if self._selector == 'score':
@@ -1248,6 +1263,8 @@ class Trainer(Registrable):
                                                                            sorted_larger_than_zero_edges, num_alts_to_check,
                                                                            larger_than_zero_scores, output_dict, batch)
 
+                            batch['must_link'] = must_link
+                            batch['cannot_link'] = cannot_link
                             # keep track of which instances we have to update in training data
                             train_instances_to_update = {}
                             # Update gold clusters based on (corrected) model edges, in span_labels
@@ -1266,11 +1283,15 @@ class Trainer(Registrable):
                                     batch['span_labels'][ind_instance].tolist(),
                                     train_data_to_add[ind_instance_overall].fields['span_labels'].sequence_field
                                 )
+                                train_data_to_add[ind_instance_overall].fields['must_link'] = batch['must_link']
+                                train_data_to_add[ind_instance_overall].fields['cannot_link'] = batch['cannot_link']
+                            pdb.set_trace()
 
                             if output_dict['loss'] is not None:
                                 num_batches += 1
                                 held_out_loss += output_dict['loss'].detach().cpu().numpy()
 
+                            # COMPUTE METRICS
                             # Update the description with the latest metrics
                             # reset metrics at last epoch
                             held_out_metrics = self._get_metrics(held_out_loss, num_batches, reset=batch_ind == len(held_out_generator_tqdm) - 1)
