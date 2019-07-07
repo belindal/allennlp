@@ -21,7 +21,7 @@ class SpanPairField(Field[torch.Tensor]):
     @overrides
     def as_tensor(self, padding_lengths: Dict[str, int]) -> torch.Tensor:
         # pylint: disable=unused-argument
-        tensor = torch.LongTensor([self.first_item.as_tensor, self.sec_item.as_tensor])
+        tensor = torch.stack([self.first_item.as_tensor(padding_lengths), self.sec_item.as_tensor(padding_lengths)], dim=0)
         return tensor
 
     @overrides
