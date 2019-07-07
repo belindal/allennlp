@@ -1040,7 +1040,8 @@ class Trainer(Registrable):
                                                                                       translation_reference=translation_reference)
                                         queried_edges_mask[top_queried_edges[:, 0], top_queried_edges[:, 1],
                                                            top_queried_edges[:, 2]] = 1
-                                    queried_edges_mask[:, 0] = 1  # don't query 1st column (empty)
+                                    queried_edges_mask[:, :, 0] = 1  # don't query 1st column (empty)
+                                    queried_edges_mask |= output_dict['coreference_scores'] == -float('inf')
 
                                 confirmed_clusters = batch['span_labels'].clone()
                                 # TODO: fix if batch['span_labels'] is not all -1
@@ -1144,13 +1145,13 @@ class Trainer(Registrable):
                                             al_util.query_user_labels_pairwise(edge, output_dict, batch['spans'],
                                                                               batch['user_labels'], translation_reference,
                                                                               self._sample_from_training, batch)
-                                        queried_edges_mask[edge[0], edge[1], edge[2]] = 1
+                                        queried_edges_mask[edge[0], edge[1], edge[2] + 1] = 1
                                         # arbitrarily set to null antecedent
                                         output_dict['predicted_antecedents'][edge[0], edge[1]] = edge[2]
-                                        output_dict['coreference_scores'][edge[0], edge[1], edge[2]] = -float("inf")
+                                        output_dict['coreference_scores'][edge[0], edge[1], edge[2] + 1] = -float("inf")
                                         if self._selector == 'qbc':
                                             # must update for each model
-                                            output_dict['coreference_scores_models'][:, edge[0], edge[1], edge[2]] = \
+                                            output_dict['coreference_scores_models'][:, edge[0], edge[1], edge[2] + 1] = \
                                                 -float("inf")
 
                                         if not coreferent and len(indA_model_edges) > 0:
@@ -1321,10 +1322,10 @@ class Trainer(Registrable):
                                 )
                                 try:
                                     train_data_to_add[ind_instance_overall].fields['must_link'] = ListField(
-                                        train_instances_to_update[ind_instance_overall][0]
+                                        train_instances_to_update[ind_instance][0]
                                     )
                                     train_data_to_add[ind_instance_overall].fields['cannot_link'] = ListField(
-                                        train_instances_to_update[ind_instance_overall][1]
+                                        train_instances_to_update[ind_instance][1]
                                     )
                                 except:
                                     pdb.set_trace()
