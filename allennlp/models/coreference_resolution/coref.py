@@ -160,8 +160,6 @@ class CoreferenceResolver(Model):
         loss : ``torch.FloatTensor``, optional
             A scalar loss to be optimised.
         """
-        if must_link is not None:
-            pdb.set_trace()
         if not coref_scores_info:
             if not top_spans_info:
                 # Shape: (batch_size, document_length, embedding_size)
@@ -360,16 +358,24 @@ class CoreferenceResolver(Model):
             #  the same coreference cluster.
             coreference_log_probs = util.masked_log_softmax(coreference_scores, top_span_mask)
             correct_antecedent_log_probs = coreference_log_probs + gold_antecedent_labels.log()
-            negative_marginal_log_likelihood = -util.logsumexp(correct_antecedent_log_probs).sum()
 
             # Now add constraints
-            if must_link is not None and cannot_link is not None:
+            if must_link is not None:
                 pdb.set_trace()
+                # penalty for incorrect predictions
+                must_link_penalty = correct_antecedent_log_probs
+                correct_antecedent_log_probs += must_link_penalty
+            if cannot_link is not None:
+                cannot_link_penalty = correct_antecedent_log_probs
+                correct_antecedent_log_probs += cannot_link_penalty
+
+            negative_marginal_log_likelihood = -util.logsumexp(correct_antecedent_log_probs).sum()
+            loss = negative_marginal_log_likelihood
 
             self._mention_recall(top_spans, metadata)
             self._conll_coref_scores(top_spans, valid_antecedent_indices, predicted_antecedents, metadata)
 
-            output_dict["loss"] = negative_marginal_log_likelihood
+            output_dict["loss"] = loss
 
         if metadata is not None:
             output_dict["document"] = [x["original_text"] for x in metadata]
