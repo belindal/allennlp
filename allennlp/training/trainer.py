@@ -29,7 +29,7 @@ from allennlp.common.util import dump_metrics, gpu_memory_mb, parse_cuda_device,
 from allennlp.common.tqdm import Tqdm
 from allennlp.data.instance import Instance
 from allennlp.data.iterators.data_iterator import DataIterator
-from allennlp.data.fields import SequenceLabelField, SpanPairField, ListField, SpanField
+from allennlp.data.fields import SequenceLabelField, PairField, ListField, IndexField
 from allennlp.models.model import Model
 from allennlp.models.coreference_resolution import CoreferenceResolver, CorefEnsemble
 from allennlp.nn import util
@@ -1288,6 +1288,7 @@ class Trainer(Registrable):
                                     train_instances_to_update[ind_instance] = [[], []]
 
                             # update must-links and cannot-links
+                            pdb.set_trace()
                             for edge in batch['must_link']:
                                 ind_instance = edge[0].item()
                                 ind_instance_overall = batch_ind * batch_size + ind_instance  # index in entire train data
@@ -1295,9 +1296,9 @@ class Trainer(Registrable):
                                     # [[mustlinks], [cannotlinks]]
                                     train_instances_to_update[ind_instance] = [[], []]
                                 train_instances_to_update[ind_instance][0].append(
-                                    SpanPairField(
-                                        train_data_to_add[ind_instance_overall].fields['spans'][edge[1]],
-                                        train_data_to_add[ind_instance_overall].fields['spans'][edge[2]],
+                                    PairField(
+                                        IndexField(edge[1], train_data_to_add[ind_instance_overall].fields['spans']),
+                                        IndexField(edge[2], train_data_to_add[ind_instance_overall].fields['spans']),
                                     )
                                 )
                             for edge in batch['cannot_link']:
@@ -1307,11 +1308,12 @@ class Trainer(Registrable):
                                     # [[mustlinks], [cannotlinks]]
                                     train_instances_to_update[ind_instance] = [[], []]
                                 train_instances_to_update[ind_instance][1].append(
-                                    SpanPairField(
-                                        train_data_to_add[ind_instance_overall].fields['spans'][edge[1]],
-                                        train_data_to_add[ind_instance_overall].fields['spans'][edge[2]],
+                                    PairField(
+                                        IndexField(edge[1], train_data_to_add[ind_instance_overall].fields['spans']),
+                                        IndexField(edge[2], train_data_to_add[ind_instance_overall].fields['spans']),
                                     )
                                 )
+                            pdb.set_trace()
 
                             # update train data itself
                             for ind_instance in train_instances_to_update:
