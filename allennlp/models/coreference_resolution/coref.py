@@ -1,6 +1,6 @@
 import logging
 import math
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import torch
 import torch.nn.functional as F
@@ -78,7 +78,8 @@ class CoreferenceResolver(Model):
                  lexical_dropout: float = 0.2,
                  initializer: InitializerApplicator = InitializerApplicator(),
                  regularizer: Optional[RegularizerApplicator] = None,
-                 coarse_to_fine_pruning: bool = False) -> None:
+                 coarse_to_fine_pruning: bool = False,
+                 device: Union[int, List] = -1) -> None:
         super(CoreferenceResolver, self).__init__(vocab, regularizer)
 
         self._text_field_embedder = text_field_embedder
@@ -110,8 +111,14 @@ class CoreferenceResolver(Model):
 
         pdb.set_trace()
         # TODO how to figure out device?
-        self._must_link_weight = torch.nn.Parameter(torch.rand(()).cuda(0))
-        self._cannot_link_weight = torch.nn.Parameter(torch.rand(()).cuda(0))
+        if isinstance(device, list):
+            logger.warning(f"Multiple GPU support is experimental not recommended for use. "
+                           "In some cases it may lead to incorrect results or undefined behavior.")
+            self._cuda_devices = device
+        else:
+            self._cuda_devices = [device]
+        self._must_link_weight = torch.nn.Parameter(torch.rand(()).cuda(self._cuda_devices[0]))
+        self._cannot_link_weight = torch.nn.Parameter(torch.rand(()).cuda(self._cuda_devices[0]))
 
         self._mention_recall = MentionRecall()
         self._conll_coref_scores = ConllCorefScores()

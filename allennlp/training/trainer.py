@@ -1288,7 +1288,6 @@ class Trainer(Registrable):
                                     train_instances_to_update[ind_instance] = [[], []]
 
                             # update must-links and cannot-links
-                            pdb.set_trace()
                             for edge in batch['must_link']:
                                 ind_instance = edge[0].item()
                                 ind_instance_overall = batch_ind * batch_size + ind_instance  # index in entire train data
@@ -1313,7 +1312,6 @@ class Trainer(Registrable):
                                         IndexField(edge[2].item(), train_data_to_add[ind_instance_overall].fields['spans']),
                                     )
                                 )
-                            pdb.set_trace()
 
                             # update train data itself
                             for ind_instance in train_instances_to_update:
