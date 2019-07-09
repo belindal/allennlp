@@ -1297,8 +1297,8 @@ class Trainer(Registrable):
                                     train_instances_to_update[ind_instance] = [[], []]
                                 train_instances_to_update[ind_instance][0].append(
                                     PairField(
-                                        IndexField(edge[1], train_data_to_add[ind_instance_overall].fields['spans']),
-                                        IndexField(edge[2], train_data_to_add[ind_instance_overall].fields['spans']),
+                                        IndexField(edge[1].item(), train_data_to_add[ind_instance_overall].fields['spans']),
+                                        IndexField(edge[2].item(), train_data_to_add[ind_instance_overall].fields['spans']),
                                     )
                                 )
                             for edge in batch['cannot_link']:
@@ -1309,8 +1309,8 @@ class Trainer(Registrable):
                                     train_instances_to_update[ind_instance] = [[], []]
                                 train_instances_to_update[ind_instance][1].append(
                                     PairField(
-                                        IndexField(edge[1], train_data_to_add[ind_instance_overall].fields['spans']),
-                                        IndexField(edge[2], train_data_to_add[ind_instance_overall].fields['spans']),
+                                        IndexField(edge[1].item(), train_data_to_add[ind_instance_overall].fields['spans']),
+                                        IndexField(edge[2].item(), train_data_to_add[ind_instance_overall].fields['spans']),
                                     )
                                 )
                             pdb.set_trace()
