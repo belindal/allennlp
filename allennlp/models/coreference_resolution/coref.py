@@ -389,6 +389,9 @@ class CoreferenceResolver(Model):
                     pdb.set_trace()
                 # find *expected* antecedent for each item in must_link
                 must_link_antecedents = must_link_antecedents_mask.nonzero()[:,2].reshape(must_link_antecedents_mask.size(0), -1)
+                # apply filter (< 100 apart) to top_must_link
+                top_must_link = top_must_link[must_link_antecedents_mask.sum(-1) == 1].reshape(
+                    top_must_link.size(0), -1, top_must_link.size(1))
                 # find *predicted* antecedents for each item in must_link
                 predicted_antecedents_must_link = torch.gather(predicted_antecedents, 1, top_must_link[:,:,0])
                 try:
@@ -403,14 +406,14 @@ class CoreferenceResolver(Model):
                     for i, must_link_ins in enumerate(must_link):
                         penalty_idx = 0
                         for link in must_link_ins:
-                            link = link.squeeze()
                             # convert to top_spans
                             try:
                                 link[0] = (top_span_indices[i] == link[0]).nonzero().item()
                                 link[1] = (top_span_indices[i] == link[1]).nonzero().item()
+                                link[1] = (valid_antecedent_indices[i, link[0]] == link[1]).nonzero().item()
                             except:
+                                pdb.set_trace()
                                 continue
-                            link[1] = (valid_antecedent_indices[i, link[0]] == link[1]).nonzero()
                             if link[1] != predicted_antecedents[i, link[0]]:
                                 try:
                                     assert must_link_penalty[i, penalty_idx] == coreference_log_probs[i, link[0], link[1] + 1]
@@ -444,14 +447,14 @@ class CoreferenceResolver(Model):
                     for i, cannot_link_ins in enumerate(cannot_link):
                         penalty_idx = 0
                         for link in cannot_link_ins:
-                            link = link.squeeze()
                             # convert to top_spans
                             try:
                                 link[0] = (top_span_indices[i] == link[0]).nonzero().item()
                                 link[1] = (top_span_indices[i] == link[1]).nonzero().item()
+                                link[1] = (valid_antecedent_indices[i, link[0]] == link[1]).nonzero().item()
                             except:
+                                pdb.set_trace()
                                 continue
-                            link[1] = (valid_antecedent_indices[i, link[0]] == link[1]).nonzero()
                             if link[1] == predicted_antecedents[i, link[0]]:
                                 try:
                                     assert cannot_link_penalty[i, penalty_idx] == coreference_log_probs[i, link[0], link[1] + 1]
