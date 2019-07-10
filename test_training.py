@@ -304,7 +304,7 @@ def train_model(params: Params,
 #
 def main(cuda_device, testing=False, testing_vocab=False, experiments=None, pairwise=False, selector='entropy'):
     assert(selector == 'entropy' or selector == 'score' or selector == 'random' or selector == 'qbc')
-    use_percents=True
+    use_percents=False
     if cuda_device == 0 or cuda_device == 1:
         percent_list = [100, 20, 50]
     if cuda_device == 2:
@@ -334,7 +334,11 @@ def main(cuda_device, testing=False, testing_vocab=False, experiments=None, pair
             dump_metrics(os.path.join(save_dir, str(x) + ".json"), metrics, log=True)
     else:
         params = Params.from_file('training_config/coref.jsonnet')
-        params.params['trainer']['active_learning']['num_labels'] = 1
+        if use_percents:
+            params.params['trainer']['active_learning']['num_labels'] = 1
+        else:
+            params.params['trainer']['active_learning']['num_labels'] = 100
+        params.params['trainer']['active_learning']['use_percent'] = use_percents
         if testing or testing_vocab:
             params.params['trainer']['active_learning']['epoch_interval'] = 0
             del params.params['test_data_path']
