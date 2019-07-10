@@ -391,7 +391,7 @@ class CoreferenceResolver(Model):
                 must_link_antecedents = must_link_antecedents_mask.nonzero()[:,2].reshape(must_link_antecedents_mask.size(0), -1)
                 # apply filter (< 100 apart) to top_must_link
                 top_must_link = top_must_link[must_link_antecedents_mask.sum(-1) == 1].reshape(
-                    top_must_link.size(0), -1, top_must_link.size(1))
+                    top_must_link.size(0), -1, top_must_link.size(2))
                 # find *predicted* antecedents for each item in must_link
                 predicted_antecedents_must_link = torch.gather(predicted_antecedents, 1, top_must_link[:,:,0])
                 try:
@@ -433,6 +433,9 @@ class CoreferenceResolver(Model):
                 # converted to antecedent indices (indC), has 1 where cannot_links occur
                 cannot_link_antecedents_mask = (torch.gather(valid_antecedent_indices, 1, top_cannot_link[:,:,0].unsqueeze(
                     -1).expand(-1,-1,100)) == top_cannot_link[:,:,1].unsqueeze(-1))
+                # apply filter (< 100 apart) to top_must_link
+                top_cannot_link = top_cannot_link[cannot_link_antecedents_mask.sum(-1) == 1].reshape(
+                    top_cannot_link.size(0), -1, top_cannot_link.size(2))
                 # find *expected* antecedent for each item in cannot_link
                 cannot_link_antecedents = cannot_link_antecedents_mask.nonzero()[:,2].reshape(
                     cannot_link_antecedents_mask.size(0), -1)
