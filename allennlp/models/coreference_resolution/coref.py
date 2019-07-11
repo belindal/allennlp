@@ -385,12 +385,9 @@ class CoreferenceResolver(Model):
                     if top_must_link.size(0) > 0:
                         # converted to antecedent indices (indC), has 1 where must_links occur
                         masked_valid_antecedent_indices = valid_antecedent_indices + valid_antecedent_log_mask.long()
-                        try:
-                            must_link_antecedents_mask = \
-                                (torch.gather(masked_valid_antecedent_indices, 1, top_must_link[:,:,0].unsqueeze(-1).expand(
-                                    -1,-1,masked_valid_antecedent_indices.size(-1))) == top_must_link[:,:,1].unsqueeze(-1))
-                        except:
-                            pdb.set_trace()
+                        must_link_antecedents_mask = \
+                            (torch.gather(masked_valid_antecedent_indices, 1, top_must_link[:,:,0].unsqueeze(-1).expand(
+                                -1,-1,masked_valid_antecedent_indices.size(-1))) == top_must_link[:,:,1].unsqueeze(-1))
                         # find *expected* antecedent for each item in must_link
                         must_link_antecedents = must_link_antecedents_mask.nonzero()[:,2].reshape(
                             must_link_antecedents_mask.size(0), -1)
@@ -398,12 +395,9 @@ class CoreferenceResolver(Model):
                         top_must_link = top_must_link[must_link_antecedents_mask.sum(-1) == 1].reshape(
                             top_must_link.size(0), -1, top_must_link.size(2))
                         if top_must_link.size(0) > 0:
-                            try:
-                                # find *predicted* antecedents for each item in must_link
-                                predicted_antecedents_must_link = torch.gather(predicted_antecedents, 1, top_must_link[:,:,0])
-                                incorrect_must_link_top_spans = top_must_link[:,:,0][predicted_antecedents_must_link != must_link_antecedents]
-                            except:
-                                pdb.set_trace()
+                            # find *predicted* antecedents for each item in must_link
+                            predicted_antecedents_must_link = torch.gather(predicted_antecedents, 1, top_must_link[:,:,0])
+                            incorrect_must_link_top_spans = top_must_link[:,:,0][predicted_antecedents_must_link != must_link_antecedents]
                             incorrect_must_link_antecedents = must_link_antecedents[predicted_antecedents_must_link != must_link_antecedents]
 
                             # penalty for incorrect predictions--based on *predicted* score
@@ -452,10 +446,7 @@ class CoreferenceResolver(Model):
                                 cannot_link_antecedents_mask.size(0), -1)
                             # find *predicted* antecedents for each item in cannot_link
                             predicted_antecedents_cannot_link = torch.gather(predicted_antecedents, 1, top_cannot_link[:,:,0])
-                            try:
-                                incorrect_cannot_link_top_spans = top_cannot_link[:,:,0][predicted_antecedents_cannot_link == cannot_link_antecedents]
-                            except:
-                                pdb.set_trace()
+                            incorrect_cannot_link_top_spans = top_cannot_link[:,:,0][predicted_antecedents_cannot_link == cannot_link_antecedents]
                             incorrect_cannot_link_antecedents = cannot_link_antecedents[predicted_antecedents_cannot_link == cannot_link_antecedents]
 
                             # penalty for incorrect predictions--based on *predicted* score

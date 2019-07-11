@@ -22,6 +22,7 @@ from allennlp.models.model import Model, _DEFAULT_WEIGHTS
 from allennlp.models.coreference_resolution import CorefEnsemble
 from allennlp.training.trainer import Trainer
 import tempfile
+from tempfile import TemporaryDirectory
 
 import pdb
 
@@ -347,11 +348,12 @@ def main(cuda_device, testing=False, testing_vocab=False, experiments=None, pair
             #params.params['dataset_reader']['fully_labelled_threshold'] = 100
             if testing:
                 params.params['model']['text_field_embedder']['token_embedders']['tokens'] = {'type': 'embedding', 'embedding_dim': 300}
-        serialization_dir = tempfile.mkdtemp()
-        params.params['trainer']['cuda_device'] = cuda_device
-        params.params['trainer']['active_learning']['query_type'] = "pairwise" if pairwise else "discrete"
-        params.params['trainer']['active_learning']['selector']['type'] = selector if selector else "entropy"
-        best_model, metrics = train_model(params, serialization_dir, selector)
+        with TemporaryDirectory() as serialization_dir:
+            print("temp file path: " + str(serialization_dir))
+            params.params['trainer']['cuda_device'] = cuda_device
+            params.params['trainer']['active_learning']['query_type'] = "pairwise" if pairwise else "discrete"
+            params.params['trainer']['active_learning']['selector']['type'] = selector if selector else "entropy"
+            best_model, metrics = train_model(params, serialization_dir, selector)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Run setting')
