@@ -1,6 +1,7 @@
 import pdb
 import torch
 from allennlp.nn import util
+from collections import deque
 import copy
 import os
 import string
@@ -792,3 +793,109 @@ def find_next_most_uncertain_mention(selector, model_labels, output_dict, querie
         pdb.set_trace()
     # return least confident mention and associated score
     return batch_and_mentions[0], opt_score
+
+# incremental closure
+def get_link_closures_edge(must_link, cannot_link, edge, should_link=False, must_link_labels=None, DEBUG_FLAG=True):
+    pdb.set_trace()
+    # MUST LINK CLOSURE
+    must_link_closure = torch.Tensor([]).long().cuda(must_link.device)  # closure (only edges from bigger -> smaller)
+    # convert to clusters
+    if should_link:
+        assert must_link_labels is not None
+
+        # get spans coreferent to each of edge[1] and edge[2], and link between pairs of them
+        proform_cluster = edge[1]
+        antecedent_cluster = must_link
+
+        must_link_labels = update_clusters_with_edge(must_link_labels, edge)
+        # assume previously all closed (excluding current edge)
+        cluster_spans = (must_link_labels[edge[0]] == must_link_labels[edge[0], edge[1]]).nonzero()
+        cluster_pairs = torch.stack([cluster_spans.expand(cluster_spans.size(0), 1).reshape(-1),
+                                     edge[1].repeat(cluster_spans.size(0))]).transpose(0, 1)
+        # filter such that 0th element is > 1st element (0th element is proform, 1st is antecedent)
+        cluster_pairs = cluster_pairs[cluster_pairs[:, 0] > cluster_pairs[:, 1]]
+        # add instance number as 0th element
+        cluster_pairs = torch.cat([(torch.ones(cluster_pairs.size(0), dtype=torch.long, device=must_link.device)
+                                    * i).unsqueeze(-1), cluster_pairs], dim=-1)
+        must_link_closure = torch.cat([must_link_closure, cluster_pairs])
+
+
+        # get CL involving each of edge[1] and edge[2]
+        # 1. For each of CL(*,edge[1]) and CL(edge[1],*), add CL(*,edge[2]) and/or CL(edge[2],*)
+        # 2. For each of CL(*,edge[2]) and CL(edge[2],*), add CL(*,edge[1]) and/or CL(edge[1],*)
+
+        # check we have the complete set:
+        if DEBUG_FLAG:
+            must_link_closure_2, cannot_link_closure_2 = get_link_closures(must_link, cannot_link)
+            assert (must_link_closure_2 != must_link_closure).nonzero().size(0) == 0
+            assert (cannot_link_closure_2 != cannot_link_closure).nonzero().size(0) == 0
+    else:
+
+
+    # CANNOT LINK CLOSURE
+    cannot_link_closure = torch.Tensor([]).long().cuda(cannot_link.device)
+    return must_link_closure, cannot_link_closure
+
+
+# get transitive closures of ML and CL:
+# ML(a,b) & ML(b,c) = ML(a,c)
+# CL(a,b) & ML(b,c) = CL(a,c)
+# how about: ML(a,b) & CL(b,c) = CL(a,c) (?)
+def get_link_closures(must_link, cannot_link):
+    # MUST LINK CLOSURE
+    pdb.set_trace()
+    must_link_closure = torch.Tensor([]).long().cuda(must_link.device)  # closure (only edges from bigger -> smaller)
+    # convert to clusters
+    must_link_labels = -torch.ones([must_link[:,0].max()+1, must_link.max()+1], dtype=torch.long, device=must_link.device)
+    for link in must_link:
+        must_link_labels = update_clusters_with_edge(must_link_labels, link)
+    pdb.set_trace()
+
+    # fully connect all clusters
+    for i, must_link_labels_ins in enumerate(must_link_labels):
+        for cluster in range(must_link_labels_ins.max() + 1):
+            cluster_spans = (must_link_labels_ins == cluster).nonzero()
+            cluster_pairs = torch.stack([cluster_spans.expand(cluster_spans.size(0), cluster_spans.size(0)).reshape(-1),
+                                         cluster_spans.squeeze().repeat(cluster_spans.size(0))]).transpose(0,1)
+            # filter such that 0th element is > 1st element (0th element is proform, 1st is antecedent)
+            cluster_pairs = cluster_pairs[cluster_pairs[:,0] > cluster_pairs[:,1]]
+            # add instance number as 0th element
+            cluster_pairs = torch.cat([(torch.ones(cluster_pairs.size(0), dtype=torch.long, device=must_link.device)
+                                        * i).unsqueeze(-1), cluster_pairs], dim=-1)
+            must_link_closure = torch.cat([must_link_closure, cluster_pairs])
+    pdb.set_trace()
+
+    # CANNOT LINK CLOSURE
+    cannot_link_closure = torch.Tensor([]).long().cuda(cannot_link.device)
+    # since now have fully connected graph for all clusters, if we have CL(a,b), then:
+    # 1. find all elements in b's cluster
+    # 2. find all elements in a's cluster
+    # 3. add CL relation for all of them
+    for link in cannot_link:
+        # find all elements in link[1]'s cluster
+        proform_cluster = ((must_link_labels[link[0]] == must_link_labels[link[0], link[1]]) &
+                           (must_link_labels[link[0], link[1]] != -1)).nonzero().squeeze()
+        if proform_cluster.size(0) == 0:  # should have at least itself
+            proform_cluster = link[1].unsqueeze(0)
+        # find all elements in link[2]'s cluster
+        antecedent_cluster = ((must_link_labels[link[0]] == must_link_labels[link[0], link[2]]) &
+                              (must_link_labels[link[0], link[2]] != -1)).nonzero().squeeze()
+        if antecedent_cluster.size(0) == 0:  # should have at least itself
+            antecedent_cluster = link[2].unsqueeze(0)
+        # make each element of the clusters non-coreferent to each other
+        non_coref_pairs = torch.stack([
+            proform_cluster.unsqueeze(-1).expand(proform_cluster.size(0), antecedent_cluster.size(0)).reshape(-1),
+            antecedent_cluster.repeat(proform_cluster.size(0))]).transpose(0, 1)
+        # flip proforms/antecedents s.t. all 0th element is > 1st element (0th element is proform, 1st is antecedent)
+        reversed_mask = non_coref_pairs[:, 0] < non_coref_pairs[:, 1]
+        temp_ant_col = non_coref_pairs[:, 0][reversed_mask]
+        non_coref_pairs[:, 0][reversed_mask] = non_coref_pairs[:, 1][reversed_mask]
+        non_coref_pairs[:, 1][reversed_mask] = temp_ant_col
+        # add instance number as 0th element
+        non_coref_pairs = torch.cat([(torch.ones(non_coref_pairs.size(0), dtype=torch.long, device=cannot_link.device)
+                                    * link[0]).unsqueeze(-1), non_coref_pairs], dim=-1)
+        cannot_link_closure = torch.cat([cannot_link_closure, non_coref_pairs])
+
+    pdb.set_trace()
+    return must_link_closure, cannot_link_closure
+

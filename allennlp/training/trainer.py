@@ -1288,7 +1288,8 @@ class Trainer(Registrable):
                                     train_instances_to_update[ind_instance] = [[], []]
 
                             # do transitive closure of must-links and cannot-links
-                            pdb.set_trace()
+                            batch['must_link'], batch['cannot_link'] = al_util.get_link_closures(batch['must_link'],
+                                                                                                 batch['cannot_link'])
                             # update must-links and cannot-links
                             for edge in batch['must_link']:
                                 ind_instance = edge[0].item()
