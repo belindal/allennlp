@@ -1102,12 +1102,18 @@ class Trainer(Registrable):
                                             else:
                                                 confirmed_non_coref_edges = torch.cat(
                                                     (confirmed_non_coref_edges, indA_edge_asked.unsqueeze(0)), dim=0)
+                                            # TODO PRUNING
+                                            pdb.set_trace()
+                                            must_link, cannot_link, confirmed_clusters, \
+                                            output_dict['predicted_antecedents'], output_dict['coreference_scores'] = \
+                                                al_util.get_link_closures_edge(must_link, cannot_link, indA_edge, True,
+                                                                               confirmed_clusters,
+                                                                               output_dict['coreference_scores'],
+                                                                               output_dict['predicted_antecedents'],
+                                                                               translation_reference,
+                                                                               True)
                                             # Add to cannot-link
                                             batch['cannot_link'] = torch.cat((batch['cannot_link'], indA_edge_asked.unsqueeze(0)), dim=0)
-                                            # Do pruning
-                                            cluster_ant = confirmed_clusters[indA_edge_asked[0], indA_edge_asked[2]]
-                                            cluster_pro = confirmed_clusters[indA_edge_asked[0], indA_edge_asked[1]]
-                                            # pdb.set_trace()
 
                                         # Add edge deemed coreferent
                                         if indA_edge[2] != -1:
@@ -1118,12 +1124,18 @@ class Trainer(Registrable):
                                                                              dim=0)
                                                 batch['span_labels'] = al_util.update_clusters_with_edge(
                                                     batch['span_labels'], indA_edge)
-                                            confirmed_clusters = al_util.update_clusters_with_edge(confirmed_clusters,
-                                                                                                   indA_edge)
+                                            # TODO PRUNING
+                                            pdb.set_trace()
+                                            must_link, cannot_link, confirmed_clusters, \
+                                            output_dict['predicted_antecedents'], output_dict['coreference_scores'] = \
+                                                al_util.get_link_closures_edge(must_link, cannot_link, indA_edge, True,
+                                                                               confirmed_clusters,
+                                                                               output_dict['coreference_scores'],
+                                                                               output_dict['predicted_antecedents'],
+                                                                               translation_reference,
+                                                                               True)
                                             # Add to must-link
                                             batch['must_link'] = torch.cat((batch['must_link'], indA_edge.unsqueeze(0)), dim=0)
-                                            # Do pruning
-                                            # pdb.set_trace()
                                         num_queried += 1
                                 else:  # pairwise
                                     if self._use_percent_labels:
