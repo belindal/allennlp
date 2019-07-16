@@ -1104,9 +1104,9 @@ class Trainer(Registrable):
                                                     (confirmed_non_coref_edges, indA_edge_asked.unsqueeze(0)), dim=0)
                                             # TODO PRUNING
                                             pdb.set_trace()
-                                            must_link, cannot_link, confirmed_clusters, \
+                                            batch['must_link'], batch['cannot_link'], confirmed_clusters, \
                                             output_dict['predicted_antecedents'], output_dict['coreference_scores'] = \
-                                                al_util.get_link_closures_edge(must_link, cannot_link, indA_edge, True,
+                                                al_util.get_link_closures_edge(batch['must_link'], batch['cannot_link'], indA_edge, True,
                                                                                confirmed_clusters,
                                                                                output_dict['coreference_scores'],
                                                                                output_dict['predicted_antecedents'],
@@ -1126,9 +1126,9 @@ class Trainer(Registrable):
                                                     batch['span_labels'], indA_edge)
                                             # TODO PRUNING
                                             pdb.set_trace()
-                                            must_link, cannot_link, confirmed_clusters, \
+                                            batch['must_link'], batch['cannot_link'], confirmed_clusters, \
                                             output_dict['predicted_antecedents'], output_dict['coreference_scores'] = \
-                                                al_util.get_link_closures_edge(must_link, cannot_link, indA_edge, True,
+                                                al_util.get_link_closures_edge(batch['must_link'], batch['cannot_link'], indA_edge, True,
                                                                                confirmed_clusters,
                                                                                output_dict['coreference_scores'],
                                                                                output_dict['predicted_antecedents'],

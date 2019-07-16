@@ -794,14 +794,16 @@ def find_next_most_uncertain_mention(selector, model_labels, output_dict, querie
     # return least confident mention and associated score
     return batch_and_mentions[0], opt_score
 
+
 # incremental closure
 def get_link_closures_edge(must_link, cannot_link, edge, should_link=False, must_link_labels=None,
                            coreference_scores=None, predicted_antecedents=None, translation_reference=None,
                            DEBUG_FLAG=True):
+   # TODO update for each model for QBC
     pdb.set_trace()
     # MUST LINK CLOSURE
-    must_link_closure = torch.Tensor([]).long().cuda(must_link.device)  # closure (only edges from bigger -> smaller)
-    cannot_link_closure = torch.Tensor([]).long().cuda(cannot_link.device)
+    must_link_closure = must_link.clone()  # closure (only edges from bigger -> smaller)
+    cannot_link_closure = cannot_link.clone()
 
     assert must_link_labels is not None
 
@@ -889,7 +891,6 @@ def get_link_closures_edge(must_link, cannot_link, edge, should_link=False, must
     else:
         pdb.set_trace()
         # must-link remains the same
-        must_link_closure = must_link
         # cannot-link gets elements of respective clusters linked up w/ each other C_A <-/-> C_B means
         non_coref_pairs = torch.stack([
             proform_cluster.unsqueeze(-1).expand(proform_cluster.size(0), antecedent_cluster.size(0)).reshape(-1),

@@ -135,7 +135,7 @@
       "query_type": "discrete", // either pairwise or discrete, by default 'discrete'
       "selector": {
           "type": "entropy", // either random, score, or entropy, by default 'entropy'
-          "use_clusters": false, //true, // default 'true'
+          "use_clusters": true, // default 'true'
       },
       "replace_with_next_pos_edge": true,
       "patience": 2,
