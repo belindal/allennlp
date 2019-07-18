@@ -369,6 +369,7 @@ class CoreferenceResolver(Model):
             #  the same coreference cluster.
             coreference_log_probs = util.masked_log_softmax(coreference_scores, top_span_mask)
             correct_antecedent_log_probs = coreference_log_probs + gold_antecedent_labels.log()
+            # TODO fix loss
             negative_marginal_log_likelihood = -util.logsumexp(correct_antecedent_log_probs).sum()
 
             # Now add constraints
@@ -420,7 +421,7 @@ class CoreferenceResolver(Model):
                                             except:
                                                 pdb.set_trace()
                                             penalty_idx += 1
-                            negative_marginal_log_likelihood += (-must_link_penalty.exp().sum() * self._must_link_weight)
+                            negative_marginal_log_likelihood += util.logsumexp(-must_link_penalty * self._must_link_weight).sum()
             if cannot_link is not None:
                 # indices of cannot_link converted to top_spans
                 top_cannot_link = -torch.ones(cannot_link.size()[:3], dtype=torch.long).cuda(util.get_device_of(cannot_link))
@@ -469,7 +470,7 @@ class CoreferenceResolver(Model):
                                             except:
                                                 pdb.set_trace()
                                             penalty_idx += 1
-                            negative_marginal_log_likelihood += (cannot_link_penalty.exp().sum() * self._cannot_link_weight)
+                            negative_marginal_log_likelihood += util.logsumexp(cannot_link_penalty * self._cannot_link_weight).sum()
 
             self._mention_recall(top_spans, metadata)
             self._conll_coref_scores(top_spans, valid_antecedent_indices, predicted_antecedents, metadata)

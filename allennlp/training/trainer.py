@@ -1106,8 +1106,8 @@ class Trainer(Registrable):
                                             pdb.set_trace()
                                             batch['must_link'], batch['cannot_link'], confirmed_clusters, \
                                             output_dict['predicted_antecedents'], output_dict['coreference_scores'] = \
-                                                al_util.get_link_closures_edge(batch['must_link'], batch['cannot_link'], indA_edge, True,
-                                                                               confirmed_clusters,
+                                                al_util.get_link_closures_edge(batch['must_link'], batch['cannot_link'],
+                                                                               indA_edge_asked, False, confirmed_clusters,
                                                                                output_dict['coreference_scores'],
                                                                                output_dict['predicted_antecedents'],
                                                                                translation_reference,
@@ -1128,8 +1128,8 @@ class Trainer(Registrable):
                                             pdb.set_trace()
                                             batch['must_link'], batch['cannot_link'], confirmed_clusters, \
                                             output_dict['predicted_antecedents'], output_dict['coreference_scores'] = \
-                                                al_util.get_link_closures_edge(batch['must_link'], batch['cannot_link'], indA_edge, True,
-                                                                               confirmed_clusters,
+                                                al_util.get_link_closures_edge(batch['must_link'], batch['cannot_link'],
+                                                                               indA_edge, True, confirmed_clusters,
                                                                                output_dict['coreference_scores'],
                                                                                output_dict['predicted_antecedents'],
                                                                                translation_reference,
