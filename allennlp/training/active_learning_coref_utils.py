@@ -873,8 +873,6 @@ def get_link_closures_edge(must_link, cannot_link, edge, should_link=False, must
 
         non_coref_pairs = torch.cat([cannot_link_antecedent_pairs, cannot_link_proform_pairs])
 
-        cannot_link_closure = torch.cat([cannot_link_closure, non_coref_pairs])
-
         # flip proforms/antecedents s.t. all 0th element is > 1st element (0th element is proform, 1st is antecedent)
         reversed_mask = non_coref_pairs[:, 0] < non_coref_pairs[:, 1]
         temp_ant_col = non_coref_pairs[:, 0][reversed_mask]
@@ -885,6 +883,8 @@ def get_link_closures_edge(must_link, cannot_link, edge, should_link=False, must
         non_coref_pairs = torch.cat(
             [(torch.ones(non_coref_pairs.size(0), dtype=torch.long, device=cannot_link.device)
               * edge[0]).unsqueeze(-1), non_coref_pairs], dim=-1)
+
+        cannot_link_closure = torch.cat([cannot_link_closure, non_coref_pairs])
 
         # update coreference_scores, predicted_antecedents, and/or coreference_scores_models (in case of qbc)
         pdb.set_trace()
