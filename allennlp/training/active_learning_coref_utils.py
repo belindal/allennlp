@@ -837,7 +837,7 @@ def get_link_closures_edge(must_link, cannot_link, edge, should_link=False, must
         coref_pairs[:, 1] = (translation_reference[coref_pairs[:, 0]] == coref_pairs[:, 1]).nonzero()[:, 1]
         coref_pairs[:, 2] = (translation_reference[coref_pairs[:, 0]] == coref_pairs[:, 2]).nonzero()[:, 1]
         coref_pairs[:, 2] = (output_dict['antecedent_indices'][coref_pairs[:, 0], coref_pairs[:, 1]] ==
-                             coref_pairs[:, 2]).nonzero()[:, 1]
+                             coref_pairs[:, 2]).nonzero()[:, 1] + 1
         # this antecedent has 1 probability
         output_dict['coreference_scores'][coref_pairs[:, 0], coref_pairs[:, 1], coref_pairs[:, 2]] = 0
         output_dict['coreference_scores'][coref_pairs[:, 0], coref_pairs[:, 1], :coref_pairs[:, 2]] = -float("inf")
@@ -893,7 +893,7 @@ def get_link_closures_edge(must_link, cannot_link, edge, should_link=False, must
         non_coref_pairs[:,1] = (translation_reference[non_coref_pairs[:,0]] == non_coref_pairs[:,1]).nonzero()[:,1]
         non_coref_pairs[:,2] = (translation_reference[non_coref_pairs[:,0]] == non_coref_pairs[:,2]).nonzero()[:,1]
         non_coref_pairs[:,2] = (output_dict['antecedent_indices'][non_coref_pairs[:,0], non_coref_pairs[:,1]] ==
-                                non_coref_pairs[:,2]).nonzero()[:,1]
+                                non_coref_pairs[:,2]).nonzero()[:,1] + 1
         # this antecedent has 0 probability
         output_dict['coreference_scores'][non_coref_pairs[:,0], non_coref_pairs[:,1], non_coref_pairs[:,2]] = \
             -float("inf")
@@ -936,7 +936,7 @@ def get_link_closures_edge(must_link, cannot_link, edge, should_link=False, must
         non_coref_pairs[:,1] = (translation_reference[non_coref_pairs[:,0]] == non_coref_pairs[:,1]).nonzero()[:,1]
         non_coref_pairs[:,2] = (translation_reference[non_coref_pairs[:,0]] == non_coref_pairs[:,2]).nonzero()[:,1]
         non_coref_pairs[:,2] = (output_dict['antecedent_indices'][non_coref_pairs[:,0], non_coref_pairs[:,1]] ==
-                                non_coref_pairs[:,2]).nonzero()[:,1]
+                                non_coref_pairs[:,2]).nonzero()[:,1] + 1
         # this antecedent has 0 probability
         output_dict['coreference_scores'][non_coref_pairs[:,0], non_coref_pairs[:,1], non_coref_pairs[:,2]] = \
             -float("inf")
