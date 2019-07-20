@@ -852,7 +852,11 @@ def get_link_closures_edge(must_link, cannot_link, edge, should_link=False, must
         # 1. For each of CL(*,edge[1] cluster) and CL(edge[1] cluster,*), add CL(*,edge[2] cluster) and/or CL(edge[2] cluster,*)
         # 2. For each of CL(*,edge[2] cluster) and CL(edge[2] cluster,*), add CL(*,edge[1] cluster) and/or CL(edge[1] cluster,*)
         # CL involving elements of edge[1] cluster (the other element of it)
-        cannot_link_proform_idx = (cannot_link.unsqueeze(-1) == proform_cluster).nonzero()
+        pdb.set_trace()
+        if cannot_link.size(0) == 0:
+            cannot_link_proform_idx = cannot_link
+        else:
+            cannot_link_proform_idx = (cannot_link.unsqueeze(-1) == proform_cluster).nonzero()
         if cannot_link_proform_idx.size(0) > 0:
             cannot_link_proform_spans = torch.unique(cannot_link[cannot_link_proform_idx[:,0], 3 - cannot_link_proform_idx[:,1]])
             cannot_link_proform_pairs = torch.stack([
