@@ -905,41 +905,43 @@ def get_link_closures_edge(must_link, cannot_link, edge, should_link=False, must
 
         non_coref_pairs = torch.cat([cannot_link_antecedent_pairs, cannot_link_proform_pairs])
 
-        # flip proforms/antecedents s.t. all 0th element is > 1st element (0th element is proform, 1st is antecedent)
-        reversed_mask = non_coref_pairs[:, 0] < non_coref_pairs[:, 1]
-        temp_ant_col = non_coref_pairs[:, 0][reversed_mask]
-        non_coref_pairs[:, 0][reversed_mask] = non_coref_pairs[:, 1][reversed_mask]
-        non_coref_pairs[:, 1][reversed_mask] = temp_ant_col
+        if non_coref_pairs.size(0) > 0:
+            # flip proforms/antecedents s.t. all 0th element is > 1st element (0th element is proform, 1st is antecedent)
+            reversed_mask = non_coref_pairs[:, 0] < non_coref_pairs[:, 1]
+            temp_ant_col = non_coref_pairs[:, 0][reversed_mask]
+            non_coref_pairs[:, 0][reversed_mask] = non_coref_pairs[:, 1][reversed_mask]
+            non_coref_pairs[:, 1][reversed_mask] = temp_ant_col
 
-        # add instance number as 0th element
-        non_coref_pairs = torch.cat(
-            [(torch.ones(non_coref_pairs.size(0), dtype=torch.long, device=cannot_link.device)
-              * edge[0]).unsqueeze(-1), non_coref_pairs], dim=-1)
+            # add instance number as 0th element
+            non_coref_pairs = torch.cat(
+                [(torch.ones(non_coref_pairs.size(0), dtype=torch.long, device=cannot_link.device)
+                  * edge[0]).unsqueeze(-1), non_coref_pairs], dim=-1)
 
-        cannot_link_closure = torch.cat([cannot_link_closure, non_coref_pairs])
+            cannot_link_closure = torch.cat([cannot_link_closure, non_coref_pairs])
 
-        # update coreference_scores, predicted_antecedents, and/or coreference_scores_models (in case of qbc)
-        pdb.set_trace()
-        non_coref_pairs = translate_to_indC(non_coref_pairs, output_dict, translation_reference)
-        # if some proform doesn't exist in top_span (should not happen)
-        if (non_coref_pairs[:, 1] == -1).nonzero().size(0) > 0:
+            # update coreference_scores, predicted_antecedents, and/or coreference_scores_models (in case of qbc)
             pdb.set_trace()
-        # if some antecedent doesn't exist in top_span, don't modify those examples (since all valid antecedents still
-        # have non-zero probability)
-        non_coref_pairs = non_coref_pairs[non_coref_pairs[:, 2] > -1]
-        # this antecedent has 0 probability
-        output_dict['coreference_scores'][non_coref_pairs[:,0], non_coref_pairs[:,1], non_coref_pairs[:,2] + 1] = \
-            -float("inf")
-        output_dict['predicted_antecedents'][non_coref_pairs[:,0], non_coref_pairs[:,1]] = \
-            output_dict['coreference_scores'][non_coref_pairs[:,0], non_coref_pairs[:,1]].argmax(1) - 1
-        if 'coreference_scores_models' in output_dict:
-            output_dict['coreference_scores_models'][:, non_coref_pairs[:,0], non_coref_pairs[:,1],
-                                                     non_coref_pairs[:,2] + 1] = -float("inf")
+            non_coref_pairs = translate_to_indC(non_coref_pairs, output_dict, translation_reference)
+            # if some proform doesn't exist in top_span (should not happen)
+            if (non_coref_pairs[:, 1] == -1).nonzero().size(0) > 0:
+                pdb.set_trace()
+            # if some antecedent doesn't exist in top_span, don't modify those examples (since all valid antecedents still
+            # have non-zero probability)
+            non_coref_pairs = non_coref_pairs[non_coref_pairs[:, 2] > -1]
+            # this antecedent has 0 probability
+            output_dict['coreference_scores'][non_coref_pairs[:,0], non_coref_pairs[:,1], non_coref_pairs[:,2] + 1] = \
+                -float("inf")
+            output_dict['predicted_antecedents'][non_coref_pairs[:,0], non_coref_pairs[:,1]] = \
+                output_dict['coreference_scores'][non_coref_pairs[:,0], non_coref_pairs[:,1]].argmax(1) - 1
+            if 'coreference_scores_models' in output_dict:
+                output_dict['coreference_scores_models'][:, non_coref_pairs[:,0], non_coref_pairs[:,1],
+                                                         non_coref_pairs[:,2] + 1] = -float("inf")
 
         must_link_labels = update_clusters_with_edge(must_link_labels, edge)
 
         # check we have the complete set:
         if DEBUG_FLAG:
+            must_link = torch.cat([must_link, edge.unsqueeze(0)])
             must_link_closure_2, cannot_link_closure_2 = get_link_closures(must_link, cannot_link)
             assert (must_link_closure_2 != must_link_closure).nonzero().size(0) == 0
             assert (cannot_link_closure_2 != cannot_link_closure).nonzero().size(0) == 0
@@ -982,6 +984,13 @@ def get_link_closures_edge(must_link, cannot_link, edge, should_link=False, must
         if 'coreference_scores_models' in output_dict:
             output_dict['coreference_scores_models'][:, non_coref_pairs[:,0], non_coref_pairs[:,1],
                                                      non_coref_pairs[:,2] + 1] = -float("inf")
+
+        # check we have the complete set:
+        if DEBUG_FLAG:
+            cannot_link = torch.cat([cannot_link, edge.unsqueeze(0)])
+            must_link_closure_2, cannot_link_closure_2 = get_link_closures(must_link, cannot_link)
+            assert (must_link_closure_2 != must_link_closure).nonzero().size(0) == 0
+            assert (cannot_link_closure_2 != cannot_link_closure).nonzero().size(0) == 0
 
     return must_link_closure, cannot_link_closure, must_link_labels, output_dict
 
