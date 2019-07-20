@@ -837,18 +837,14 @@ def get_link_closures_edge(must_link, cannot_link, edge, should_link=False, must
         coref_pairs[:, 1] = (translation_reference[coref_pairs[:, 0]] == coref_pairs[:, 1]).nonzero()[:, 1]
         coref_pairs[:, 2] = (translation_reference[coref_pairs[:, 0]] == coref_pairs[:, 2]).nonzero()[:, 1]
         coref_pairs[:, 2] = (output_dict['antecedent_indices'][coref_pairs[:, 0], coref_pairs[:, 1]] ==
-                             coref_pairs[:, 2]).nonzero()[:, 1] + 1
+                             coref_pairs[:, 2]).nonzero()[:, 1]
         # this antecedent has 1 probability
-        output_dict['coreference_scores'][coref_pairs[:, 0], coref_pairs[:, 1], coref_pairs[:, 2]] = 0
-        output_dict['coreference_scores'][coref_pairs[:, 0], coref_pairs[:, 1], :coref_pairs[:, 2]] = -float("inf")
-        output_dict['coreference_scores'][coref_pairs[:, 0], coref_pairs[:, 1], coref_pairs[:, 2] + 1:] = -float("inf")
+        output_dict['coreference_scores'][coref_pairs[:, 0], coref_pairs[:, 1], :] = -float("inf")
+        output_dict['coreference_scores'][coref_pairs[:, 0], coref_pairs[:, 1], coref_pairs[:, 2] + 1] = 0
         output_dict['predicted_antecedents'][coref_pairs[:, 0], coref_pairs[:, 1]] = coref_pairs[:, 2]
         if 'coreference_scores_models' in output_dict:
-            output_dict['coreference_scores_models'][:, coref_pairs[:, 0], coref_pairs[:, 1], coref_pairs[:, 2]] = 0
-            output_dict['coreference_scores_models'][:, coref_pairs[:, 0], coref_pairs[:, 1], :coref_pairs[:, 2]] = \
-                -float("inf")
-            output_dict['coreference_scores_models'][:, coref_pairs[:, 0], coref_pairs[:, 1], coref_pairs[:, 2] + 1:] = \
-                -float("inf")
+            output_dict['coreference_scores_models'][:, coref_pairs[:, 0], coref_pairs[:, 1], :] = -float("inf")
+            output_dict['coreference_scores_models'][:, coref_pairs[:, 0], coref_pairs[:, 1], coref_pairs[:, 2] + 1] = 0
 
         must_link_closure = torch.cat([must_link_closure, coref_pairs])
 
@@ -893,15 +889,15 @@ def get_link_closures_edge(must_link, cannot_link, edge, should_link=False, must
         non_coref_pairs[:,1] = (translation_reference[non_coref_pairs[:,0]] == non_coref_pairs[:,1]).nonzero()[:,1]
         non_coref_pairs[:,2] = (translation_reference[non_coref_pairs[:,0]] == non_coref_pairs[:,2]).nonzero()[:,1]
         non_coref_pairs[:,2] = (output_dict['antecedent_indices'][non_coref_pairs[:,0], non_coref_pairs[:,1]] ==
-                                non_coref_pairs[:,2]).nonzero()[:,1] + 1
+                                non_coref_pairs[:,2]).nonzero()[:,1]
         # this antecedent has 0 probability
-        output_dict['coreference_scores'][non_coref_pairs[:,0], non_coref_pairs[:,1], non_coref_pairs[:,2]] = \
+        output_dict['coreference_scores'][non_coref_pairs[:,0], non_coref_pairs[:,1], non_coref_pairs[:,2] + 1] = \
             -float("inf")
         output_dict['predicted_antecedents'][non_coref_pairs[:,0], non_coref_pairs[:,1]] = \
             output_dict['coreference_scores'][non_coref_pairs[:,0], non_coref_pairs[:,1]].argmax(1) - 1
         if 'coreference_scores_models' in output_dict:
             output_dict['coreference_scores_models'][:, non_coref_pairs[:,0], non_coref_pairs[:,1],
-                                                     non_coref_pairs[:,2]] = -float("inf")
+                                                     non_coref_pairs[:,2] + 1] = -float("inf")
 
         cannot_link_closure = torch.cat([cannot_link_closure, non_coref_pairs])
 
@@ -936,15 +932,15 @@ def get_link_closures_edge(must_link, cannot_link, edge, should_link=False, must
         non_coref_pairs[:,1] = (translation_reference[non_coref_pairs[:,0]] == non_coref_pairs[:,1]).nonzero()[:,1]
         non_coref_pairs[:,2] = (translation_reference[non_coref_pairs[:,0]] == non_coref_pairs[:,2]).nonzero()[:,1]
         non_coref_pairs[:,2] = (output_dict['antecedent_indices'][non_coref_pairs[:,0], non_coref_pairs[:,1]] ==
-                                non_coref_pairs[:,2]).nonzero()[:,1] + 1
+                                non_coref_pairs[:,2]).nonzero()[:,1]
         # this antecedent has 0 probability
-        output_dict['coreference_scores'][non_coref_pairs[:,0], non_coref_pairs[:,1], non_coref_pairs[:,2]] = \
+        output_dict['coreference_scores'][non_coref_pairs[:,0], non_coref_pairs[:,1], non_coref_pairs[:,2] + 1] = \
             -float("inf")
         output_dict['predicted_antecedents'][non_coref_pairs[:,0], non_coref_pairs[:,1]] = \
             output_dict['coreference_scores'][non_coref_pairs[:,0], non_coref_pairs[:,1]].argmax(1) - 1
         if 'coreference_scores_models' in output_dict:
             output_dict['coreference_scores_models'][:, non_coref_pairs[:,0], non_coref_pairs[:,1],
-                                                     non_coref_pairs[:,2]] = -float("inf")
+                                                     non_coref_pairs[:,2] + 1] = -float("inf")
 
         # don't update clusters with edge
         cannot_link_closure = torch.cat([cannot_link_closure, non_coref_pairs])
