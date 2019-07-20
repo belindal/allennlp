@@ -1003,25 +1003,26 @@ def get_link_closures(must_link, cannot_link):
     # MUST LINK CLOSURE
     pdb.set_trace()
     must_link_closure = torch.Tensor([]).long().cuda(must_link.device)  # closure (only edges from bigger -> smaller)
-    # convert to clusters
-    must_link_labels = -torch.ones([must_link[:,0].max()+1, must_link.max()+1], dtype=torch.long, device=must_link.device)
-    for link in must_link:
-        must_link_labels = update_clusters_with_edge(must_link_labels, link)
-    pdb.set_trace()
+    if must_link.size(0) > 0:
+        # convert to clusters
+        must_link_labels = -torch.ones([must_link[:,0].max()+1, must_link.max()+1], dtype=torch.long, device=must_link.device)
+        for link in must_link:
+            must_link_labels = update_clusters_with_edge(must_link_labels, link)
+        pdb.set_trace()
 
-    # fully connect all clusters
-    for i, must_link_labels_ins in enumerate(must_link_labels):
-        for cluster in range(must_link_labels_ins.max() + 1):
-            pdb.set_trace()
-            cluster_spans = (must_link_labels_ins == cluster).nonzero()
-            cluster_pairs = torch.stack([cluster_spans.expand(cluster_spans.size(0), cluster_spans.size(0)).reshape(-1),
-                                         cluster_spans.squeeze().repeat(cluster_spans.size(0))]).transpose(0,1)
-            # filter such that 0th element is > 1st element (0th element is proform, 1st is antecedent)
-            cluster_pairs = cluster_pairs[cluster_pairs[:,0] > cluster_pairs[:,1]]
-            # add instance number as 0th element
-            cluster_pairs = torch.cat([(torch.ones(cluster_pairs.size(0), dtype=torch.long, device=must_link.device)
-                                        * i).unsqueeze(-1), cluster_pairs], dim=-1)
-            must_link_closure = torch.cat([must_link_closure, cluster_pairs])
+        # fully connect all clusters
+        for i, must_link_labels_ins in enumerate(must_link_labels):
+            for cluster in range(must_link_labels_ins.max() + 1):
+                pdb.set_trace()
+                cluster_spans = (must_link_labels_ins == cluster).nonzero()
+                cluster_pairs = torch.stack([cluster_spans.expand(cluster_spans.size(0), cluster_spans.size(0)).reshape(-1),
+                                             cluster_spans.squeeze().repeat(cluster_spans.size(0))]).transpose(0,1)
+                # filter such that 0th element is > 1st element (0th element is proform, 1st is antecedent)
+                cluster_pairs = cluster_pairs[cluster_pairs[:,0] > cluster_pairs[:,1]]
+                # add instance number as 0th element
+                cluster_pairs = torch.cat([(torch.ones(cluster_pairs.size(0), dtype=torch.long, device=must_link.device)
+                                            * i).unsqueeze(-1), cluster_pairs], dim=-1)
+                must_link_closure = torch.cat([must_link_closure, cluster_pairs])
     pdb.set_trace()
 
     # CANNOT LINK CLOSURE
