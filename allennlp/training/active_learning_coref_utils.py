@@ -832,6 +832,8 @@ def get_link_closures_edge(must_link, cannot_link, edge, should_link=False, must
         coref_pairs = torch.cat([(torch.ones(coref_pairs.size(0), dtype=torch.long, device=cannot_link.device)
                                   * edge[0]).unsqueeze(-1), coref_pairs], dim=-1)
 
+        must_link_closure = torch.cat([must_link_closure, coref_pairs])
+
         # update coreference_scores, predicted_antecedents, and/or coreference_scores_models (in case of qbc)
         pdb.set_trace()
         coref_pairs[:, 1] = (translation_reference[coref_pairs[:, 0]] == coref_pairs[:, 1]).nonzero()[:, 1]
@@ -845,8 +847,6 @@ def get_link_closures_edge(must_link, cannot_link, edge, should_link=False, must
         if 'coreference_scores_models' in output_dict:
             output_dict['coreference_scores_models'][:, coref_pairs[:, 0], coref_pairs[:, 1], :] = -float("inf")
             output_dict['coreference_scores_models'][:, coref_pairs[:, 0], coref_pairs[:, 1], coref_pairs[:, 2] + 1] = 0
-
-        must_link_closure = torch.cat([must_link_closure, coref_pairs])
 
         # get CL involving each of edge[1] and edge[2]
         # 1. For each of CL(*,edge[1] cluster) and CL(edge[1] cluster,*), add CL(*,edge[2] cluster) and/or CL(edge[2] cluster,*)
@@ -873,6 +873,8 @@ def get_link_closures_edge(must_link, cannot_link, edge, should_link=False, must
 
         non_coref_pairs = torch.cat([cannot_link_antecedent_pairs, cannot_link_proform_pairs])
 
+        cannot_link_closure = torch.cat([cannot_link_closure, non_coref_pairs])
+
         # flip proforms/antecedents s.t. all 0th element is > 1st element (0th element is proform, 1st is antecedent)
         reversed_mask = non_coref_pairs[:, 0] < non_coref_pairs[:, 1]
         temp_ant_col = non_coref_pairs[:, 0][reversed_mask]
@@ -899,15 +901,13 @@ def get_link_closures_edge(must_link, cannot_link, edge, should_link=False, must
             output_dict['coreference_scores_models'][:, non_coref_pairs[:,0], non_coref_pairs[:,1],
                                                      non_coref_pairs[:,2] + 1] = -float("inf")
 
-        cannot_link_closure = torch.cat([cannot_link_closure, non_coref_pairs])
+        must_link_labels = update_clusters_with_edge(must_link_labels, edge)
 
         # check we have the complete set:
         if DEBUG_FLAG:
             must_link_closure_2, cannot_link_closure_2 = get_link_closures(must_link, cannot_link)
             assert (must_link_closure_2 != must_link_closure).nonzero().size(0) == 0
             assert (cannot_link_closure_2 != cannot_link_closure).nonzero().size(0) == 0
-
-        must_link_labels = update_clusters_with_edge(must_link_labels, edge)
     else:
         pdb.set_trace()
         # must-link remains the same
@@ -927,6 +927,9 @@ def get_link_closures_edge(must_link, cannot_link, edge, should_link=False, must
             [(torch.ones(non_coref_pairs.size(0), dtype=torch.long, device=cannot_link.device)
               * edge[0]).unsqueeze(-1), non_coref_pairs], dim=-1)
 
+        # don't update clusters with edge
+        cannot_link_closure = torch.cat([cannot_link_closure, non_coref_pairs])
+
         # update coreference_scores, predicted_antecedents, and/or coreference_scores_models (in case of qbc)
         pdb.set_trace()
         non_coref_pairs[:,1] = (translation_reference[non_coref_pairs[:,0]] == non_coref_pairs[:,1]).nonzero()[:,1]
@@ -942,8 +945,6 @@ def get_link_closures_edge(must_link, cannot_link, edge, should_link=False, must
             output_dict['coreference_scores_models'][:, non_coref_pairs[:,0], non_coref_pairs[:,1],
                                                      non_coref_pairs[:,2] + 1] = -float("inf")
 
-        # don't update clusters with edge
-        cannot_link_closure = torch.cat([cannot_link_closure, non_coref_pairs])
     return must_link_closure, cannot_link_closure, must_link_labels, output_dict
 
 
