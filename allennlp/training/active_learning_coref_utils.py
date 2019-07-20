@@ -1005,7 +1005,9 @@ def get_link_closures(must_link, cannot_link):
     must_link_closure = torch.Tensor([]).long().cuda(must_link.device)  # closure (only edges from bigger -> smaller)
     if must_link.size(0) > 0:
         # convert to clusters
-        must_link_labels = -torch.ones([must_link[:,0].max()+1, must_link.max()+1], dtype=torch.long, device=must_link.device)
+        must_link_labels = -torch.ones([max(must_link[:, 0].max(), cannot_link[:, 0].max()) + 1,
+                                        max(must_link.max(), cannot_link.max()) + 1], dtype=torch.long,
+                                       device=must_link.device)
         for link in must_link:
             must_link_labels = update_clusters_with_edge(must_link_labels, link)
         pdb.set_trace()
