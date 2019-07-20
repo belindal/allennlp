@@ -1104,14 +1104,11 @@ class Trainer(Registrable):
                                                     (confirmed_non_coref_edges, indA_edge_asked.unsqueeze(0)), dim=0)
                                             # TODO PRUNING
                                             pdb.set_trace()
-                                            batch['must_link'], batch['cannot_link'], confirmed_clusters, \
-                                            output_dict['predicted_antecedents'], output_dict['coreference_scores'] = \
+                                            batch['must_link'], batch['cannot_link'], confirmed_clusters, output_dict = \
                                                 al_util.get_link_closures_edge(batch['must_link'], batch['cannot_link'],
-                                                                               indA_edge_asked, False, confirmed_clusters,
-                                                                               output_dict['coreference_scores'],
-                                                                               output_dict['predicted_antecedents'],
-                                                                               translation_reference,
-                                                                               True)
+                                                                               indA_edge_asked, False,
+                                                                               confirmed_clusters, output_dict,
+                                                                               translation_reference, True)
                                             # Add to cannot-link
                                             batch['cannot_link'] = torch.cat((batch['cannot_link'], indA_edge_asked.unsqueeze(0)), dim=0)
 
@@ -1126,14 +1123,10 @@ class Trainer(Registrable):
                                                     batch['span_labels'], indA_edge)
                                             # TODO PRUNING
                                             pdb.set_trace()
-                                            batch['must_link'], batch['cannot_link'], confirmed_clusters, \
-                                            output_dict['predicted_antecedents'], output_dict['coreference_scores'] = \
+                                            batch['must_link'], batch['cannot_link'], confirmed_clusters, output_dict = \
                                                 al_util.get_link_closures_edge(batch['must_link'], batch['cannot_link'],
                                                                                indA_edge, True, confirmed_clusters,
-                                                                               output_dict['coreference_scores'],
-                                                                               output_dict['predicted_antecedents'],
-                                                                               translation_reference,
-                                                                               True)
+                                                                               output_dict, translation_reference, True)
                                             # Add to must-link
                                             batch['must_link'] = torch.cat((batch['must_link'], indA_edge.unsqueeze(0)), dim=0)
                                         num_queried += 1

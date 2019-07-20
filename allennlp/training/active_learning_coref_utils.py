@@ -796,9 +796,8 @@ def find_next_most_uncertain_mention(selector, model_labels, output_dict, querie
 
 
 # incremental closure
-def get_link_closures_edge(must_link, cannot_link, edge, should_link=False, must_link_labels=None,
-                           coreference_scores=None, predicted_antecedents=None, translation_reference=None,
-                           DEBUG_FLAG=True):
+def get_link_closures_edge(must_link, cannot_link, edge, should_link=False, must_link_labels=None, output_dict=None,
+                           translation_reference=None, DEBUG_FLAG=True):
    # TODO update for each model for QBC
     pdb.set_trace()
     # MUST LINK CLOSURE
@@ -832,10 +831,24 @@ def get_link_closures_edge(must_link, cannot_link, edge, should_link=False, must
         # add instance number as 0th element
         coref_pairs = torch.cat([(torch.ones(coref_pairs.size(0), dtype=torch.long, device=cannot_link.device)
                                   * edge[0]).unsqueeze(-1), coref_pairs], dim=-1)
-        # TODO translate to indC
+
+        # update coreference_scores, predicted_antecedents, and/or coreference_scores_models (in case of qbc)
         pdb.set_trace()
-        # coreference_scores[coref_pairs[], coref_pairs[]]
-        # predicted_antecedents
+        coref_pairs[:, 1] = (translation_reference[coref_pairs[:, 0]] == coref_pairs[:, 1]).nonzero()[:, 1]
+        coref_pairs[:, 2] = (translation_reference[coref_pairs[:, 0]] == coref_pairs[:, 2]).nonzero()[:, 1]
+        coref_pairs[:, 2] = (output_dict['antecedent_indices'][coref_pairs[:, 0], coref_pairs[:, 1]] ==
+                             coref_pairs[:, 2]).nonzero()[:, 1]
+        # this antecedent has 1 probability
+        output_dict['coreference_scores'][coref_pairs[:, 0], coref_pairs[:, 1], coref_pairs[:, 2]] = 0
+        output_dict['coreference_scores'][coref_pairs[:, 0], coref_pairs[:, 1], :coref_pairs[:, 2]] = -float("inf")
+        output_dict['coreference_scores'][coref_pairs[:, 0], coref_pairs[:, 1], coref_pairs[:, 2] + 1:] = -float("inf")
+        output_dict['predicted_antecedents'][coref_pairs[:, 0], coref_pairs[:, 1]] = coref_pairs[:, 2]
+        if 'coreference_scores_models' in output_dict:
+            output_dict['coreference_scores_models'][coref_pairs[:, 0], coref_pairs[:, 1], coref_pairs[:, 2]] = 0
+            output_dict['coreference_scores_models'][coref_pairs[:, 0], coref_pairs[:, 1], :coref_pairs[:, 2]] = \
+                -float("inf")
+            output_dict['coreference_scores_models'][coref_pairs[:, 0], coref_pairs[:, 1], coref_pairs[:, 2] + 1:] = \
+                -float("inf")
 
         must_link_closure = torch.cat([must_link_closure, coref_pairs])
 
@@ -874,10 +887,21 @@ def get_link_closures_edge(must_link, cannot_link, edge, should_link=False, must
         non_coref_pairs = torch.cat(
             [(torch.ones(non_coref_pairs.size(0), dtype=torch.long, device=cannot_link.device)
               * edge[0]).unsqueeze(-1), non_coref_pairs], dim=-1)
-        # TODO translate to indC
+
+        # update coreference_scores, predicted_antecedents, and/or coreference_scores_models (in case of qbc)
         pdb.set_trace()
-        # coreference_scores[coref_pairs[], coref_pairs[]]
-        # predicted_antecedents
+        non_coref_pairs[:,1] = (translation_reference[non_coref_pairs[:,0]] == non_coref_pairs[:,1]).nonzero()[:,1]
+        non_coref_pairs[:,2] = (translation_reference[non_coref_pairs[:,0]] == non_coref_pairs[:,2]).nonzero()[:,1]
+        non_coref_pairs[:,2] = (output_dict['antecedent_indices'][non_coref_pairs[:,0], non_coref_pairs[:,1]] ==
+                                non_coref_pairs[:,2]).nonzero()[:,1]
+        # this antecedent has 0 probability
+        output_dict['coreference_scores'][non_coref_pairs[:,0], non_coref_pairs[:,1], non_coref_pairs[:,2]] = \
+            -float("inf")
+        output_dict['predicted_antecedents'][non_coref_pairs[:,0], non_coref_pairs[:,1]] = \
+            output_dict['coreference_scores'][non_coref_pairs[:,0], non_coref_pairs[:,1]].max(1) - 1
+        if 'coreference_scores_models' in output_dict:
+            output_dict['coreference_scores_models'][non_coref_pairs[:,0], non_coref_pairs[:,1],
+                                                     non_coref_pairs[:,2]] = -float("inf")
 
         cannot_link_closure = torch.cat([cannot_link_closure, non_coref_pairs])
 
@@ -906,17 +930,28 @@ def get_link_closures_edge(must_link, cannot_link, edge, should_link=False, must
         non_coref_pairs = torch.cat(
             [(torch.ones(non_coref_pairs.size(0), dtype=torch.long, device=cannot_link.device)
               * edge[0]).unsqueeze(-1), non_coref_pairs], dim=-1)
-        # TODO translate to indC
+
+        # update coreference_scores, predicted_antecedents, and/or coreference_scores_models (in case of qbc)
         pdb.set_trace()
-        # coreference_scores[coref_pairs[], coref_pairs[]]
-        # predicted_antecedents
+        non_coref_pairs[:,1] = (translation_reference[non_coref_pairs[:,0]] == non_coref_pairs[:,1]).nonzero()[:,1]
+        non_coref_pairs[:,2] = (translation_reference[non_coref_pairs[:,0]] == non_coref_pairs[:,2]).nonzero()[:,1]
+        non_coref_pairs[:,2] = (output_dict['antecedent_indices'][non_coref_pairs[:,0], non_coref_pairs[:,1]] ==
+                                non_coref_pairs[:,2]).nonzero()[:,1]
+        # this antecedent has 0 probability
+        output_dict['coreference_scores'][non_coref_pairs[:,0], non_coref_pairs[:,1], non_coref_pairs[:,2]] = \
+            -float("inf")
+        output_dict['predicted_antecedents'][non_coref_pairs[:,0], non_coref_pairs[:,1]] = \
+            output_dict['coreference_scores'][non_coref_pairs[:,0], non_coref_pairs[:,1]].max(1) - 1
+        if 'coreference_scores_models' in output_dict:
+            output_dict['coreference_scores_models'][non_coref_pairs[:,0], non_coref_pairs[:,1],
+                                                     non_coref_pairs[:,2]] = -float("inf")
 
         # don't update clusters with edge
         cannot_link_closure = torch.cat([cannot_link_closure, non_coref_pairs])
 
     # CANNOT LINK CLOSURE
     cannot_link_closure = torch.Tensor([]).long().cuda(cannot_link.device)
-    return must_link_closure, cannot_link_closure, must_link_labels, predicted_antecedents, coreference_scores
+    return must_link_closure, cannot_link_closure, must_link_labels, output_dict
 
 
 # get transitive closures of ML and CL:
