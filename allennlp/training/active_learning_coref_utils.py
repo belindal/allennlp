@@ -6,6 +6,7 @@ import copy
 import os
 import string
 
+
 def translate_to_indA(edges, output_dict, all_spans, translation_reference=None) -> torch.LongTensor:
     """
     :param edges: Tensor (Nx3) of N edges, each of form [instance in batch, indB of proform, indC of antecedent]. If indC of antecedent is negative, represents expecting no antecedent
@@ -65,6 +66,32 @@ def translate_to_indA(edges, output_dict, all_spans, translation_reference=None)
             indA_antecedents = ((antecedent_spans.unsqueeze(1) - all_spans[instances]).abs().sum(-1) == 0).nonzero()[:, 1]
         indA_antecedents[no_antecedent_mask] = -1
         return torch.stack([instances, indA_proforms, indA_antecedents], dim=-1)
+
+
+def translate_to_indC(edges, output_dict, translation_reference):
+    """
+    :param edges:
+    :param output_dict:
+    :param translation_reference:
+    :return: indC_edges, -1 in a field if not found in top_spans, or antecedent outside range of antecedent_indices for
+    that proform
+    """
+    indC_edges = -torch.ones(edges.size(), dtype=torch.long, device=edges.device)
+    # copy over instance #
+    indC_edges[:, 0] = edges[:, 0]
+    # proform
+    proform_top_indices = (translation_reference[edges[:, 0]] == edges[:, 1].unsqueeze(-1)).nonzero()
+    if proform_top_indices.size(0) > 0:
+        indC_edges[:, 1][proform_top_indices[:, 0]] = proform_top_indices[:, 1]
+    # antecedent
+    antecedent_top_indices = (translation_reference[edges[:, 0]] == edges[:, 2].unsqueeze(-1)).nonzero()
+    if antecedent_top_indices.size(0) > 0:
+        indC_edges[:, 2][antecedent_top_indices[:, 0]] = antecedent_top_indices[:, 1]
+    antecedent_ant_indices = (output_dict['antecedent_indices'][indC_edges[:, 0], indC_edges[:, 1]] ==
+                              indC_edges[:, 2].unsqueeze(-1)).nonzero()
+    if antecedent_ant_indices.size(0) > 0:
+        indC_edges[:, 2][antecedent_ant_indices[:, 0]] = antecedent_ant_indices[:, 1]
+    return indC_edges
 
 
 def filter_gold_cluster_edges(chosen_edges, span_labels):
@@ -836,10 +863,7 @@ def get_link_closures_edge(must_link, cannot_link, edge, should_link=False, must
 
         # update coreference_scores, predicted_antecedents, and/or coreference_scores_models (in case of qbc)
         pdb.set_trace()
-        coref_pairs[:, 1] = (translation_reference[coref_pairs[:, 0]] == coref_pairs[:, 1]).nonzero()[:, 1]
-        coref_pairs[:, 2] = (translation_reference[coref_pairs[:, 0]] == coref_pairs[:, 2]).nonzero()[:, 1]
-        coref_pairs[:, 2] = (output_dict['antecedent_indices'][coref_pairs[:, 0], coref_pairs[:, 1]] ==
-                             coref_pairs[:, 2]).nonzero()[:, 1]
+        coref_pairs = translate_to_indC(coref_pairs, output_dict, translation_reference)
         # this antecedent has 1 probability
         output_dict['coreference_scores'][coref_pairs[:, 0], coref_pairs[:, 1], :] = -float("inf")
         output_dict['coreference_scores'][coref_pairs[:, 0], coref_pairs[:, 1], coref_pairs[:, 2] + 1] = 0
@@ -852,11 +876,12 @@ def get_link_closures_edge(must_link, cannot_link, edge, should_link=False, must
         # 1. For each of CL(*,edge[1] cluster) and CL(edge[1] cluster,*), add CL(*,edge[2] cluster) and/or CL(edge[2] cluster,*)
         # 2. For each of CL(*,edge[2] cluster) and CL(edge[2] cluster,*), add CL(*,edge[1] cluster) and/or CL(edge[1] cluster,*)
         # CL involving elements of edge[1] cluster (the other element of it)
-        pdb.set_trace()
         if cannot_link.size(0) == 0:
             cannot_link_proform_idx = cannot_link
+            cannot_link_antecedent_idx = cannot_link
         else:
             cannot_link_proform_idx = (cannot_link.unsqueeze(-1) == proform_cluster).nonzero()
+            cannot_link_antecedent_idx = (cannot_link.unsqueeze(-1) == antecedent_cluster).nonzero()
         if cannot_link_proform_idx.size(0) > 0:
             cannot_link_proform_spans = torch.unique(cannot_link[cannot_link_proform_idx[:,0], 3 - cannot_link_proform_idx[:,1]])
             cannot_link_proform_pairs = torch.stack([
@@ -865,7 +890,6 @@ def get_link_closures_edge(must_link, cannot_link, edge, should_link=False, must
                 antecedent_cluster.repeat(cannot_link_proform_spans.size(0))]).transpose(0, 1)
         else:
             cannot_link_proform_pairs = cannot_link_proform_idx
-        cannot_link_antecedent_idx = (cannot_link.unsqueeze(-1) == antecedent_cluster).nonzero()
         if cannot_link_antecedent_idx.size(0) > 0:
             cannot_link_antecedent_spans = torch.unique(cannot_link[cannot_link_antecedent_idx[:,0], 3 - cannot_link_antecedent_idx[:,1]]).unsqueeze(-1)
             cannot_link_antecedent_pairs = torch.stack([
@@ -892,10 +916,7 @@ def get_link_closures_edge(must_link, cannot_link, edge, should_link=False, must
 
         # update coreference_scores, predicted_antecedents, and/or coreference_scores_models (in case of qbc)
         pdb.set_trace()
-        non_coref_pairs[:,1] = (translation_reference[non_coref_pairs[:,0]] == non_coref_pairs[:,1]).nonzero()[:,1]
-        non_coref_pairs[:,2] = (translation_reference[non_coref_pairs[:,0]] == non_coref_pairs[:,2]).nonzero()[:,1]
-        non_coref_pairs[:,2] = (output_dict['antecedent_indices'][non_coref_pairs[:,0], non_coref_pairs[:,1]] ==
-                                non_coref_pairs[:,2]).nonzero()[:,1]
+        non_coref_pairs = translate_to_indC(non_coref_pairs, output_dict, translation_reference)
         # this antecedent has 0 probability
         output_dict['coreference_scores'][non_coref_pairs[:,0], non_coref_pairs[:,1], non_coref_pairs[:,2] + 1] = \
             -float("inf")
@@ -936,10 +957,7 @@ def get_link_closures_edge(must_link, cannot_link, edge, should_link=False, must
 
         # update coreference_scores, predicted_antecedents, and/or coreference_scores_models (in case of qbc)
         pdb.set_trace()
-        non_coref_pairs[:,1] = (translation_reference[non_coref_pairs[:,0]] == non_coref_pairs[:,1]).nonzero()[:,1]
-        non_coref_pairs[:,2] = (translation_reference[non_coref_pairs[:,0]] == non_coref_pairs[:,2]).nonzero()[:,1]
-        non_coref_pairs[:,2] = (output_dict['antecedent_indices'][non_coref_pairs[:,0], non_coref_pairs[:,1]] ==
-                                non_coref_pairs[:,2]).nonzero()[:,1]
+        non_coref_pairs = translate_to_indC(non_coref_pairs, output_dict, translation_reference)
         # this antecedent has 0 probability
         output_dict['coreference_scores'][non_coref_pairs[:,0], non_coref_pairs[:,1], non_coref_pairs[:,2] + 1] = \
             -float("inf")

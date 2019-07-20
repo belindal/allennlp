@@ -1109,8 +1109,6 @@ class Trainer(Registrable):
                                                                                indA_edge_asked, False,
                                                                                confirmed_clusters, output_dict,
                                                                                translation_reference, True)
-                                            # Add to cannot-link
-                                            batch['cannot_link'] = torch.cat((batch['cannot_link'], indA_edge_asked.unsqueeze(0)), dim=0)
 
                                         # Add edge deemed coreferent
                                         if indA_edge[2] != -1:
@@ -1127,8 +1125,6 @@ class Trainer(Registrable):
                                                 al_util.get_link_closures_edge(batch['must_link'], batch['cannot_link'],
                                                                                indA_edge, True, confirmed_clusters,
                                                                                output_dict, translation_reference, True)
-                                            # Add to must-link
-                                            batch['must_link'] = torch.cat((batch['must_link'], indA_edge.unsqueeze(0)), dim=0)
                                         num_queried += 1
                                 else:  # pairwise
                                     if self._use_percent_labels:
