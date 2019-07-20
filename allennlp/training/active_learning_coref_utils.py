@@ -929,13 +929,14 @@ def get_link_closures_edge(must_link, cannot_link, edge, should_link=False, must
             # have non-zero probability)
             non_coref_pairs = non_coref_pairs[non_coref_pairs[:, 2] > -1]
             # this antecedent has 0 probability
-            output_dict['coreference_scores'][non_coref_pairs[:,0], non_coref_pairs[:,1], non_coref_pairs[:,2] + 1] = \
-                -float("inf")
-            output_dict['predicted_antecedents'][non_coref_pairs[:,0], non_coref_pairs[:,1]] = \
-                output_dict['coreference_scores'][non_coref_pairs[:,0], non_coref_pairs[:,1]].argmax(1) - 1
-            if 'coreference_scores_models' in output_dict:
-                output_dict['coreference_scores_models'][:, non_coref_pairs[:,0], non_coref_pairs[:,1],
-                                                         non_coref_pairs[:,2] + 1] = -float("inf")
+            if non_coref_pairs.size(0) > 0:
+                output_dict['coreference_scores'][non_coref_pairs[:,0], non_coref_pairs[:,1], non_coref_pairs[:,2] + 1] = \
+                    -float("inf")
+                output_dict['predicted_antecedents'][non_coref_pairs[:,0], non_coref_pairs[:,1]] = \
+                    output_dict['coreference_scores'][non_coref_pairs[:,0], non_coref_pairs[:,1]].argmax(1) - 1
+                if 'coreference_scores_models' in output_dict:
+                    output_dict['coreference_scores_models'][:, non_coref_pairs[:,0], non_coref_pairs[:,1],
+                                                             non_coref_pairs[:,2] + 1] = -float("inf")
 
         must_link_labels = update_clusters_with_edge(must_link_labels, edge)
 

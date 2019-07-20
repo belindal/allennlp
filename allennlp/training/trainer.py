@@ -1080,13 +1080,6 @@ class Trainer(Registrable):
                                         # add mention to queried before (arbitrarily set it in predicted_antecedents and coreference_scores to no cluster, even if not truly
                                         # the case--the only thing that matters is that it has a value that it is 100% confident of)
                                         queried_mentions_mask[mention[0], mention[1]] = 1
-                                        # # arbitrarily set to null antecedent
-                                        # output_dict['predicted_antecedents'][mention[0], mention[1]] = -1  # TODO why not set to indA_edge from above?
-                                        # output_dict['coreference_scores'][mention[0], mention[1], 1:] = -float("inf")
-                                        # if self._selector == 'qbc':
-                                        #     # must update for each model
-                                        #     output_dict['coreference_scores_models'][:, mention[0], mention[1],
-                                        #     1:] = -float("inf")
 
                                         # If asked edge was deemed not coreferent, delete it
                                         if indA_edge_asked[2] != indA_edge[2] and len(indA_model_edges) > 0:
@@ -1125,6 +1118,14 @@ class Trainer(Registrable):
                                                 al_util.get_link_closures_edge(batch['must_link'], batch['cannot_link'],
                                                                                indA_edge, True, confirmed_clusters,
                                                                                output_dict, translation_reference, True)
+                                        else:
+                                            # set to null antecedent
+                                            output_dict['predicted_antecedents'][mention[0], mention[1]] = -1
+                                            output_dict['coreference_scores'][mention[0], mention[1], 1:] = -float("inf")
+                                            if self._selector == 'qbc':
+                                                # must update for each model
+                                                output_dict['coreference_scores_models'][:, mention[0], mention[1],
+                                                1:] = -float("inf")
                                         num_queried += 1
                                 else:  # pairwise
                                     if self._use_percent_labels:
