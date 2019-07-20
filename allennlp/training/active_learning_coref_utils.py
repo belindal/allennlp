@@ -1023,6 +1023,8 @@ def get_link_closures(must_link, cannot_link):
                 cluster_pairs = torch.cat([(torch.ones(cluster_pairs.size(0), dtype=torch.long, device=must_link.device)
                                             * i).unsqueeze(-1), cluster_pairs], dim=-1)
                 must_link_closure = torch.cat([must_link_closure, cluster_pairs])
+    else:
+        must_link_labels = torch.Tensor([]).long().cuda(must_link.device)
     pdb.set_trace()
 
     # CANNOT LINK CLOSURE
@@ -1032,16 +1034,21 @@ def get_link_closures(must_link, cannot_link):
     # 2. find all elements in a's cluster
     # 3. add CL relation for all of them
     for link in cannot_link:
-        # find all elements in link[1]'s cluster
-        proform_cluster = ((must_link_labels[link[0]] == must_link_labels[link[0], link[1]]) &
-                           (must_link_labels[link[0], link[1]] != -1)).nonzero().squeeze()
-        if proform_cluster.size(0) == 0:  # should have at least itself
+        if must_link_labels.size(0) > 0:
+            # find all elements in link[1]'s cluster
+            proform_cluster = ((must_link_labels[link[0]] == must_link_labels[link[0], link[1]]) &
+                               (must_link_labels[link[0], link[1]] != -1)).nonzero().squeeze()
+            if proform_cluster.size(0) == 0:  # should have at least itself
+                proform_cluster = link[1].unsqueeze(0)
+            # find all elements in link[2]'s cluster
+            antecedent_cluster = ((must_link_labels[link[0]] == must_link_labels[link[0], link[2]]) &
+                                  (must_link_labels[link[0], link[2]] != -1)).nonzero().squeeze()
+            if antecedent_cluster.size(0) == 0:  # should have at least itself
+                antecedent_cluster = link[2].unsqueeze(0)
+        else:
             proform_cluster = link[1].unsqueeze(0)
-        # find all elements in link[2]'s cluster
-        antecedent_cluster = ((must_link_labels[link[0]] == must_link_labels[link[0], link[2]]) &
-                              (must_link_labels[link[0], link[2]] != -1)).nonzero().squeeze()
-        if antecedent_cluster.size(0) == 0:  # should have at least itself
             antecedent_cluster = link[2].unsqueeze(0)
+
         # make each element of the clusters non-coreferent to each other
         non_coref_pairs = torch.stack([
             proform_cluster.unsqueeze(-1).expand(proform_cluster.size(0), antecedent_cluster.size(0)).reshape(-1),
