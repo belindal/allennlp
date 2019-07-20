@@ -864,6 +864,10 @@ def get_link_closures_edge(must_link, cannot_link, edge, should_link=False, must
         # update coreference_scores, predicted_antecedents, and/or coreference_scores_models (in case of qbc)
         pdb.set_trace()
         coref_pairs = translate_to_indC(coref_pairs, output_dict, translation_reference)
+        # if some proform doesn't exist in top_span (should not happen)
+        if (coref_pairs[:, 1] == -1).nonzero().size(0) > 0:
+            pdb.set_trace()
+        # if some antecedent doesn't exist in top_span, just set to "no antecedent" by convention
         # this antecedent has 1 probability
         output_dict['coreference_scores'][coref_pairs[:, 0], coref_pairs[:, 1], :] = -float("inf")
         output_dict['coreference_scores'][coref_pairs[:, 0], coref_pairs[:, 1], coref_pairs[:, 2] + 1] = 0
@@ -917,6 +921,12 @@ def get_link_closures_edge(must_link, cannot_link, edge, should_link=False, must
         # update coreference_scores, predicted_antecedents, and/or coreference_scores_models (in case of qbc)
         pdb.set_trace()
         non_coref_pairs = translate_to_indC(non_coref_pairs, output_dict, translation_reference)
+        # if some proform doesn't exist in top_span (should not happen)
+        if (non_coref_pairs[:, 1] == -1).nonzero().size(0) > 0:
+            pdb.set_trace()
+        # if some antecedent doesn't exist in top_span, don't modify those examples (since all valid antecedents still
+        # have non-zero probability)
+        non_coref_pairs = non_coref_pairs[non_coref_pairs[:, 2] > -1]
         # this antecedent has 0 probability
         output_dict['coreference_scores'][non_coref_pairs[:,0], non_coref_pairs[:,1], non_coref_pairs[:,2] + 1] = \
             -float("inf")
@@ -958,6 +968,12 @@ def get_link_closures_edge(must_link, cannot_link, edge, should_link=False, must
         # update coreference_scores, predicted_antecedents, and/or coreference_scores_models (in case of qbc)
         pdb.set_trace()
         non_coref_pairs = translate_to_indC(non_coref_pairs, output_dict, translation_reference)
+        # if some proform doesn't exist in top_span (should not happen)
+        if (non_coref_pairs[:, 1] == -1).nonzero().size(0) > 0:
+            pdb.set_trace()
+        # if some antecedent doesn't exist in top_span, don't modify those examples (since all valid antecedents still
+        # have non-zero probability)
+        non_coref_pairs = non_coref_pairs[non_coref_pairs[:, 2] > -1]
         # this antecedent has 0 probability
         output_dict['coreference_scores'][non_coref_pairs[:,0], non_coref_pairs[:,1], non_coref_pairs[:,2] + 1] = \
             -float("inf")
