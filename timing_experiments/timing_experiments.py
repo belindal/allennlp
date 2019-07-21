@@ -2,6 +2,7 @@ import pdb
 import time
 import argparse
 from getch import getch
+import textwrap
 import os
 
 parser = argparse.ArgumentParser(description='Run setting')
@@ -15,6 +16,8 @@ parser.add_argument('input_document',
 parser.add_argument('output_document',
                     type=str,
                     help='output document in which to write labeled and timed examples')
+
+wrapper = textwrap.TextWrapper(width=100)
 
 
 args = vars(parser.parse_args())
@@ -58,11 +61,12 @@ i = num_already_queried
 try:
     while i < len(examples):
         os.system("clear")
-        print(examples[i].strip())
+        print('\n' + textwrap.indent(text=wrapper.fill(examples[i].strip()), prefix='    ', predicate=lambda line: True) + '\n')
         start_time = time.time()
         discrete_start_time = 0
-        print("Are these two coreferent? y/[n] ('q' to quit with save, 'p' to go back to previous example): ")
+        print("\x1b[0;31;40mAre these two coreferent? y/[n] ('q' to quit with save, 'p' to go back to previous example):\x1b[0m ")
         val = getch()
+        print(val)
         if val.startswith('y') or val.startswith('Y'):
             if i >= len(user_answers):
                 user_answers.append(True)
@@ -81,7 +85,7 @@ try:
                 user_answers[i] = False
             if QUERY_TYPE == "discrete":
                 discrete_start_time = time.time()
-                new_item = input("What is the *first* appearance of the entity that the white-highlighted text refers to? (copy from document): ")
+                new_item = input("\x1b[0;31;40mWhat is the *first* appearance of the entity that the white-highlighted text refers to? (copy from document):\x1b[0m \n")
                 new_ants[i] = new_item
         end_time = time.time()
         if val.startswith('y') or val.startswith('Y') or val.startswith('n') or val.startswith('N'):
