@@ -1095,8 +1095,6 @@ class Trainer(Registrable):
                                             else:
                                                 confirmed_non_coref_edges = torch.cat(
                                                     (confirmed_non_coref_edges, indA_edge_asked.unsqueeze(0)), dim=0)
-                                            # TODO PRUNING
-                                            pdb.set_trace()
                                             batch['must_link'], batch['cannot_link'], confirmed_clusters, output_dict = \
                                                 al_util.get_link_closures_edge(batch['must_link'], batch['cannot_link'],
                                                                                indA_edge_asked, False,
@@ -1112,8 +1110,6 @@ class Trainer(Registrable):
                                                                              dim=0)
                                                 batch['span_labels'] = al_util.update_clusters_with_edge(
                                                     batch['span_labels'], indA_edge)
-                                            # TODO PRUNING
-                                            pdb.set_trace()
                                             batch['must_link'], batch['cannot_link'], confirmed_clusters, output_dict = \
                                                 al_util.get_link_closures_edge(batch['must_link'], batch['cannot_link'],
                                                                                indA_edge, True, confirmed_clusters,

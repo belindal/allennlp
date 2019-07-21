@@ -87,10 +87,13 @@ def translate_to_indC(edges, output_dict, translation_reference):
     antecedent_top_indices = (translation_reference[edges[:, 0]] == edges[:, 2].unsqueeze(-1)).nonzero()
     if antecedent_top_indices.size(0) > 0:
         indC_edges[:, 2][antecedent_top_indices[:, 0]] = antecedent_top_indices[:, 1]
-    antecedent_ant_indices = (output_dict['antecedent_indices'][indC_edges[:, 0], indC_edges[:, 1]] ==
-                              indC_edges[:, 2].unsqueeze(-1)).nonzero()
+    has_antecedent_mask = (output_dict['antecedent_indices'][indC_edges[:, 0], indC_edges[:, 1]] ==
+                           indC_edges[:, 2].unsqueeze(-1))
+    antecedent_ant_indices = has_antecedent_mask.nonzero()
+    has_antecedent_mask = has_antecedent_mask.sum(-1) > 0
     if antecedent_ant_indices.size(0) > 0:
         indC_edges[:, 2][antecedent_ant_indices[:, 0]] = antecedent_ant_indices[:, 1]
+    indC_edges[:, 2][~has_antecedent_mask] = -1
     return indC_edges
 
 
@@ -825,8 +828,17 @@ def find_next_most_uncertain_mention(selector, model_labels, output_dict, querie
 # incremental closure
 def get_link_closures_edge(must_link, cannot_link, edge, should_link=False, must_link_labels=None, output_dict=None,
                            translation_reference=None, DEBUG_FLAG=True):
-   # TODO update for each model for QBC
-    pdb.set_trace()
+    # ensure edge is valid
+    if should_link and edge[1] == edge[2]:
+        top_ind_edge = (translation_reference[edge[0]] == edge[1]).nonzero().item()
+        output_dict['coreference_scores'][edge[0], top_ind_edge, :] = -float("inf")
+        output_dict['coreference_scores'][edge[0], top_ind_edge, 0] = 0
+        output_dict['predicted_antecedents'][edge[0], top_ind_edge] = -1 
+        if 'coreference_scores_models' in output_dict:
+            output_dict['coreference_scores_models'][:, edge[0], top_ind_edge, :] = -float("inf")
+            output_dict['coreference_scores_models'][:, edge[0], top_ind_edge, 0] = 0
+        return must_link, cannot_link, must_link_labels, output_dict
+    # TODO update for each model for QBC
     # MUST LINK CLOSURE
     must_link_closure = must_link.clone()  # closure (only edges from bigger -> smaller)
     cannot_link_closure = cannot_link.clone()
@@ -862,7 +874,6 @@ def get_link_closures_edge(must_link, cannot_link, edge, should_link=False, must
         must_link_closure = torch.cat([must_link_closure, coref_pairs])
 
         # update coreference_scores, predicted_antecedents, and/or coreference_scores_models (in case of qbc)
-        pdb.set_trace()
         coref_pairs = translate_to_indC(coref_pairs, output_dict, translation_reference)
         # if some proform doesn't exist in top_span (should not happen)
         if (coref_pairs[:, 1] == -1).nonzero().size(0) > 0:
@@ -870,8 +881,13 @@ def get_link_closures_edge(must_link, cannot_link, edge, should_link=False, must
         # if some antecedent doesn't exist in top_span, just set to "no antecedent" by convention
         # this antecedent has 1 probability
         output_dict['coreference_scores'][coref_pairs[:, 0], coref_pairs[:, 1], :] = -float("inf")
-        output_dict['coreference_scores'][coref_pairs[:, 0], coref_pairs[:, 1], coref_pairs[:, 2] + 1] = 0
         output_dict['predicted_antecedents'][coref_pairs[:, 0], coref_pairs[:, 1]] = coref_pairs[:, 2]
+        output_dict['coreference_scores'][coref_pairs[:, 0], coref_pairs[:, 1],
+            output_dict['predicted_antecedents'][coref_pairs[:, 0], coref_pairs[:, 1]] + 1] = 0
+        try:
+            assert ((output_dict['coreference_scores'][coref_pairs[:, 0], coref_pairs[:, 1]] == 0).sum(-1) == 1).nonzero().size(0) > 0
+        except:
+            pdb.set_trace()
         if 'coreference_scores_models' in output_dict:
             output_dict['coreference_scores_models'][:, coref_pairs[:, 0], coref_pairs[:, 1], :] = -float("inf")
             output_dict['coreference_scores_models'][:, coref_pairs[:, 0], coref_pairs[:, 1], coref_pairs[:, 2] + 1] = 0
@@ -917,37 +933,51 @@ def get_link_closures_edge(must_link, cannot_link, edge, should_link=False, must
                 [(torch.ones(non_coref_pairs.size(0), dtype=torch.long, device=cannot_link.device)
                   * edge[0]).unsqueeze(-1), non_coref_pairs], dim=-1)
 
+            # delete those which already exist in cannot_link_closure (unique-ify)
+            base = max(cannot_link_closure.max(), non_coref_pairs.max())
+            cannot_link_edge_inds = (cannot_link_closure[:,0] * base^2 + cannot_link_closure[:,1] * base + cannot_link_closure[:,2])
+            non_coref_edge_inds = (non_coref_pairs[:,0] * base^2 + non_coref_pairs[:,1] * base + non_coref_pairs[:,2])
+            non_coref_pairs = non_coref_pairs[(cannot_link_edge_inds.unsqueeze(-1) == non_coref_edge_inds).sum(0) == 0]
             cannot_link_closure = torch.cat([cannot_link_closure, non_coref_pairs])
 
             # update coreference_scores, predicted_antecedents, and/or coreference_scores_models (in case of qbc)
-            pdb.set_trace()
-            non_coref_pairs = translate_to_indC(non_coref_pairs, output_dict, translation_reference)
-            # if some proform doesn't exist in top_span (should not happen)
-            if (non_coref_pairs[:, 1] == -1).nonzero().size(0) > 0:
-                pdb.set_trace()
-            # if some antecedent doesn't exist in top_span, don't modify those examples (since all valid antecedents still
-            # have non-zero probability)
-            non_coref_pairs = non_coref_pairs[non_coref_pairs[:, 2] > -1]
-            # this antecedent has 0 probability
             if non_coref_pairs.size(0) > 0:
-                output_dict['coreference_scores'][non_coref_pairs[:,0], non_coref_pairs[:,1], non_coref_pairs[:,2] + 1] = \
-                    -float("inf")
-                output_dict['predicted_antecedents'][non_coref_pairs[:,0], non_coref_pairs[:,1]] = \
-                    output_dict['coreference_scores'][non_coref_pairs[:,0], non_coref_pairs[:,1]].argmax(1) - 1
-                if 'coreference_scores_models' in output_dict:
-                    output_dict['coreference_scores_models'][:, non_coref_pairs[:,0], non_coref_pairs[:,1],
-                                                             non_coref_pairs[:,2] + 1] = -float("inf")
+                non_coref_pairs = translate_to_indC(non_coref_pairs, output_dict, translation_reference)
+                # if some proform/antecedent doesn't exist in top_span, don't modify those examples (since all valid antecedents still
+                # have non-zero probability)
+                non_coref_pairs = non_coref_pairs[(non_coref_pairs[:, 2] > -1) & (non_coref_pairs[:, 1] > -1)]
+                # this antecedent has 0 probability
+                if non_coref_pairs.size(0) > 0:
+                    output_dict['coreference_scores'][non_coref_pairs[:,0], non_coref_pairs[:,1], non_coref_pairs[:,2] + 1] = \
+                        -float("inf")
+                    output_dict['predicted_antecedents'][non_coref_pairs[:,0], non_coref_pairs[:,1]] = \
+                        output_dict['coreference_scores'][non_coref_pairs[:,0], non_coref_pairs[:,1]].argmax(1) - 1
+                    if 'coreference_scores_models' in output_dict:
+                        output_dict['coreference_scores_models'][:, non_coref_pairs[:,0], non_coref_pairs[:,1],
+                                                                 non_coref_pairs[:,2] + 1] = -float("inf")
 
         must_link_labels = update_clusters_with_edge(must_link_labels, edge)
+        try:
+            assert ((must_link_labels[must_link_closure[:,0], must_link_closure[:,1]] == must_link_labels[must_link_closure[:,0], must_link_closure[:,2]]) & (must_link_labels[must_link_closure[:,0], must_link_closure[:,1]] != -1) != 1).nonzero().size(0) == 0
+        except:
+            pdb.set_trace()
 
         # check we have the complete set:
         if DEBUG_FLAG:
             must_link = torch.cat([must_link, edge.unsqueeze(0)])
             must_link_closure_2, cannot_link_closure_2 = get_link_closures(must_link, cannot_link)
-            assert (must_link_closure_2 != must_link_closure).nonzero().size(0) == 0
-            assert (cannot_link_closure_2 != cannot_link_closure).nonzero().size(0) == 0
+            try:
+                assert (must_link_closure_2 != must_link_closure).nonzero().size(0) == 0
+                assert (cannot_link_closure_2 != cannot_link_closure).nonzero().size(0) == 0
+            except:
+                try:
+                    assert must_link_closure.size(0) == must_link_closure_2.size(0)
+                    assert cannot_link_closure.size(0) == cannot_link_closure_2.size(0)
+                    assert (((must_link_closure.unsqueeze(1).unsqueeze(-1) == must_link_closure_2.unsqueeze(1)).sum(-1) == 1).sum(-1) == 3).nonzero().size(0) == must_link_closure.size(0)
+                    assert (((cannot_link_closure.unsqueeze(1).unsqueeze(-1) == cannot_link_closure_2.unsqueeze(1)).sum(-1) == 1).sum(-1) == 3).nonzero().size(0) == cannot_link_closure.size(0)
+                except:
+                    pdb.set_trace()
     else:
-        pdb.set_trace()
         # must-link remains the same
         # cannot-link gets elements of respective clusters linked up w/ each other C_A <-/-> C_B means
         non_coref_pairs = torch.stack([
@@ -969,7 +999,6 @@ def get_link_closures_edge(must_link, cannot_link, edge, should_link=False, must
         cannot_link_closure = torch.cat([cannot_link_closure, non_coref_pairs])
 
         # update coreference_scores, predicted_antecedents, and/or coreference_scores_models (in case of qbc)
-        pdb.set_trace()
         non_coref_pairs = translate_to_indC(non_coref_pairs, output_dict, translation_reference)
         # if some proform doesn't exist in top_span (should not happen)
         if (non_coref_pairs[:, 1] == -1).nonzero().size(0) > 0:
@@ -990,8 +1019,17 @@ def get_link_closures_edge(must_link, cannot_link, edge, should_link=False, must
         if DEBUG_FLAG:
             cannot_link = torch.cat([cannot_link, edge.unsqueeze(0)])
             must_link_closure_2, cannot_link_closure_2 = get_link_closures(must_link, cannot_link)
-            assert (must_link_closure_2 != must_link_closure).nonzero().size(0) == 0
-            assert (cannot_link_closure_2 != cannot_link_closure).nonzero().size(0) == 0
+            try:
+                assert (must_link_closure_2 != must_link_closure).nonzero().size(0) == 0
+                assert (cannot_link_closure_2 != cannot_link_closure).nonzero().size(0) == 0
+            except:
+                try:
+                    assert must_link_closure.size(0) == must_link_closure_2.size(0)
+                    assert cannot_link_closure.size(0) == cannot_link_closure_2.size(0)
+                    assert (((must_link_closure.unsqueeze(1).unsqueeze(-1) == must_link_closure_2.unsqueeze(1)).sum(-1) == 1).sum(-1) == 3).nonzero().size(0) == must_link_closure.size(0)
+                    assert (((cannot_link_closure.unsqueeze(1).unsqueeze(-1) == cannot_link_closure_2.unsqueeze(1)).sum(-1) == 1).sum(-1) == 3).nonzero().size(0) == cannot_link_closure.size(0)
+                except:
+                    pdb.set_trace()
 
     return must_link_closure, cannot_link_closure, must_link_labels, output_dict
 
@@ -1002,7 +1040,6 @@ def get_link_closures_edge(must_link, cannot_link, edge, should_link=False, must
 # how about: ML(a,b) & CL(b,c) = CL(a,c) (?)
 def get_link_closures(must_link, cannot_link):
     # MUST LINK CLOSURE
-    pdb.set_trace()
     must_link_closure = torch.Tensor([]).long().cuda(must_link.device)  # closure (only edges from bigger -> smaller)
     max_batch = 0
     if must_link.size(0) > 0:
@@ -1015,12 +1052,10 @@ def get_link_closures(must_link, cannot_link):
         # convert to clusters
         for link in must_link:
             must_link_labels = update_clusters_with_edge(must_link_labels, link)
-        pdb.set_trace()
 
         # fully connect all clusters
         for i, must_link_labels_ins in enumerate(must_link_labels):
             for cluster in range(must_link_labels_ins.max() + 1):
-                pdb.set_trace()
                 cluster_spans = (must_link_labels_ins == cluster).nonzero()
                 cluster_pairs = torch.stack([cluster_spans.expand(cluster_spans.size(0), cluster_spans.size(0)).reshape(-1),
                                              cluster_spans.squeeze().repeat(cluster_spans.size(0))]).transpose(0,1)
@@ -1032,7 +1067,6 @@ def get_link_closures(must_link, cannot_link):
                 must_link_closure = torch.cat([must_link_closure, cluster_pairs])
     else:
         must_link_labels = torch.Tensor([]).long().cuda(must_link.device)
-    pdb.set_trace()
 
     # CANNOT LINK CLOSURE
     cannot_link_closure = torch.Tensor([]).long().cuda(cannot_link.device)
@@ -1041,6 +1075,9 @@ def get_link_closures(must_link, cannot_link):
     # 2. find all elements in a's cluster
     # 3. add CL relation for all of them
     for link in cannot_link:
+        # check to ensure link is not already in closure, so we don't re-add edges
+        if cannot_link_closure.size(0) > 0 and ((cannot_link_closure == link).sum(-1) == 3).nonzero().size(0) > 0:
+            continue
         if must_link_labels.size(0) > 0:
             # find all elements in link[1]'s cluster
             proform_cluster = ((must_link_labels[link[0]] == must_link_labels[link[0], link[1]]) &
@@ -1070,6 +1107,5 @@ def get_link_closures(must_link, cannot_link):
                                     * link[0]).unsqueeze(-1), non_coref_pairs], dim=-1)
         cannot_link_closure = torch.cat([cannot_link_closure, non_coref_pairs])
 
-    pdb.set_trace()
     return must_link_closure, cannot_link_closure
 
