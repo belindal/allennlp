@@ -900,7 +900,7 @@ def get_link_closures_edge(must_link, cannot_link, edge, should_link=False, must
             cannot_link_antecedent_idx = (cannot_link[:, 1:].unsqueeze(-1) == antecedent_cluster).nonzero()
         if cannot_link_proform_idx.size(0) > 0:
             # choose the *other* edge
-            # 0->2, 1->1
+            # 0->2, 1->1 (since 1st column deleted above)
             cannot_link_proform_spans = (cannot_link[cannot_link_proform_idx[:, 0],
                                                      2 - cannot_link_proform_idx[:, 1]]).unique()
             cannot_link_proform_pairs = torch.stack([
@@ -911,7 +911,7 @@ def get_link_closures_edge(must_link, cannot_link, edge, should_link=False, must
             cannot_link_proform_pairs = cannot_link_proform_idx
         if cannot_link_antecedent_idx.size(0) > 0:
             # choose the *other* edge
-            # 0->2, 1->1 (since squeezed)
+            # 0->2, 1->1 (since 1st column deleted above)
             cannot_link_antecedent_spans = (cannot_link[cannot_link_antecedent_idx[:, 0],
                                                         2 - cannot_link_antecedent_idx[:, 1]]).unique().unsqueeze(-1)
             cannot_link_antecedent_pairs = torch.stack([
