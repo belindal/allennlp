@@ -25,7 +25,7 @@ class PairField(Field[torch.Tensor]):
 
     @overrides
     def empty_field(self):
-        return PairField(SpanField.empty_field, SpanField.empty_field)
+        return PairField(self.first_item.empty_field(), self.sec_item.empty_field())
 
     def __str__(self) -> str:
         return f"SpanField with spans: ({self.first_item}, {self.sec_item})."

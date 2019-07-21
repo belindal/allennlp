@@ -29,7 +29,7 @@ from allennlp.common.util import dump_metrics, gpu_memory_mb, parse_cuda_device,
 from allennlp.common.tqdm import Tqdm
 from allennlp.data.instance import Instance
 from allennlp.data.iterators.data_iterator import DataIterator
-from allennlp.data.fields import SequenceLabelField, PairField, ListField, IndexField
+from allennlp.data.fields import SequenceLabelField, SequenceField, PairField, ListField, IndexField
 from allennlp.models.model import Model
 from allennlp.models.coreference_resolution import CoreferenceResolver, CorefEnsemble
 from allennlp.nn import util
@@ -1286,28 +1286,9 @@ class Trainer(Registrable):
                                     train_instances_to_update[ind_instance] = [[], []]
 
                             # do transitive closure of must-links and cannot-links
-                            try:
+                            if self._query_type != 'discrete':
                                 must_link_closure, cannot_link_closure = al_util.get_link_closures(batch['must_link'],
                                                                                                    batch['cannot_link'])
-                            except:
-                                pdb.set_trace()
-
-                            try:
-                                assert must_link_closure.size(0) == batch['must_link'].size(0)
-                                assert cannot_link_closure.size(0) == batch['cannot_link'].size(0)
-                                if must_link_closure.size(0) > 0:
-                                    m = (must_link_closure.unsqueeze(1).unsqueeze(-1) == batch['must_link'].unsqueeze(1))
-                                    assert (((m.sum(-1) >= 1).sum(-1) >= 3) & (
-                                                (m.sum(-2) >= 1).sum(-1) >= 3)).nonzero().size(
-                                        0) == must_link_closure.size(0)
-                                if cannot_link_closure.size(0) > 0:
-                                    m = (cannot_link_closure.unsqueeze(1).unsqueeze(
-                                        -1) == batch['cannot_link'].unsqueeze(1))
-                                    assert (((m.sum(-1) >= 1).sum(-1) >= 3) & (
-                                                (m.sum(-2) >= 1).sum(-1) >= 3)).nonzero().size(
-                                        0) == cannot_link_closure.size(0)
-                            except:
-                                pdb.set_trace()
 
                             # update must-links and cannot-links
                             for edge in batch['must_link']:
@@ -1343,12 +1324,22 @@ class Trainer(Registrable):
                                     train_data_to_add[ind_instance_overall].fields['span_labels'].sequence_field
                                 )
                                 try:
-                                    train_data_to_add[ind_instance_overall].fields['must_link'] = ListField(
-                                        train_instances_to_update[ind_instance][0]
-                                    )
-                                    train_data_to_add[ind_instance_overall].fields['cannot_link'] = ListField(
-                                        train_instances_to_update[ind_instance][1]
-                                    )
+                                    if len(train_instances_to_update[ind_instance][0]) == 0:
+                                        train_data_to_add[ind_instance_overall].fields['must_link'] = ListField([
+                                            PairField(IndexField(-1, SequenceField()), IndexField(-1, SequenceField()))
+                                        ])
+                                    else:
+                                        train_data_to_add[ind_instance_overall].fields['must_link'] = ListField(
+                                            train_instances_to_update[ind_instance][0]
+                                        )
+                                    if len(train_instances_to_update[ind_instance][1]) == 0:
+                                        train_data_to_add[ind_instance_overall].fields['cannot_link'] = ListField([
+                                            PairField(IndexField(-1, SequenceField()), IndexField(-1, SequenceField()))
+                                        ])
+                                    else:
+                                        train_data_to_add[ind_instance_overall].fields['cannot_link'] = ListField(
+                                            train_instances_to_update[ind_instance][1]
+                                        )
                                 except:
                                     pdb.set_trace()
 
