@@ -1012,11 +1012,11 @@ def get_link_closures_edge(must_link, cannot_link, edge, should_link=False, must
             assert must_link_closure.size(0) == must_link_closure_2.size(0)
             assert cannot_link_closure.size(0) == cannot_link_closure_2.size(0)
             if must_link_closure.size(0) > 0:
-                assert (((must_link_closure.unsqueeze(1).unsqueeze(-1) == must_link_closure_2.unsqueeze(1)).sum(-1) == 1
-                         ).sum(-1) == 3).nonzero().size(0) == must_link_closure.size(0)
+                m = (must_link_closure.unsqueeze(1).unsqueeze(-1) == must_link_closure_2.unsqueeze(1))
+                assert (((m.sum(-1) >= 1).sum(-1) >= 3) & ((m.sum(-2) >= 1).sum(-1) >= 3)).nonzero().size(0) == must_link_closure.size(0)
             if cannot_link_closure.size(0) > 0:
-                assert (((cannot_link_closure.unsqueeze(1).unsqueeze(-1) == cannot_link_closure_2.unsqueeze(1)).sum(-1) == 1
-                         ).sum(-1) == 3).nonzero().size(0) == cannot_link_closure.size(0)
+                m = (cannot_link_closure.unsqueeze(1).unsqueeze(-1) == cannot_link_closure_2.unsqueeze(1))
+                assert (((m.sum(-1) >= 1).sum(-1) >= 3) & ((m.sum(-2) >= 1).sum(-1) >= 3)).nonzero().size(0) == cannot_link_closure.size(0)
         except:
             pdb.set_trace()
 

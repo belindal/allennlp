@@ -1099,7 +1099,7 @@ class Trainer(Registrable):
                                                 al_util.get_link_closures_edge(batch['must_link'], batch['cannot_link'],
                                                                                indA_edge_asked, False,
                                                                                confirmed_clusters, output_dict,
-                                                                               translation_reference, True)
+                                                                               translation_reference, False)
 
                                         # Add edge deemed coreferent
                                         if indA_edge[2] != -1:
@@ -1113,7 +1113,7 @@ class Trainer(Registrable):
                                             batch['must_link'], batch['cannot_link'], confirmed_clusters, output_dict = \
                                                 al_util.get_link_closures_edge(batch['must_link'], batch['cannot_link'],
                                                                                indA_edge, True, confirmed_clusters,
-                                                                               output_dict, translation_reference, True)
+                                                                               output_dict, translation_reference, False)
                                         else:
                                             # set to null antecedent
                                             output_dict['predicted_antecedents'][mention[0], mention[1]] = -1
