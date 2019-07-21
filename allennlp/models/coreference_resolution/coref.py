@@ -373,7 +373,9 @@ class CoreferenceResolver(Model):
             negative_marginal_log_likelihood = -util.logsumexp(correct_antecedent_log_probs).sum()
 
             # Now add constraints
-            if must_link is not None:
+            pdb.set_trace()
+            if must_link is not None and (len(must_link) > 1 or must_link[0, 0] != -1 or must_link[0, 1] != -1):
+                # TODO fix this
                 # indices of must_link converted to top_spans
                 top_must_link = -torch.ones(must_link.size()[:3], dtype=torch.long).cuda(util.get_device_of(must_link))
                 top_must_link_idx = (must_link - top_span_indices == 0).nonzero()
@@ -422,7 +424,7 @@ class CoreferenceResolver(Model):
                                                 pdb.set_trace()
                                             penalty_idx += 1
                             negative_marginal_log_likelihood += util.logsumexp(-must_link_penalty * self._must_link_weight).sum()
-            if cannot_link is not None:
+            if cannot_link is not None and (len(cannot_link) > 1 or cannot_link[0, 0] != -1 or cannot_link[0, 1] != -1):
                 # indices of cannot_link converted to top_spans
                 top_cannot_link = -torch.ones(cannot_link.size()[:3], dtype=torch.long).cuda(util.get_device_of(cannot_link))
                 top_cannot_link_idx = (cannot_link - top_span_indices == 0).nonzero()
