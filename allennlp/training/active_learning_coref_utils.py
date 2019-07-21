@@ -573,6 +573,7 @@ def query_user_labels_pairwise(edge, output_dict, all_spans, user_labels, transl
 
 
 def query_user_labels_mention(mention, output_dict, all_spans, user_labels, translation_reference=None, sample_from_training=True, batch=None):
+    # TODO check if we can set user_labels to -1 if it is 1st span
     # returns:
     # 1. edge: indA of edge, if coreferent, will be identical to indA_edge_ask, otherwise,
     #          edge antecedent will be "fixed", pointing to -1 if there are no other spans
@@ -838,7 +839,6 @@ def get_link_closures_edge(must_link, cannot_link, edge, should_link=False, must
             output_dict['coreference_scores_models'][:, edge[0], top_ind_edge, :] = -float("inf")
             output_dict['coreference_scores_models'][:, edge[0], top_ind_edge, 0] = 0
         return must_link, cannot_link, must_link_labels, output_dict
-    # TODO update for each model for QBC
     # MUST LINK CLOSURE
     must_link_closure = must_link.clone()  # closure (only edges from bigger -> smaller)
     cannot_link_closure = cannot_link.clone()
@@ -884,10 +884,6 @@ def get_link_closures_edge(must_link, cannot_link, edge, should_link=False, must
         output_dict['predicted_antecedents'][coref_pairs[:, 0], coref_pairs[:, 1]] = coref_pairs[:, 2]
         output_dict['coreference_scores'][coref_pairs[:, 0], coref_pairs[:, 1],
             output_dict['predicted_antecedents'][coref_pairs[:, 0], coref_pairs[:, 1]] + 1] = 0
-        try:
-            assert ((output_dict['coreference_scores'][coref_pairs[:, 0], coref_pairs[:, 1]] == 0).sum(-1) == 1).nonzero().size(0) > 0
-        except:
-            pdb.set_trace()
         if 'coreference_scores_models' in output_dict:
             output_dict['coreference_scores_models'][:, coref_pairs[:, 0], coref_pairs[:, 1], :] = -float("inf")
             output_dict['coreference_scores_models'][:, coref_pairs[:, 0], coref_pairs[:, 1], coref_pairs[:, 2] + 1] = 0
@@ -900,8 +896,8 @@ def get_link_closures_edge(must_link, cannot_link, edge, should_link=False, must
             cannot_link_proform_idx = cannot_link
             cannot_link_antecedent_idx = cannot_link
         else:
-            cannot_link_proform_idx = (cannot_link.unsqueeze(-1) == proform_cluster).nonzero()
-            cannot_link_antecedent_idx = (cannot_link.unsqueeze(-1) == antecedent_cluster).nonzero()
+            cannot_link_proform_idx = (cannot_link[cannot_link[:,0] == edge[0]][:,1:].unsqueeze(-1) == proform_cluster).nonzero()
+            cannot_link_antecedent_idx = (cannot_link[cannot_link[:,0] == edge[0]][:,1:].unsqueeze(-1) == antecedent_cluster).nonzero()
         if cannot_link_proform_idx.size(0) > 0:
             cannot_link_proform_spans = torch.unique(cannot_link[cannot_link_proform_idx[:,0], 3 - cannot_link_proform_idx[:,1]])
             cannot_link_proform_pairs = torch.stack([
@@ -911,7 +907,11 @@ def get_link_closures_edge(must_link, cannot_link, edge, should_link=False, must
         else:
             cannot_link_proform_pairs = cannot_link_proform_idx
         if cannot_link_antecedent_idx.size(0) > 0:
-            cannot_link_antecedent_spans = torch.unique(cannot_link[cannot_link_antecedent_idx[:,0], 3 - cannot_link_antecedent_idx[:,1]]).unsqueeze(-1)
+            try:
+                cannot_link_antecedent_spans = (cannot_link[cannot_link_antecedent_idx[:, 0],
+                                                            3 - cannot_link_antecedent_idx[:, 1]]).unique().unsqueeze(-1)
+            except:
+                pdb.set_trace()
             cannot_link_antecedent_pairs = torch.stack([
                 cannot_link_antecedent_spans.expand(cannot_link_antecedent_spans.size(0), proform_cluster.size(0)).reshape(
                     -1),
@@ -957,10 +957,6 @@ def get_link_closures_edge(must_link, cannot_link, edge, should_link=False, must
                                                                  non_coref_pairs[:,2] + 1] = -float("inf")
 
         must_link_labels = update_clusters_with_edge(must_link_labels, edge)
-        try:
-            assert ((must_link_labels[must_link_closure[:,0], must_link_closure[:,1]] == must_link_labels[must_link_closure[:,0], must_link_closure[:,2]]) & (must_link_labels[must_link_closure[:,0], must_link_closure[:,1]] != -1) != 1).nonzero().size(0) == 0
-        except:
-            pdb.set_trace()
     else:
         # ensure we haven't already added this edge in cannot link (meaning we've already added all its cluster CLs,
         # as MLs/clustering hasn't changed
