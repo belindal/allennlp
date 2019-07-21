@@ -962,6 +962,10 @@ def get_link_closures_edge(must_link, cannot_link, edge, should_link=False, must
         except:
             pdb.set_trace()
     else:
+        # ensure we haven't already added this edge in cannot link (meaning we've already added all its cluster CLs,
+        # as MLs/clustering hasn't changed
+        if cannot_link_closure.size(0) > 0 and ((cannot_link_closure == edge).sum(-1) == 3).nonzero().size(0) > 0:
+            return must_link_closure, cannot_link_closure, must_link_labels, output_dict
         # must-link remains the same
         # cannot-link gets elements of respective clusters linked up w/ each other C_A <-/-> C_B means
         non_coref_pairs = torch.stack([
