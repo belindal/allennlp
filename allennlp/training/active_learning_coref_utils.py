@@ -896,10 +896,13 @@ def get_link_closures_edge(must_link, cannot_link, edge, should_link=False, must
             cannot_link_proform_idx = cannot_link
             cannot_link_antecedent_idx = cannot_link
         else:
-            cannot_link_proform_idx = (cannot_link[cannot_link[:,0] == edge[0]][:,1:].unsqueeze(-1) == proform_cluster).nonzero()
-            cannot_link_antecedent_idx = (cannot_link[cannot_link[:,0] == edge[0]][:,1:].unsqueeze(-1) == antecedent_cluster).nonzero()
+            cannot_link_proform_idx = (cannot_link[:, 1:].unsqueeze(-1) == proform_cluster).nonzero()
+            cannot_link_antecedent_idx = (cannot_link[:, 1:].unsqueeze(-1) == antecedent_cluster).nonzero()
         if cannot_link_proform_idx.size(0) > 0:
-            cannot_link_proform_spans = torch.unique(cannot_link[cannot_link_proform_idx[:,0], 3 - cannot_link_proform_idx[:,1]])
+            # choose the *other* edge
+            # 0->2, 1->1
+            cannot_link_proform_spans = (cannot_link[cannot_link_proform_idx[:, 0],
+                                                     2 - cannot_link_proform_idx[:, 1]]).unique()
             cannot_link_proform_pairs = torch.stack([
                 cannot_link_proform_spans.unsqueeze(-1).expand(cannot_link_proform_spans.size(0),
                                                                antecedent_cluster.size(0)).reshape(-1),
@@ -907,11 +910,10 @@ def get_link_closures_edge(must_link, cannot_link, edge, should_link=False, must
         else:
             cannot_link_proform_pairs = cannot_link_proform_idx
         if cannot_link_antecedent_idx.size(0) > 0:
-            try:
-                cannot_link_antecedent_spans = (cannot_link[cannot_link_antecedent_idx[:, 0],
-                                                            3 - cannot_link_antecedent_idx[:, 1]]).unique().unsqueeze(-1)
-            except:
-                pdb.set_trace()
+            # choose the *other* edge
+            # 0->2, 1->1 (since squeezed)
+            cannot_link_antecedent_spans = (cannot_link[cannot_link_antecedent_idx[:, 0],
+                                                        2 - cannot_link_antecedent_idx[:, 1]]).unique().unsqueeze(-1)
             cannot_link_antecedent_pairs = torch.stack([
                 cannot_link_antecedent_spans.expand(cannot_link_antecedent_spans.size(0), proform_cluster.size(0)).reshape(
                     -1),
