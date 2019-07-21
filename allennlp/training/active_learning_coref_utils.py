@@ -961,22 +961,6 @@ def get_link_closures_edge(must_link, cannot_link, edge, should_link=False, must
             assert ((must_link_labels[must_link_closure[:,0], must_link_closure[:,1]] == must_link_labels[must_link_closure[:,0], must_link_closure[:,2]]) & (must_link_labels[must_link_closure[:,0], must_link_closure[:,1]] != -1) != 1).nonzero().size(0) == 0
         except:
             pdb.set_trace()
-
-        # check we have the complete set:
-        if DEBUG_FLAG:
-            must_link = torch.cat([must_link, edge.unsqueeze(0)])
-            must_link_closure_2, cannot_link_closure_2 = get_link_closures(must_link, cannot_link)
-            try:
-                assert (must_link_closure_2 != must_link_closure).nonzero().size(0) == 0
-                assert (cannot_link_closure_2 != cannot_link_closure).nonzero().size(0) == 0
-            except:
-                try:
-                    assert must_link_closure.size(0) == must_link_closure_2.size(0)
-                    assert cannot_link_closure.size(0) == cannot_link_closure_2.size(0)
-                    assert (((must_link_closure.unsqueeze(1).unsqueeze(-1) == must_link_closure_2.unsqueeze(1)).sum(-1) == 1).sum(-1) == 3).nonzero().size(0) == must_link_closure.size(0)
-                    assert (((cannot_link_closure.unsqueeze(1).unsqueeze(-1) == cannot_link_closure_2.unsqueeze(1)).sum(-1) == 1).sum(-1) == 3).nonzero().size(0) == cannot_link_closure.size(0)
-                except:
-                    pdb.set_trace()
     else:
         # must-link remains the same
         # cannot-link gets elements of respective clusters linked up w/ each other C_A <-/-> C_B means
@@ -1015,21 +999,22 @@ def get_link_closures_edge(must_link, cannot_link, edge, should_link=False, must
             output_dict['coreference_scores_models'][:, non_coref_pairs[:,0], non_coref_pairs[:,1],
                                                      non_coref_pairs[:,2] + 1] = -float("inf")
 
-        # check we have the complete set:
-        if DEBUG_FLAG:
+    # check we have the complete set:
+    if DEBUG_FLAG:
+        if should_link:
+            must_link = torch.cat([must_link, edge.unsqueeze(0)])
+        else:
             cannot_link = torch.cat([cannot_link, edge.unsqueeze(0)])
-            must_link_closure_2, cannot_link_closure_2 = get_link_closures(must_link, cannot_link)
-            try:
-                assert (must_link_closure_2 != must_link_closure).nonzero().size(0) == 0
-                assert (cannot_link_closure_2 != cannot_link_closure).nonzero().size(0) == 0
-            except:
-                try:
-                    assert must_link_closure.size(0) == must_link_closure_2.size(0)
-                    assert cannot_link_closure.size(0) == cannot_link_closure_2.size(0)
-                    assert (((must_link_closure.unsqueeze(1).unsqueeze(-1) == must_link_closure_2.unsqueeze(1)).sum(-1) == 1).sum(-1) == 3).nonzero().size(0) == must_link_closure.size(0)
-                    assert (((cannot_link_closure.unsqueeze(1).unsqueeze(-1) == cannot_link_closure_2.unsqueeze(1)).sum(-1) == 1).sum(-1) == 3).nonzero().size(0) == cannot_link_closure.size(0)
-                except:
-                    pdb.set_trace()
+        must_link_closure_2, cannot_link_closure_2 = get_link_closures(must_link, cannot_link)
+        try:
+            assert must_link_closure.size(0) == must_link_closure_2.size(0)
+            assert cannot_link_closure.size(0) == cannot_link_closure_2.size(0)
+            assert (((must_link_closure.unsqueeze(1).unsqueeze(-1) == must_link_closure_2.unsqueeze(1)).sum(-1) == 1
+                     ).sum(-1) == 3).nonzero().size(0) == must_link_closure.size(0)
+            assert (((cannot_link_closure.unsqueeze(1).unsqueeze(-1) == cannot_link_closure_2.unsqueeze(1)).sum(-1) == 1
+                     ).sum(-1) == 3).nonzero().size(0) == cannot_link_closure.size(0)
+        except:
+            pdb.set_trace()
 
     return must_link_closure, cannot_link_closure, must_link_labels, output_dict
 
