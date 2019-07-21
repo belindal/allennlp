@@ -1031,11 +1031,14 @@ def get_link_closures(must_link, cannot_link):
     # MUST LINK CLOSURE
     must_link_closure = torch.Tensor([]).long().cuda(must_link.device)  # closure (only edges from bigger -> smaller)
     max_batch = 0
+    max_value = 0
     if must_link.size(0) > 0:
         max_batch = must_link[:, 0].max()
+        max_value = must_link.max()
     if cannot_link.size(0) > 0:
         max_batch = max(max_batch, cannot_link[:, 0].max())
-    must_link_labels = -torch.ones([max_batch + 1, max(must_link.max(), cannot_link.max()) + 1], dtype=torch.long,
+        max_value = max(max_value, cannot_link.max())
+    must_link_labels = -torch.ones([max_batch + 1, max_value + 1], dtype=torch.long,
                                    device=must_link.device)
     if must_link.size(0) > 0:
         # convert to clusters
