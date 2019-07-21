@@ -1286,8 +1286,29 @@ class Trainer(Registrable):
                                     train_instances_to_update[ind_instance] = [[], []]
 
                             # do transitive closure of must-links and cannot-links
-                            batch['must_link'], batch['cannot_link'] = al_util.get_link_closures(batch['must_link'],
-                                                                                                 batch['cannot_link'])
+                            try:
+                                must_link_closure, cannot_link_closure = al_util.get_link_closures(batch['must_link'],
+                                                                                                   batch['cannot_link'])
+                            except:
+                                pdb.set_trace()
+
+                            try:
+                                assert must_link_closure.size(0) == batch['must_link'].size(0)
+                                assert cannot_link_closure.size(0) == batch['cannot_link'].size(0)
+                                if must_link_closure.size(0) > 0:
+                                    m = (must_link_closure.unsqueeze(1).unsqueeze(-1) == batch['must_link'].unsqueeze(1))
+                                    assert (((m.sum(-1) >= 1).sum(-1) >= 3) & (
+                                                (m.sum(-2) >= 1).sum(-1) >= 3)).nonzero().size(
+                                        0) == must_link_closure.size(0)
+                                if cannot_link_closure.size(0) > 0:
+                                    m = (cannot_link_closure.unsqueeze(1).unsqueeze(
+                                        -1) == batch['cannot_link'].unsqueeze(1))
+                                    assert (((m.sum(-1) >= 1).sum(-1) >= 3) & (
+                                                (m.sum(-2) >= 1).sum(-1) >= 3)).nonzero().size(
+                                        0) == cannot_link_closure.size(0)
+                            except:
+                                pdb.set_trace()
+
                             # update must-links and cannot-links
                             for edge in batch['must_link']:
                                 ind_instance = edge[0].item()
