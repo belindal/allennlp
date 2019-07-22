@@ -25,8 +25,10 @@ class Pruner(torch.nn.Module):
     def forward(self, # pylint: disable=arguments-differ
                 embeddings: torch.FloatTensor,
                 mask: torch.LongTensor,
-                num_items_to_keep: int) -> Tuple[torch.FloatTensor, torch.LongTensor,
-                                                 torch.LongTensor, torch.FloatTensor]:
+                num_items_to_keep: int,
+                get_scores: bool = False,
+                scores: torch.FloatTensor = None) -> Tuple[torch.FloatTensor, torch.LongTensor,
+                                                           torch.LongTensor, torch.FloatTensor]:
         """
         Extracts the top-k scoring items with respect to the scorer. We additionally return
         the indices of the top-k in their original order, not ordered by score, so that downstream
@@ -63,15 +65,19 @@ class Pruner(torch.nn.Module):
         """
         mask = mask.unsqueeze(-1)
         num_items = embeddings.size(1)
-        # Shape: (batch_size, num_items, 1)
-        scores = self._scorer(embeddings)
+        if not scores:
+            # Shape: (batch_size, num_items, 1)
+            scores = self._scorer(embeddings)
 
-        if scores.size(-1) != 1 or scores.dim() != 3:
-            raise ValueError(f"The scorer passed to SpanPruner must produce a tensor of shape"
-                             f"(batch_size, num_items, 1), but found shape {scores.size()}")
-        # Make sure that we don't select any masked items by setting their scores to be very
-        # negative.  These are logits, typically, so -1e20 should be plenty negative.
-        scores = util.replace_masked_values(scores, mask, -1e20)
+            if scores.size(-1) != 1 or scores.dim() != 3:
+                raise ValueError(f"The scorer passed to SpanPruner must produce a tensor of shape"
+                                 f"(batch_size, num_items, 1), but found shape {scores.size()}")
+            # Make sure that we don't select any masked items by setting their scores to be very
+            # negative.  These are logits, typically, so -1e20 should be plenty negative.
+            scores = util.replace_masked_values(scores, mask, -1e20)
+
+        if get_scores:
+            return scores
 
         # Shape: (batch_size, num_items_to_keep, 1)
         _, top_indices = scores.topk(num_items_to_keep, 1)
