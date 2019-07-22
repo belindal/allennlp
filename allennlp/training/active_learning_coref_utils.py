@@ -68,11 +68,12 @@ def translate_to_indA(edges, output_dict, all_spans, translation_reference=None)
         return torch.stack([instances, indA_proforms, indA_antecedents], dim=-1)
 
 
-def translate_to_indC(edges, output_dict, translation_reference):
+def translate_to_indC(edges, output_dict, translation_reference, antecedent_ind_mask):
     """
     :param edges:
     :param output_dict:
     :param translation_reference:
+    :param antecedent_ind_mask: for antecedent_indices
     :return: indC_edges, -1 in a field if not found in top_spans, or antecedent outside range of antecedent_indices for
     that proform
     """
@@ -87,6 +88,8 @@ def translate_to_indC(edges, output_dict, translation_reference):
     antecedent_top_indices = (translation_reference[edges[:, 0]] == edges[:, 2].unsqueeze(-1)).nonzero()
     if antecedent_top_indices.size(0) > 0:
         indC_edges[:, 2][antecedent_top_indices[:, 0]] = antecedent_top_indices[:, 1]
+    pdb.set_trace()
+    output_dict['antecedent_indices'][~antecedent_ind_mask] = -2
     has_antecedent_mask = (output_dict['antecedent_indices'][indC_edges[:, 0], indC_edges[:, 1]] ==
                            indC_edges[:, 2].unsqueeze(-1))
     antecedent_ant_indices = has_antecedent_mask.nonzero()
@@ -874,7 +877,8 @@ def get_link_closures_edge(must_link, cannot_link, edge, should_link=False, must
         must_link_closure = torch.cat([must_link_closure, coref_pairs])
 
         # update coreference_scores, predicted_antecedents, and/or coreference_scores_models (in case of qbc)
-        coref_pairs = translate_to_indC(coref_pairs, output_dict, translation_reference)
+        coref_pairs = translate_to_indC(coref_pairs, output_dict, translation_reference,
+                                        output_dict['coreference_scores'] == -float("inf"))
         # if some proform doesn't exist in top_span (should not happen)
         if (coref_pairs[:, 1] == -1).nonzero().size(0) > 0:
             pdb.set_trace()
@@ -944,7 +948,8 @@ def get_link_closures_edge(must_link, cannot_link, edge, should_link=False, must
 
             # update coreference_scores, predicted_antecedents, and/or coreference_scores_models (in case of qbc)
             if non_coref_pairs.size(0) > 0:
-                non_coref_pairs = translate_to_indC(non_coref_pairs, output_dict, translation_reference)
+                non_coref_pairs = translate_to_indC(non_coref_pairs, output_dict, translation_reference,
+                                        output_dict['coreference_scores'] == -float("inf"))
                 # if some proform/antecedent doesn't exist in top_span, don't modify those examples (since all valid antecedents still
                 # have non-zero probability)
                 non_coref_pairs = non_coref_pairs[(non_coref_pairs[:, 2] > -1) & (non_coref_pairs[:, 1] > -1)]
@@ -985,7 +990,8 @@ def get_link_closures_edge(must_link, cannot_link, edge, should_link=False, must
         cannot_link_closure = torch.cat([cannot_link_closure, non_coref_pairs])
 
         # update coreference_scores, predicted_antecedents, and/or coreference_scores_models (in case of qbc)
-        non_coref_pairs = translate_to_indC(non_coref_pairs, output_dict, translation_reference)
+        non_coref_pairs = translate_to_indC(non_coref_pairs, output_dict, translation_reference,
+                                        output_dict['coreference_scores'] == -float("inf"))
         # if some proform doesn't exist in top_span (should not happen)
         if (non_coref_pairs[:, 1] == -1).nonzero().size(0) > 0:
             pdb.set_trace()
