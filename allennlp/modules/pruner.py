@@ -65,7 +65,7 @@ class Pruner(torch.nn.Module):
         """
         mask = mask.unsqueeze(-1)
         num_items = embeddings.size(1)
-        if not scores:
+        if scores is None:
             # Shape: (batch_size, num_items, 1)
             scores = self._scorer(embeddings)
 
