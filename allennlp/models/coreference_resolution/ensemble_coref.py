@@ -47,13 +47,13 @@ class CorefEnsemble(Ensemble):
         flat_top_indices = util.flatten_and_batch_shift_indices(top_indices, avg_mention_scores.size(1))
         top_mask = util.batched_index_select(mask, top_indices, flat_top_indices)
         top_scores = util.batched_index_select(avg_mention_scores, top_indices, flat_top_indices)
-        top_spans_info = [{'top_scores': top_scores, 'span_indices': top_indices, 'top_mask': top_mask, 
-                           'flat_top_indices': flat_top_indices, 'text_mask': text_mask,
-                           'span_embeddings': mention_results[i]['embeds']} for i in range(num_models)]
+        top_spans_info = [{'mention_scores': mention_results[i]['mention_scores'], 'top_scores': top_scores,
+                           'span_indices': top_indices, 'top_mask': top_mask, 'flat_top_indices': flat_top_indices,
+                           'text_mask': text_mask, 'span_embeddings': mention_results[i]['embeds']}
+                          for i in range(num_models)]
 
         # feed averaged mention scores and top mentions back into model
-        ret_values = [submodel(text, spans, span_labels, user_labels,
-                               must_link, cannot_link, metadata, get_scores=True,
+        ret_values = [submodel(text, spans, span_labels, user_labels, must_link, cannot_link, metadata, get_scores=True,
                                top_spans_info=top_spans_info[i], return_coref_scores=True)
                       for i, submodel in enumerate(self.submodels)]
 
@@ -64,19 +64,21 @@ class CorefEnsemble(Ensemble):
 
         coref_scores_output_dict = {'top_spans': top_spans, 'antecedent_indices': ant_inds,
                                     'coreference_scores': avg_coref_scores}
-        coref_scores_info = {'output_dict': coref_scores_output_dict,
-                             'top_span_inds': ret_values[0]['top_span_inds'],
+        coref_scores_info = {'output_dict': coref_scores_output_dict, 'top_span_inds': ret_values[0]['top_span_inds'],
                              'top_span_mask': ret_values[0]['top_span_mask'],
                              'valid_antecedent_log_mask': ret_values[0]['ant_mask']}
         # feed averaged mention scores and other variables back into model
         # should produce the same results
-        output_dict = self.submodels[0](text, spans, span_labels, user_labels, must_link, cannot_link, metadata, get_scores, coref_scores_info=coref_scores_info)
+        output_dict = self.submodels[0](text, spans, span_labels, user_labels, must_link, cannot_link, metadata,
+                                        get_scores, coref_scores_info=coref_scores_info)
         # run other models so coref scores are at the same state
         for i in range(1, num_models):
-            self.submodels[i](text, spans, span_labels, user_labels, must_link, cannot_link, metadata, get_scores, coref_scores_info=coref_scores_info)
+            self.submodels[i](text, spans, span_labels, user_labels, must_link, cannot_link, metadata, get_scores,
+                              coref_scores_info=coref_scores_info)
 
         self._mention_recall(output_dict['top_spans'], metadata)
-        self._conll_coref_scores(output_dict['top_spans'], output_dict['antecedent_indices'], output_dict['predicted_antecedents'], metadata)
+        self._conll_coref_scores(output_dict['top_spans'], output_dict['antecedent_indices'],
+                                 output_dict['predicted_antecedents'], metadata)
         if get_scores:
             output_dict['coreference_scores_models'] = all_coref_scores
         return output_dict

@@ -208,9 +208,11 @@ class CoreferenceResolver(Model):
                 # Prune based on mention scores.
                 num_spans_to_keep = int(math.floor(self._spans_per_word * document_length))
 
+                # get mention scores
+                span_mention_scores = \
+                    self._mention_pruner(span_embeddings, span_mask, spans.size(1), True)
+
                 if return_mention_scores:
-                    (_, _, _, span_mention_scores) = \
-                        self._mention_pruner(span_embeddings, span_mask, spans.size(1))
                     output_dict = {'num_spans_to_keep': num_spans_to_keep, 'mention_scores': span_mention_scores,
                                    'mask': span_mask.unsqueeze(-1), 'embeds': span_embeddings, 'text_mask': text_mask}
                     return output_dict
@@ -218,7 +220,9 @@ class CoreferenceResolver(Model):
                 (top_span_embeddings, top_span_mask,
                  top_span_indices, top_span_mention_scores) = self._mention_pruner(span_embeddings,
                                                                                    span_mask,
-                                                                                   num_spans_to_keep)
+                                                                                   num_spans_to_keep,
+                                                                                   False,
+                                                                                   span_mention_scores)
                 top_span_mask = top_span_mask.unsqueeze(-1)
                 # Shape: (batch_size * num_spans_to_keep)
                 # torch.index_select only accepts 1D indices, but here
@@ -228,6 +232,8 @@ class CoreferenceResolver(Model):
                 # the multiple calls to util.batched_index_select below more efficient.
                 flat_top_span_indices = util.flatten_and_batch_shift_indices(top_span_indices, num_spans)
             else:
+                # for ensemble, ensemble_coref already implicitly computes top spans
+                span_mention_scores = top_spans_info['mention_scores']
                 top_span_mention_scores = top_spans_info['top_scores']
                 num_spans_to_keep = top_span_mention_scores.size(1)
                 top_span_indices = top_spans_info['span_indices']
@@ -379,18 +385,23 @@ class CoreferenceResolver(Model):
             if must_link is not None and (must_link.size(1) > 1 or must_link[0, 0, 0] != -1 or must_link[0, 0, 1] != -1):
                 # obtain model-predicted clusters
                 model_pred_edges = torch.cat([(output_dict['predicted_antecedents'] != -1).nonzero(),
-                                              output_dict['predicted_antecedents'][output_dict['predicted_antecedents'] != -1].unsqueeze(-1)], dim=-1)
+                                              output_dict['predicted_antecedents'][
+                                                  output_dict['predicted_antecedents'] != -1].unsqueeze(-1)], dim=-1)
                 model_pred_edges = al_util.translate_to_indA(model_pred_edges, output_dict, spans, top_span_indices)
-                predicted_span_labels = -torch.ones(span_labels.size(), dtype=span_labels.dtype, device=span_labels.device)
+                predicted_span_labels = -torch.ones(span_labels.size(), dtype=span_labels.dtype,
+                                                    device=span_labels.device)
                 for edge in model_pred_edges:
                     predicted_span_labels = al_util.update_clusters_with_edge(predicted_span_labels, edge)
                 # add instance # to 0th column of must_link
-                instance_idx = torch.arange(0, must_link.size(0), dtype=must_link.dtype, device=must_link.device).expand(must_link.size(0), must_link.size(1))
+                instance_idx = torch.arange(0, must_link.size(0), dtype=must_link.dtype, device=must_link.device
+                                            ).expand(must_link.size(0), must_link.size(1))
                 must_link = torch.cat([instance_idx.unsqueeze(-1), must_link.squeeze(-1)], dim=-1).reshape(-1, 3)
                 # mask for items linked in must_link do not have the same clustering
-                incorrectly_unlinked_pairs_mask = (predicted_span_labels[must_link[:,0], must_link[:,1]] != predicted_span_labels[must_link[:,0], must_link[:,2]])
-                                                  | (predicted_span_labels[must_link[:,0], must_link[:,1]] == -1)
-                percent_incorrect = incorrectly_unlinked_pairs_mask.sum().float() / incorrectly_unlinked_pairs_mask.size(0)
+                incorrectly_unlinked_pairs_mask = (predicted_span_labels[must_link[:, 0], must_link[:, 1]] !=
+                                                   predicted_span_labels[must_link[:, 0], must_link[:, 2]]) | (
+                        predicted_span_labels[must_link[:, 0], must_link[:, 1]] == -1)
+                pdb.set_trace()
+                # percent_incorrect = incorrectly_unlinked_pairs_mask.sum().float() / incorrectly_unlinked_pairs_mask.size(0)
                 
                 # TODO: delete(?)
                 '''
@@ -399,7 +410,6 @@ class CoreferenceResolver(Model):
                 # keep only unlinked pairs, and filter out -1s
                 top_must_link = top_must_link[incorrectly_unlinked_pairs_mask]
                 top_must_link = top_must_link[(top_must_link[:,1] != -1) & (top_must_link[:,2] != -1)]
-
                 if top_must_link.size(0) > 0:
                     # find *predicted* antecedents for each item in must_link
                     predicted_antecedents_must_link = predicted_antecedents[top_must_link[:,0], top_must_link[:,1]]
@@ -427,9 +437,21 @@ class CoreferenceResolver(Model):
                                         pdb.set_trace()
                                     penalty_idx += 1
                 '''
-                negative_marginal_log_likelihood += percent_incorrect * negative_marginal_log_likelihood  #util.logsumexp(-must_link_penalty * self._must_link_weight).sum()
+                # negative_marginal_log_likelihood += percent_incorrect * negative_marginal_log_likelihood  #util.logsumexp(-must_link_penalty * self._must_link_weight).sum()
             if cannot_link is not None and (cannot_link.size(1) > 1 or cannot_link[0, 0, 0] != -1 or cannot_link[0, 0, 1] != -1):
+                pdb.set_trace()
                 # indices of cannot_link converted to top_spans
+                # add instance # to 0th column of must_link
+                instance_idx = torch.arange(0, cannot_link.size(0), dtype=cannot_link.dtype, device=cannot_link.device
+                                            ).expand(cannot_link.size(0), cannot_link.size(1))
+                cannot_link = torch.cat([instance_idx.unsqueeze(-1), cannot_link.squeeze(-1)], dim=-1).reshape(-1, 3)
+
+                # indices of must_link converted to top_spans
+                top_cannot_link = al_util.translate_to_indC(cannot_link, output_dict, top_span_indices)
+                # filter out -1s
+                top_cannot_link = top_cannot_link[(top_cannot_link[:,1] != -1) & (top_cannot_link[:,2] != -1)]
+
+                pdb.set_trace()
                 top_cannot_link = -torch.ones(cannot_link.size()[:3], dtype=torch.long).cuda(util.get_device_of(cannot_link))
                 top_cannot_link_idx = (cannot_link - top_span_indices == 0).nonzero()
                 if top_cannot_link_idx.size(0) > 0:
@@ -447,6 +469,9 @@ class CoreferenceResolver(Model):
                         # apply filter (< 100 apart) to top_must_link
                         top_cannot_link = top_cannot_link[cannot_link_antecedents_mask.sum(-1) == 1].reshape(
                             top_cannot_link.size(0), -1, top_cannot_link.size(2))
+
+                        # TODO: delete up to here(?)
+                        pdb.set_trace()
                         if top_cannot_link.size(0) > 0:
                             # find *expected* antecedent for each item in cannot_link
                             cannot_link_antecedents = cannot_link_antecedents_mask.nonzero()[:,2].reshape(
