@@ -376,9 +376,9 @@ class CoreferenceResolver(Model):
             #  the same coreference cluster.
             coreference_log_probs = util.masked_log_softmax(coreference_scores, top_span_mask)
             correct_antecedent_log_probs = coreference_log_probs + gold_antecedent_labels.log()
-            # TODO fix loss
             negative_marginal_log_likelihood = -util.logsumexp(correct_antecedent_log_probs).sum()
 
+            ml_loss_penalty = cl_loss_penalty = 0
             # Now add constraints
             if must_link is not None and (must_link.size(1) > 1 or must_link[0, 0, 0] != -1 or must_link[0, 0, 1] != -1):
                 # obtain model-predicted clusters
@@ -407,7 +407,7 @@ class CoreferenceResolver(Model):
                     top_must_link = top_must_link[(top_must_link[:,1] != -1) & (top_must_link[:,2] != -1)]
                     if top_must_link.size(0) > 0:
                         must_link_penalty = coreference_log_probs[top_must_link[:,0], top_must_link[:,1], top_must_link[:,2] + 1]
-                        negative_marginal_log_likelihood -= util.logsumexp(must_link_penalty)
+                        ml_loss_penalty = util.logsumexp(must_link_penalty)
                 ## TODO: delete(?)
                 ## mentions which are incorrect because not top_spans get deducted on basis of mention score
                 #bad_mentions = (must_link[incorrectly_unlinked_pairs_mask][top_must_link == -1]).unique()  # mentions not found in either top_spans, or antecedent_inds
@@ -448,7 +448,7 @@ class CoreferenceResolver(Model):
                     if top_cannot_link.size(0) > 0:
                         # penalty for incorrect predictions--based on *predicted* score
                         cannot_link_penalty = coreference_log_probs[top_cannot_link[:,0], top_cannot_link[:,1], top_cannot_link[:,2] + 1]
-                        negative_marginal_log_likelihood += util.logsumexp(cannot_link_penalty)
+                        cl_loss_penalty = util.logsumexp(cannot_link_penalty)
                 if DEBUG_FLAG:
                     penalty_idx = 0
                     for i, link in enumerate(cannot_link):
@@ -466,7 +466,7 @@ class CoreferenceResolver(Model):
             self._mention_recall(top_spans, metadata)
             self._conll_coref_scores(top_spans, valid_antecedent_indices, predicted_antecedents, metadata)
 
-            output_dict["loss"] = negative_marginal_log_likelihood
+            output_dict["loss"] = negative_marginal_log_likelihood - ml_loss_penalty + cl_loss_penalty
 
         if metadata is not None:
             output_dict["document"] = [x["original_text"] for x in metadata]
