@@ -1289,7 +1289,7 @@ class Trainer(Registrable):
                             if self._query_type != 'discrete':
                                 must_link_closure, cannot_link_closure = al_util.get_link_closures(batch['must_link'],
                                                                                                    batch['cannot_link'])
-                            else if self.DEBUG_BREAK_FLAG:  # check closures against each other
+                            elif self.DEBUG_BREAK_FLAG:  # check closures against each other
                                 must_link_closure, cannot_link_closure = al_util.get_link_closures(batch['must_link'],
                                                                                                    batch['cannot_link'])
                                 try:
