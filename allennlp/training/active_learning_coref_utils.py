@@ -88,8 +88,9 @@ def translate_to_indC(edges, output_dict, translation_reference, antecedent_ind_
     antecedent_top_indices = (translation_reference[edges[:, 0]] == edges[:, 2].unsqueeze(-1)).nonzero()
     if antecedent_top_indices.size(0) > 0:
         indC_edges[:, 2][antecedent_top_indices[:, 0]] = antecedent_top_indices[:, 1]
-    output_dict['antecedent_indices'][~antecedent_ind_mask] = -2
-    has_antecedent_mask = (output_dict['antecedent_indices'][indC_edges[:, 0], indC_edges[:, 1]] ==
+    masked_antecedent_indices = output_dict['antecedent_indices'].clone()
+    masked_antecedent_indices[~antecedent_ind_mask] = -2
+    has_antecedent_mask = (masked_antecedent_indices[indC_edges[:, 0], indC_edges[:, 1]] ==
                            indC_edges[:, 2].unsqueeze(-1))
     antecedent_ant_indices = has_antecedent_mask.nonzero()
     has_antecedent_mask = has_antecedent_mask.sum(-1) > 0

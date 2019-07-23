@@ -20,7 +20,7 @@ import pdb
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
-DEBUG_FLAG = True
+DEBUG_FLAG = False
 
 @Model.register("coref")
 class CoreferenceResolver(Model):
@@ -382,10 +382,14 @@ class CoreferenceResolver(Model):
             # Now add constraints
             if must_link is not None and (must_link.size(1) > 1 or must_link[0, 0, 0] != -1 or must_link[0, 0, 1] != -1):
                 # obtain model-predicted clusters
-                model_pred_edges = torch.cat([(output_dict['predicted_antecedents'] != -1).nonzero(),
-                                              output_dict['predicted_antecedents'][
-                                                  output_dict['predicted_antecedents'] != -1].unsqueeze(-1)], dim=-1)
-                model_pred_edges = al_util.translate_to_indA(model_pred_edges, output_dict, spans, top_span_indices)
+                no_antecedent_mask = output_dict['predicted_antecedents'] != -1
+                if no_antecedent_mask.nonzero().size(0) > 0:
+                    model_pred_edges = torch.cat([no_antecedent_mask.nonzero(),
+                                                  output_dict['predicted_antecedents'][
+                                                      no_antecedent_mask].unsqueeze(-1)], dim=-1)
+                    model_pred_edges = al_util.translate_to_indA(model_pred_edges, output_dict, spans, top_span_indices)
+                else:
+                    model_pred_edges = torch.empty(0, dtype=must_link.dtype, device=must_link.device)
                 predicted_span_labels = -torch.ones(span_labels.size(), dtype=span_labels.dtype,
                                                     device=span_labels.device)
                 for edge in model_pred_edges:
