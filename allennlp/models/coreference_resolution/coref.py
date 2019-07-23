@@ -116,7 +116,7 @@ class CoreferenceResolver(Model):
             self._cuda_devices = device
         else:
             self._cuda_devices = [device]
-        self._must_link_weight = torch.nn.Parameter(torch.rand(()).cuda(self._cuda_devices[0]))
+        #self._must_link_weight = torch.nn.Parameter(torch.rand(()).cuda(self._cuda_devices[0]))
         self._cannot_link_weight = torch.nn.Parameter(torch.rand(()).cuda(self._cuda_devices[0]))
 
         self._mention_recall = MentionRecall()
@@ -400,38 +400,34 @@ class CoreferenceResolver(Model):
                         predicted_span_labels[must_link[:, 0], must_link[:, 1]] == -1)
 
                 # indices of must_link converted to top_spans
-                top_must_link = al_util.translate_to_indC(must_link, output_dict, top_span_indices)
+                top_must_link = al_util.translate_to_indC(must_link, output_dict, top_span_indices, valid_antecedent_log_mask.exp().byte())
                 # keep only unlinked pairs
                 top_must_link = top_must_link[incorrectly_unlinked_pairs_mask]
-                top_must_link = top_must_link[(top_must_link[:,1] != -1) & (top_must_link[:,2] != -1)]
-                must_link_penalty = coreference_scores[top_must_link[:,0], top_must_link[:,1], top_must_link[:,2] + 1]
-                negative_marginal_log_likelihood += util.logsumexp(-must_link_penalty * self._must_link_weight)
+                if top_must_link.size(0) > 0:
+                    top_must_link = top_must_link[(top_must_link[:,1] != -1) & (top_must_link[:,2] != -1)]
+                    if top_must_link.size(0) > 0:
+                        must_link_penalty = coreference_log_probs[top_must_link[:,0], top_must_link[:,1], top_must_link[:,2] + 1]
+                        negative_marginal_log_likelihood -= util.logsumexp(must_link_penalty)
                 ## TODO: delete(?)
                 ## mentions which are incorrect because not top_spans get deducted on basis of mention score
                 #bad_mentions = (must_link[incorrectly_unlinked_pairs_mask][top_must_link == -1]).unique()  # mentions not found in either top_spans, or antecedent_inds
                 #bad_mentions = bad_mentions[(top_span_indices == bad_mentions.unsqueeze(-1)).sum(-1) == 0]
                 #bad_mention_scores = span_mention_scores[0, bad_mentions]
                 if DEBUG_FLAG:
-                    pdb.set_trace()
-                    for i, must_link_ins in enumerate(must_link):
-                        penalty_idx = 0
-                        for link in must_link_ins:
+                    penalty_idx = 0
+                    for i, link in enumerate(must_link):
+                        if predicted_span_labels[link[0], link[1]] != predicted_span_labels[link[0], link[2]] or predicted_span_labels[link[0], link[1]] == -1:
                             # convert to top_spans
-                            link = link.squeeze()
-                            try:
-                                link[0] = (top_span_indices[i] == link[0]).nonzero().item()
-                                link[1] = (top_span_indices[i] == link[1]).nonzero().item()
-                                link[1] = (masked_valid_antecedent_indices[i, link[0]] == link[1]).nonzero().item()
-                            except:
+                            link = al_util.translate_to_indC(link.unsqueeze(0), output_dict, top_span_indices, valid_antecedent_log_mask.exp().byte()).squeeze(0)
+                            if link[1] == -1 or link[2] == -1:
                                 continue
-                            if link[1] != predicted_antecedents[i, link[0]]:
-                                try:
-                                    assert must_link_penalty[i, penalty_idx] == coreference_log_probs[i, link[0], link[1] + 1]
-                                except:
-                                    pdb.set_trace()
-                                penalty_idx += 1
+                            try:
+                                assert must_link_penalty[penalty_idx] == coreference_log_probs[link[0], link[1], link[2] + 1]
+                            except:
+                                pdb.set_trace()
+                            penalty_idx += 1
+
             if cannot_link is not None and (cannot_link.size(1) > 1 or cannot_link[0, 0, 0] != -1 or cannot_link[0, 0, 1] != -1):
-                pdb.set_trace()
                 # indices of cannot_link converted to top_spans
                 # add instance # to 0th column of must_link
                 instance_idx = torch.arange(0, cannot_link.size(0), dtype=cannot_link.dtype, device=cannot_link.device
@@ -439,61 +435,33 @@ class CoreferenceResolver(Model):
                 cannot_link = torch.cat([instance_idx.unsqueeze(-1), cannot_link.squeeze(-1)], dim=-1).reshape(-1, 3)
 
                 # indices of must_link converted to top_spans
-                top_cannot_link = al_util.translate_to_indC(cannot_link, output_dict, top_span_indices)
+                top_cannot_link = al_util.translate_to_indC(cannot_link, output_dict, top_span_indices, valid_antecedent_log_mask.exp().byte())
                 # filter out -1s
                 top_cannot_link = top_cannot_link[(top_cannot_link[:,1] != -1) & (top_cannot_link[:,2] != -1)]
 
-                pdb.set_trace()
-                top_cannot_link = -torch.ones(cannot_link.size()[:3], dtype=torch.long).cuda(util.get_device_of(cannot_link))
-                top_cannot_link_idx = (cannot_link - top_span_indices == 0).nonzero()
-                if top_cannot_link_idx.size(0) > 0:
-                    top_cannot_link[top_cannot_link_idx[:,0], top_cannot_link_idx[:,1], top_cannot_link_idx[:,2]] = top_cannot_link_idx[:,3]
-                    # filter out -1s
-                    top_cannot_link = top_cannot_link[(top_cannot_link[:,:,0] != -1) & (top_cannot_link[:,:,1] != -1)].reshape(
-                        top_cannot_link.size(0), -1, top_cannot_link.size(2))
+                if top_cannot_link.size(0) > 0:
+                    # find model-predicted antecedent for each item in cannot_link
+                    cannot_link_predicted_antecedents = output_dict['predicted_antecedents'][top_cannot_link[:,0], top_cannot_link[:,1]]
+                    incorrectly_unlinked_pairs_mask = top_cannot_link[:,2] == cannot_link_predicted_antecedents
+                    top_cannot_link = top_cannot_link[incorrectly_unlinked_pairs_mask]
 
                     if top_cannot_link.size(0) > 0:
-                        # converted to antecedent indices (indC), has 1 where cannot_links occur
-                        masked_valid_antecedent_indices = valid_antecedent_indices + valid_antecedent_log_mask.long()
-                        cannot_link_antecedents_mask = \
-                            (torch.gather(masked_valid_antecedent_indices, 1,top_cannot_link[:,:,0].unsqueeze(-1).expand(
-                                -1,-1,masked_valid_antecedent_indices.size(-1))) == top_cannot_link[:,:,1].unsqueeze(-1))
-                        # apply filter (< 100 apart) to top_must_link
-                        top_cannot_link = top_cannot_link[cannot_link_antecedents_mask.sum(-1) == 1].reshape(
-                            top_cannot_link.size(0), -1, top_cannot_link.size(2))
-
-                        # TODO: delete up to here(?)
-                        pdb.set_trace()
-                        if top_cannot_link.size(0) > 0:
-                            # find *expected* antecedent for each item in cannot_link
-                            cannot_link_antecedents = cannot_link_antecedents_mask.nonzero()[:,2].reshape(
-                                cannot_link_antecedents_mask.size(0), -1)
-                            # find *predicted* antecedents for each item in cannot_link
-                            predicted_antecedents_cannot_link = torch.gather(predicted_antecedents, 1, top_cannot_link[:,:,0])
-                            incorrect_cannot_link_top_spans = top_cannot_link[:,:,0][predicted_antecedents_cannot_link == cannot_link_antecedents]
-                            incorrect_cannot_link_antecedents = cannot_link_antecedents[predicted_antecedents_cannot_link == cannot_link_antecedents]
-
-                            # penalty for incorrect predictions--based on *predicted* score
-                            cannot_link_penalty = coreference_log_probs[:, incorrect_cannot_link_top_spans, incorrect_cannot_link_antecedents + 1]
-                            if DEBUG_FLAG:
-                                for i, cannot_link_ins in enumerate(cannot_link):
-                                    penalty_idx = 0
-                                    for link in cannot_link_ins:
-                                        # convert to top_spans
-                                        link = link.squeeze()
-                                        try:
-                                            link[0] = (top_span_indices[i] == link[0]).nonzero().item()
-                                            link[1] = (top_span_indices[i] == link[1]).nonzero().item()
-                                            link[1] = (masked_valid_antecedent_indices[i, link[0]] == link[1]).nonzero().item()
-                                        except:
-                                            continue
-                                        if link[1] == predicted_antecedents[i, link[0]]:
-                                            try:
-                                                assert cannot_link_penalty[i, penalty_idx] == coreference_log_probs[i, link[0], link[1] + 1]
-                                            except:
-                                                pdb.set_trace()
-                                            penalty_idx += 1
-                            negative_marginal_log_likelihood += util.logsumexp(cannot_link_penalty * self._cannot_link_weight).sum()
+                        # penalty for incorrect predictions--based on *predicted* score
+                        cannot_link_penalty = coreference_log_probs[top_cannot_link[:,0], top_cannot_link[:,1], top_cannot_link[:,2] + 1]
+                        negative_marginal_log_likelihood += util.logsumexp(cannot_link_penalty)
+                if DEBUG_FLAG:
+                    penalty_idx = 0
+                    for i, link in enumerate(cannot_link):
+                        # convert to top_spans
+                        link = al_util.translate_to_indC(link.unsqueeze(0), output_dict, top_span_indices, valid_antecedent_log_mask.exp().byte()).squeeze(0)
+                        if link[1] == -1 or link[2] == -1:
+                            continue
+                        if link[2] == output_dict['predicted_antecedents'][link[0], link[1]]:
+                            try:
+                                assert cannot_link_penalty[penalty_idx] == coreference_log_probs[link[0], link[1], link[2] + 1]
+                            except:
+                                pdb.set_trace()
+                            penalty_idx += 1
 
             self._mention_recall(top_spans, metadata)
             self._conll_coref_scores(top_spans, valid_antecedent_indices, predicted_antecedents, metadata)
