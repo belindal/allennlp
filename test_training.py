@@ -313,6 +313,8 @@ def main(cuda_device, testing=False, testing_vocab=False, experiments=None, pair
     if selector == 'qbc':
         cuda_device = [cuda_device, (cuda_device + 1) % 3, (cuda_device + 2) % 3]
         os.system('rm -rf active_learning_model_states_ensemble_' + str(cuda_device))
+    else:
+        cuda_device = [cuda_device]
     # ''' Make training happen
     if experiments:
         save_dir = experiments

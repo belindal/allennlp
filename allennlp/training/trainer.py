@@ -1289,6 +1289,42 @@ class Trainer(Registrable):
                             if self._query_type != 'discrete':
                                 must_link_closure, cannot_link_closure = al_util.get_link_closures(batch['must_link'],
                                                                                                    batch['cannot_link'])
+                            else if self.DEBUG_BREAK_FLAG:  # check closures against each other
+                                must_link_closure, cannot_link_closure = al_util.get_link_closures(batch['must_link'],
+                                                                                                   batch['cannot_link'])
+                                try:
+                                    assert must_link_closure.size(0) == batch['must_link'].size(
+                                        0)  # batch['must_link'].size(0)
+                                    assert cannot_link_closure.size(0) == batch['cannot_link'].size(
+                                        0)  # batch['cannot_link'].size(0)
+                                    assert must_link_closure.max() == batch['must_link'].max()  # batch['must_link'].size(0)
+                                    assert cannot_link_closure.max() == batch['cannot_link'].max()  # batch['cannot_link'].size(0)
+                                    if must_link_closure.size(0) > 0:
+                                        base = must_link_closure.max() + 1
+                                        must_link_closure_keys = must_link_closure[:, 0] * base ^ 2 + must_link_closure[
+                                                                                                      :,
+                                                                                                      1] * base + must_link_closure[
+                                                                                                                  :, 2]
+                                        batch_must_link_keys = batch['must_link'][:,
+                                                                   0] * base ^ 2 + batch['must_link'][:,
+                                                                                   1] * base + batch['must_link'][:, 2]
+                                        m = (must_link_closure_keys.unsqueeze(-1) == batch_must_link_keys.unsqueeze(
+                                            0))
+                                        assert (m.sum(-1) != 1).nonzero().size(0) == 0
+                                    if cannot_link_closure.size(0) > 0:
+                                        base = cannot_link_closure.max() + 1
+                                        cannot_link_closure_keys = cannot_link_closure[:,
+                                                                   0] * base ^ 2 + cannot_link_closure[:,
+                                                                                   1] * base + cannot_link_closure[:, 2]
+                                        batch_cannot_link_keys = batch['cannot_link'][:,
+                                                                     0] * base ^ 2 + batch['cannot_link'][:,
+                                                                                     1] * base + batch['cannot_link'][
+                                                                                                 :, 2]
+                                        m = (cannot_link_closure_keys.unsqueeze(
+                                            -1) == batch_cannot_link_keys.unsqueeze(0))
+                                        assert (m.sum(-1) != 1).nonzero().size(0) == 0
+                                except:
+                                    pdb.set_trace()
 
                             # update must-links and cannot-links
                             for edge in batch['must_link']:

@@ -940,7 +940,7 @@ def get_link_closures_edge(must_link, cannot_link, edge, should_link=False, must
                   * edge[0]).unsqueeze(-1), non_coref_pairs], dim=-1)
 
             # delete those which already exist in cannot_link_closure (unique-ify)
-            base = max(cannot_link_closure.max(), non_coref_pairs.max())
+            base = max(cannot_link_closure.max(), non_coref_pairs.max()) + 1
             cannot_link_edge_inds = (cannot_link_closure[:,0] * base^2 + cannot_link_closure[:,1] * base + cannot_link_closure[:,2])
             non_coref_edge_inds = (non_coref_pairs[:,0] * base^2 + non_coref_pairs[:,1] * base + non_coref_pairs[:,2])
             non_coref_pairs = non_coref_pairs[(cannot_link_edge_inds.unsqueeze(-1) == non_coref_edge_inds).sum(0) == 0]
