@@ -297,6 +297,7 @@ class Trainer(Registrable):
         self.optimizer = optimizer
         self.train_data = train_dataset
         self._held_out_train_data = held_out_train_dataset
+        self._docid_to_query_time_info = {}
         self._validation_data = validation_dataset
 
         if patience is None:  # no early stopping
@@ -1067,6 +1068,8 @@ class Trainer(Registrable):
                                         num_to_query = min(self._active_learning_num_labels, total_possible_queries)
                                     top_spans_model_labels = torch.gather(batch['span_labels'], 1, translation_reference)
                                     num_queried = 0
+                                    num_coreferent = 0
+                                    pdb.set_trace()
                                     while num_queried < num_to_query:
                                         mention, mention_score = \
                                             al_util.find_next_most_uncertain_mention(self._selector, top_spans_model_labels,
@@ -1076,6 +1079,8 @@ class Trainer(Registrable):
                                             al_util.query_user_labels_mention(mention, output_dict, batch['spans'],
                                                                               batch['user_labels'], translation_reference,
                                                                               self._sample_from_training, batch)
+                                        if indA_edge_asked[2] == indA_edge[2]:
+                                            num_coreferent += 1
 
                                         # add mention to queried before (arbitrarily set it in predicted_antecedents and coreference_scores to no cluster, even if not truly
                                         # the case--the only thing that matters is that it has a value that it is 100% confident of)
@@ -1123,6 +1128,9 @@ class Trainer(Registrable):
                                                 output_dict['coreference_scores_models'][:, mention[0], mention[1],
                                                 1:] = -float("inf")
                                         num_queried += 1
+                                    pdb.set_trace()
+                                    self._docid_to_query_time_info[batch['metadata'][0]["ID"]] = \
+                                        {"num_queried": num_queried, "coref": num_coreferent, "not coref": num_queried - num_coreferent}
                                 else:  # pairwise
                                     if self._use_percent_labels:
                                         # upper bound is asking question about every span
@@ -1287,8 +1295,8 @@ class Trainer(Registrable):
 
                             # do transitive closure of must-links and cannot-links
                             if self._query_type != 'discrete':
-                                must_link_closure, cannot_link_closure = al_util.get_link_closures(batch['must_link'],
-                                                                                                   batch['cannot_link'])
+                                batch['must_link'], batch['cannot_link'] = al_util.get_link_closures(batch['must_link'],
+                                                                                                     batch['cannot_link'])
                             elif self.DEBUG_BREAK_FLAG:  # check closures against each other
                                 must_link_closure, cannot_link_closure = al_util.get_link_closures(batch['must_link'],
                                                                                                    batch['cannot_link'])
