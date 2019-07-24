@@ -336,7 +336,6 @@ def main(cuda_device, testing=False, testing_vocab=False, experiments=None, pair
             params.params['trainer']['active_learning']['num_labels'] = round(0.01 * x, 2) if use_percents else x
             best_model, metrics, query_info = train_model(params, serialization_dir, selector, recover=False)
             dump_metrics(os.path.join(save_dir, str(x) + ".json"), metrics, log=True)
-            pdb.set_trace()
             with open(os.path.join(save_dir, str(x) + "_query_info.json"), 'w', encoding='utf-8') as f:
                 json.dump(query_info, f)
     else:
@@ -359,7 +358,9 @@ def main(cuda_device, testing=False, testing_vocab=False, experiments=None, pair
             params.params['trainer']['cuda_device'] = cuda_device
             params.params['trainer']['active_learning']['query_type'] = "pairwise" if pairwise else "discrete"
             params.params['trainer']['active_learning']['selector']['type'] = selector if selector else "entropy"
-            best_model, metrics = train_model(params, serialization_dir, selector)
+            best_model, metrics, query_info = train_model(params, serialization_dir, selector)
+            with open(os.path.join(serialization_dir, "query_info.json"), 'w', encoding='utf-8') as f:
+                json.dump(query_info, f)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Run setting')

@@ -1069,7 +1069,6 @@ class Trainer(Registrable):
                                     top_spans_model_labels = torch.gather(batch['span_labels'], 1, translation_reference)
                                     num_queried = 0
                                     num_coreferent = 0
-                                    pdb.set_trace()
                                     while num_queried < num_to_query:
                                         mention, mention_score = \
                                             al_util.find_next_most_uncertain_mention(self._selector, top_spans_model_labels,
@@ -1128,9 +1127,10 @@ class Trainer(Registrable):
                                                 output_dict['coreference_scores_models'][:, mention[0], mention[1],
                                                 1:] = -float("inf")
                                         num_queried += 1
-                                    pdb.set_trace()
-                                    self._docid_to_query_time_info[batch['metadata'][0]["ID"]] = \
-                                        {"num_queried": num_queried, "coref": num_coreferent, "not coref": num_queried - num_coreferent}
+                                    for i in range(batch_size):
+                                        self._docid_to_query_time_info[batch['metadata'][i]["ID"]] = \
+                                            {"num_queried": num_queried, "coref": num_coreferent, "not coref":
+                                                num_queried - num_coreferent, "batch_size": batch_size}
                                 else:  # pairwise
                                     if self._use_percent_labels:
                                         # upper bound is asking question about every span
