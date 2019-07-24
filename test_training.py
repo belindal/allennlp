@@ -4,6 +4,7 @@ import logging
 import os
 import re
 import shutil
+import json
 
 import torch
 
@@ -262,7 +263,7 @@ def train_model(params: Params,
     params.assert_empty('base train command')
 
     try:
-        metrics = trainer.train()
+        metrics, query_info = trainer.train()
     except KeyboardInterrupt:
         # if we have completed an epoch, try to create a model archive.
         if os.path.exists(os.path.join(serialization_dir, _DEFAULT_WEIGHTS)):
@@ -298,7 +299,7 @@ def train_model(params: Params,
     dump_metrics(os.path.join(serialization_dir, "metrics.json"), metrics, log=True)
 
     '''
-    return best_model, metrics
+    return best_model, metrics, query_info
 
 # In practice you'd probably do this from the command line:
 #   $ allennlp train tutorials/tagger/experiment.jsonnet -s /tmp/serialization_dir
@@ -333,8 +334,11 @@ def main(cuda_device, testing=False, testing_vocab=False, experiments=None, pair
                 params.params['trainer']['active_learning']['selector']['type'] = selector
             params.params['trainer']['active_learning']['use_percent'] = use_percents
             params.params['trainer']['active_learning']['num_labels'] = round(0.01 * x, 2) if use_percents else x
-            best_model, metrics = train_model(params, serialization_dir, selector, recover=False)
+            best_model, metrics, query_info = train_model(params, serialization_dir, selector, recover=False)
             dump_metrics(os.path.join(save_dir, str(x) + ".json"), metrics, log=True)
+            pdb.set_trace()
+            with open(os.path.join(save_dir, str(x) + "_query_info.json"), 'w', encoding='utf-8') as f:
+                json.dump(query_info, f)
     else:
         params = Params.from_file('training_config/coref.jsonnet')
         if use_percents:

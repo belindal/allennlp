@@ -1518,7 +1518,7 @@ class Trainer(Registrable):
                         self._learning_rate_scheduler.lr_scheduler.load_state_dict(init_scheduler_state)
             epochs_trained += 1
 
-        return metrics
+        return metrics, self._docid_to_query_time_info
 
     def _is_best_so_far(self,
                         this_epoch_val_metric: float,
