@@ -1202,6 +1202,10 @@ class Trainer(Registrable):
                                             batch['must_link'] = torch.cat((batch['must_link'], indA_edge.unsqueeze(0)), dim=0)
                                         num_queried += 1
 
+                                    for i in range(batch_size):
+                                        self._docid_to_query_time_info[batch['metadata'][i]["ID"]] = \
+                                            {"num_queried": num_queried,  "batch_size": batch_size}
+
                                 edges_to_add = indA_model_edges
 
                             elif self._query_type == 'discrete': # discrete and not using clusters
