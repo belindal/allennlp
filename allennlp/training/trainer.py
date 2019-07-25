@@ -1148,7 +1148,8 @@ class Trainer(Registrable):
                                         # ONLY FOR 1 INSTANCE PER BATCH
                                         pdb.set_trace()
                                         batch_query_info = self._docid_to_query_time_info[batch['metadata'][i]["ID"]]
-                                        num_to_query = int(math.floor(batch_query_info['coref'] + batch_query_info['not coref'] * 3.2576))
+                                        num_to_query = int(batch_query_info['not coref'] * 3.3.257624721075467
+                                                                              + math.floor(batch_query_info['coref']))
                                     else:
                                         total_possible_queries = len((~queried_edges_mask).nonzero())
                                         num_to_query = min(self._active_learning_num_labels, total_possible_queries)
