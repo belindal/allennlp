@@ -310,9 +310,9 @@ def main(cuda_device, testing=False, testing_vocab=False, experiments=None, pair
     if cuda_device == 0:
         percent_list = [200, 180, 160]
     if cuda_device == 1:
-        percent_list = [0, 40, 100, 140]
+        percent_list = [0, 40, 140, 100]
     if cuda_device == 2:
-        percent_list = [20, 60, 80, 120]
+        percent_list = [20, 120, 60, 80]
     if selector == 'qbc':
         cuda_device = [cuda_device, (cuda_device + 1) % 3, (cuda_device + 2) % 3]
         os.system('rm -rf active_learning_model_states_ensemble_' + str(cuda_device))

@@ -1138,9 +1138,9 @@ class Trainer(Registrable):
                                             {"num_queried": num_queried, "coref": num_coreferent, "not coref":
                                                 num_queried - num_coreferent, "batch_size": batch_size}
                                 else:  # pairwise
+                                    total_possible_queries = len((~queried_edges_mask).nonzero())
                                     if self._use_percent_labels:
                                         # upper bound is asking question about every span
-                                        total_possible_queries = len((~queried_edges_mask).nonzero())
                                         num_to_query = int(self._active_learning_percent_labels * total_possible_queries)
                                     elif self._discrete_query_time_info is not None:
                                         # ONLY FOR 1 INSTANCE PER BATCH
@@ -1149,7 +1149,6 @@ class Trainer(Registrable):
                                         num_to_query = int(np.round(batch_query_info['not coref']
                                                                     * 3.257624721075467 + batch_query_info['coref']))
                                     else:
-                                        total_possible_queries = len((~queried_edges_mask).nonzero())
                                         num_to_query = min(self._active_learning_num_labels, total_possible_queries)
                                     top_spans_model_labels = torch.gather(batch['span_labels'], 1, translation_reference)
                                     num_queried = 0
