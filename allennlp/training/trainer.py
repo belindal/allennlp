@@ -9,12 +9,14 @@ rather than instantiating a ``Trainer`` yourself.
 # pylint: disable=too-many-lines
 
 import logging
+import json
 import os
 import shutil
 import time
 import re
 import datetime
 import traceback
+import math
 from typing import Dict, Optional, List, Tuple, Union, Iterable, Any, Set
 
 import torch
@@ -297,6 +299,12 @@ class Trainer(Registrable):
         self.optimizer = optimizer
         self.train_data = train_dataset
         self._held_out_train_data = held_out_train_dataset
+        self._discrete_query_time_info = None
+        if active_learning['query_type'] == 'pairwise':
+            pdb.set_trace()
+            # BOOKMARK
+            with open('discrete_entropy_link_penalties/' + str(active_learning['num_labels']) + '_query_info.json') as f:
+                self._discrete_query_time_info = json.load(f)
         self._docid_to_query_time_info = {}
         self._validation_data = validation_dataset
 
@@ -1136,6 +1144,11 @@ class Trainer(Registrable):
                                         # upper bound is asking question about every span
                                         total_possible_queries = len((~queried_edges_mask).nonzero())
                                         num_to_query = int(self._active_learning_percent_labels * total_possible_queries)
+                                    elif self._discrete_query_time_info is not None:
+                                        # ONLY FOR 1 INSTANCE PER BATCH
+                                        pdb.set_trace()
+                                        batch_query_info = self._docid_to_query_time_info[batch['metadata'][i]["ID"]]
+                                        num_to_query = int(math.floor(batch_query_info['coref'] + batch_query_info['not coref'] * 3.2576))
                                     else:
                                         total_possible_queries = len((~queried_edges_mask).nonzero())
                                         num_to_query = min(self._active_learning_num_labels, total_possible_queries)
