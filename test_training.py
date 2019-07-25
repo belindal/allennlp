@@ -343,7 +343,7 @@ def main(cuda_device, testing=False, testing_vocab=False, experiments=None, pair
         if use_percents:
             params.params['trainer']['active_learning']['num_labels'] = 1
         else:
-            params.params['trainer']['active_learning']['num_labels'] = 100
+            params.params['trainer']['active_learning']['num_labels'] = 120
         params.params['trainer']['active_learning']['use_percent'] = use_percents
         if testing or testing_vocab:
             params.params['trainer']['active_learning']['epoch_interval'] = 0
