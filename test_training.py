@@ -307,10 +307,12 @@ def train_model(params: Params,
 def main(cuda_device, testing=False, testing_vocab=False, experiments=None, pairwise=False, selector='entropy'):
     assert(selector == 'entropy' or selector == 'score' or selector == 'random' or selector == 'qbc')
     use_percents=False
-    if cuda_device == 0 or cuda_device == 1:
-        percent_list = [100, 20, 50]
+    if cuda_device == 0:
+        percent_list = [200, 180, 160]
+    if cuda_device == 1:
+        percent_list = [0, 40, 100, 140]
     if cuda_device == 2:
-        percent_list = [0, 10, 5, 80]
+        percent_list = [20, 60, 80, 120]
     if selector == 'qbc':
         cuda_device = [cuda_device, (cuda_device + 1) % 3, (cuda_device + 2) % 3]
         os.system('rm -rf active_learning_model_states_ensemble_' + str(cuda_device))
