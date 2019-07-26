@@ -1065,6 +1065,7 @@ class Trainer(Registrable):
                                     batch['span_labels'] = al_util.update_clusters_with_edge(batch['span_labels'], edge)
 
                                 if self._query_type == 'discrete':
+                                    pdb.set_trace()
                                     if self._use_percent_labels:
                                         # upper bound is asking question about every span
                                         total_possible_queries = len(output_dict['top_spans'][0])
@@ -1138,6 +1139,7 @@ class Trainer(Registrable):
                                             {"num_queried": num_queried, "coref": num_coreferent, "not coref":
                                                 num_queried - num_coreferent, "batch_size": batch_size}
                                 else:  # pairwise
+                                    pdb.set_trace()
                                     total_possible_queries = len((~queried_edges_mask).nonzero())
                                     if self._use_percent_labels:
                                         # upper bound is asking question about every span
@@ -1171,22 +1173,23 @@ class Trainer(Registrable):
                                             output_dict['coreference_scores_models'][:, edge[0], edge[1], edge[2] + 1] = \
                                                 -float("inf")
 
-                                        if not coreferent and len(indA_model_edges) > 0:
-                                            # If asked edge was deemed not coreferent, delete it
-                                            # (both lines below implicitly check whether indA_edge_asked was actually added before)
-                                            edge_asked_mask = (indA_model_edges == indA_edge).sum(1)
-                                            batch['span_labels'] = al_util.update_clusters_with_edge(
-                                                batch['span_labels'], indA_edge, delete=True,
-                                                all_edges=indA_model_edges)
-                                            indA_model_edges = indA_model_edges[edge_asked_mask < 3]
-                                            # Add to confirmed non-coreferent
-                                            if len(confirmed_non_coref_edges) == 0:
-                                                confirmed_non_coref_edges = indA_edge.unsqueeze(0)
-                                            else:
-                                                confirmed_non_coref_edges = torch.cat(
-                                                    (confirmed_non_coref_edges, indA_edge.unsqueeze(0)), dim=0)
-                                            # Add to cannot-link
-                                            batch['cannot_link'] = torch.cat((batch['cannot_link'], indA_edge.unsqueeze(0)), dim=0)
+                                        if not coreferent:
+                                            if len(indA_model_edges) > 0:
+                                                # If asked edge was deemed not coreferent, delete it
+                                                # (both lines below implicitly check whether indA_edge_asked was actually added before)
+                                                edge_asked_mask = (indA_model_edges == indA_edge).sum(1)
+                                                batch['span_labels'] = al_util.update_clusters_with_edge(
+                                                    batch['span_labels'], indA_edge, delete=True,
+                                                    all_edges=indA_model_edges)
+                                                indA_model_edges = indA_model_edges[edge_asked_mask < 3]
+                                                # Add to confirmed non-coreferent
+                                                if len(confirmed_non_coref_edges) == 0:
+                                                    confirmed_non_coref_edges = indA_edge.unsqueeze(0)
+                                                else:
+                                                    confirmed_non_coref_edges = torch.cat(
+                                                        (confirmed_non_coref_edges, indA_edge.unsqueeze(0)), dim=0)
+                                                # Add to cannot-link
+                                                batch['cannot_link'] = torch.cat((batch['cannot_link'], indA_edge.unsqueeze(0)), dim=0)
                                         else:
                                             # Otherwise, add edge, if not already in there
                                             if len(indA_model_edges) == 0 or (
