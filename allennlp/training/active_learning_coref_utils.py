@@ -600,8 +600,10 @@ def query_user_labels_mention(mention, output_dict, all_spans, user_labels, tran
             # proform not coreferent to anything else in document
             edge[2] = -1
         else:
-            # query user for correct label (point to 1st span in cluster--if it is 1st span, will point to itself)
+            # query user for correct label (point to 1st span in cluster--if it is 1st span, set to -1, nothing before it)
             edge[2] = (user_labels[indA_edge_ask[0]] == proform_label).nonzero()[0]
+            if edge[1] == edge[2]:
+                edge[2] = -1
     if not sample_from_training:
         try:
             num_lines = sum(1 for line in open('discrete_examples.txt', 'r'))
@@ -661,7 +663,7 @@ def find_next_most_uncertain_pairwise_edge(selector, model_labels, output_dict, 
         edge_entropies = -(coref_edge_entropies + non_coref_edge_entropies)
         # avoid choosing 1st column
         edge_confidence_scores = edge_entropies[:, :, 1:]
-    elif selector == 'qbc': # TODO qbc selector
+    elif selector == 'qbc':  # TODO qbc selector
         pdb.set_trace()
 
     if selector == 'entropy' or selector == 'qbc':

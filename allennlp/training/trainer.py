@@ -1093,13 +1093,16 @@ class Trainer(Registrable):
                                         queried_mentions_mask[mention[0], mention[1]] = 1
 
                                         # If asked edge was deemed not coreferent, delete it
-                                        if indA_edge_asked[2] != indA_edge[2] and len(indA_model_edges) > 0:
-                                            # (both lines below implicitly check whether indA_edge_asked was actually added before)
-                                            edge_asked_mask = (indA_model_edges == indA_edge_asked).sum(1)
-                                            batch['span_labels'] = al_util.update_clusters_with_edge(
-                                                batch['span_labels'], indA_edge_asked, delete=True,
-                                                all_edges=indA_model_edges)
-                                            indA_model_edges = indA_model_edges[edge_asked_mask < 3]
+                                        if indA_edge_asked[2] != indA_edge[2]:
+                                            if len(indA_model_edges) > 0:
+                                                # (both lines below implicitly check whether indA_edge_asked was actually added before)
+                                                edge_asked_mask = (indA_model_edges == indA_edge_asked).sum(1)
+                                                batch['span_labels'] = al_util.update_clusters_with_edge(
+                                                    batch['span_labels'], indA_edge_asked, delete=True,
+                                                    all_edges=indA_model_edges)
+                                                indA_model_edges = indA_model_edges[edge_asked_mask < 3]
+                                            else:
+                                                pdb.set_trace()
                                             # Add to confirmed non-coreferent
                                             if len(confirmed_non_coref_edges) == 0:
                                                 confirmed_non_coref_edges = indA_edge_asked.unsqueeze(0)
@@ -1182,14 +1185,16 @@ class Trainer(Registrable):
                                                     batch['span_labels'], indA_edge, delete=True,
                                                     all_edges=indA_model_edges)
                                                 indA_model_edges = indA_model_edges[edge_asked_mask < 3]
-                                                # Add to confirmed non-coreferent
-                                                if len(confirmed_non_coref_edges) == 0:
-                                                    confirmed_non_coref_edges = indA_edge.unsqueeze(0)
-                                                else:
-                                                    confirmed_non_coref_edges = torch.cat(
-                                                        (confirmed_non_coref_edges, indA_edge.unsqueeze(0)), dim=0)
-                                                # Add to cannot-link
-                                                batch['cannot_link'] = torch.cat((batch['cannot_link'], indA_edge.unsqueeze(0)), dim=0)
+                                            else:
+                                                pdb.set_trace()
+                                            # Add to confirmed non-coreferent
+                                            if len(confirmed_non_coref_edges) == 0:
+                                                confirmed_non_coref_edges = indA_edge.unsqueeze(0)
+                                            else:
+                                                confirmed_non_coref_edges = torch.cat(
+                                                    (confirmed_non_coref_edges, indA_edge.unsqueeze(0)), dim=0)
+                                            # Add to cannot-link
+                                            batch['cannot_link'] = torch.cat((batch['cannot_link'], indA_edge.unsqueeze(0)), dim=0)
                                         else:
                                             # Otherwise, add edge, if not already in there
                                             if len(indA_model_edges) == 0 or (
@@ -1210,7 +1215,7 @@ class Trainer(Registrable):
 
                                 edges_to_add = indA_model_edges
 
-                            elif self._query_type == 'discrete': # discrete and not using clusters
+                            elif self._query_type == 'discrete':  # discrete and not using clusters
                                 # get rid of 1st, dummy column to ensure nothing selected from it
                                 coref_scores_no_dummy = output_dict['coreference_scores'][:,:,1:]
                                 #coref_scores_no_dummy[:,0,0] = 0
@@ -1252,7 +1257,7 @@ class Trainer(Registrable):
                                     al_util.query_user_labels_discrete(sorted_max_mention_edges,
                                                                        sorted_max_mention_edges_score, num_to_query,
                                                                        True, output_dict, batch, False, self._sample_from_training)
-                            else: # query type is pairwise
+                            else:  # query type is pairwise
                                 #  TODO DELETE
                                 # get all > 0 edges (to know which to assign next)
                                 larger_than_zero_mask = (output_dict['coreference_scores'] > 0)
@@ -1385,25 +1390,22 @@ class Trainer(Registrable):
                                     batch['span_labels'][ind_instance].tolist(),
                                     train_data_to_add[ind_instance_overall].fields['span_labels'].sequence_field
                                 )
-                                try:
-                                    if len(train_instances_to_update[ind_instance][0]) == 0:
-                                        train_data_to_add[ind_instance_overall].fields['must_link'] = ListField([
-                                            PairField(IndexField(-1, SequenceField()), IndexField(-1, SequenceField()))
-                                        ])
-                                    else:
-                                        train_data_to_add[ind_instance_overall].fields['must_link'] = ListField(
-                                            train_instances_to_update[ind_instance][0]
-                                        )
-                                    if len(train_instances_to_update[ind_instance][1]) == 0:
-                                        train_data_to_add[ind_instance_overall].fields['cannot_link'] = ListField([
-                                            PairField(IndexField(-1, SequenceField()), IndexField(-1, SequenceField()))
-                                        ])
-                                    else:
-                                        train_data_to_add[ind_instance_overall].fields['cannot_link'] = ListField(
-                                            train_instances_to_update[ind_instance][1]
-                                        )
-                                except:
-                                    pdb.set_trace()
+                                if len(train_instances_to_update[ind_instance][0]) == 0:
+                                    train_data_to_add[ind_instance_overall].fields['must_link'] = ListField([
+                                        PairField(IndexField(-1, SequenceField()), IndexField(-1, SequenceField()))
+                                    ])
+                                else:
+                                    train_data_to_add[ind_instance_overall].fields['must_link'] = ListField(
+                                        train_instances_to_update[ind_instance][0]
+                                    )
+                                if len(train_instances_to_update[ind_instance][1]) == 0:
+                                    train_data_to_add[ind_instance_overall].fields['cannot_link'] = ListField([
+                                        PairField(IndexField(-1, SequenceField()), IndexField(-1, SequenceField()))
+                                    ])
+                                else:
+                                    train_data_to_add[ind_instance_overall].fields['cannot_link'] = ListField(
+                                        train_instances_to_update[ind_instance][1]
+                                    )
 
                             if output_dict['loss'] is not None:
                                 num_batches += 1
@@ -1420,15 +1422,18 @@ class Trainer(Registrable):
                                     predicted_clusters.append(batch['spans'][i][batch['span_labels'][i] == cluster].tolist())
                                 predicted_clusters, mention_to_predicted = conll_coref.get_gold_clusters(predicted_clusters)
                                 gold_clusters, mention_to_gold = conll_coref.get_gold_clusters(batch['metadata'][i]['clusters'])
-                                if self.DEBUG_BREAK_FLAG and self._active_learning_percent_labels == 1:
-                                    import pickle
-                                    pickle.dump(predicted_clusters, open('predicted_clusters.pkl', 'wb'), pickle.HIGHEST_PROTOCOL)
-                                    pickle.dump(gold_clusters, open('gold_clusters.pkl', 'wb'), pickle.HIGHEST_PROTOCOL)
-                                    pickle.dump(mention_to_predicted, open('mention_to_predicted.pkl', 'wb'), pickle.HIGHEST_PROTOCOL)
-                                    pickle.dump(mention_to_gold, open('mention_to_gold.pkl', 'wb'), pickle.HIGHEST_PROTOCOL)
-                                    os.system("python verify_clusters.py")
-                                    pdb.set_trace()
-                                    #for span in spans: print(str(span) + " " + str(((output_dict['top_spans'][:,:,0] == span[0]) & (output_dict['top_spans'][:,:,1] == span[1])).nonzero()))
+                                if self.DEBUG_BREAK_FLAG:
+                                    if self._active_learning_percent_labels == 1:
+                                        import pickle
+                                        pickle.dump(predicted_clusters, open('predicted_clusters.pkl', 'wb'), pickle.HIGHEST_PROTOCOL)
+                                        pickle.dump(gold_clusters, open('gold_clusters.pkl', 'wb'), pickle.HIGHEST_PROTOCOL)
+                                        pickle.dump(mention_to_predicted, open('mention_to_predicted.pkl', 'wb'), pickle.HIGHEST_PROTOCOL)
+                                        pickle.dump(mention_to_gold, open('mention_to_gold.pkl', 'wb'), pickle.HIGHEST_PROTOCOL)
+                                        os.system("python verify_clusters.py")
+                                        pdb.set_trace()
+                                        #for span in spans: print(str(span) + " " + str(((output_dict['top_spans'][:,:,0] == span[0]) & (output_dict['top_spans'][:,:,1] == span[1])).nonzero()))
+                                    else:
+                                        pdb.set_trace()
                                 for scorer in conll_coref.scorers:
                                     scorer.update(predicted_clusters, gold_clusters, mention_to_predicted, mention_to_gold)
                             new_P, new_R, new_F1 = conll_coref.get_metric()
