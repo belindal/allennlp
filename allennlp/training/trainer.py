@@ -1065,7 +1065,6 @@ class Trainer(Registrable):
                                     batch['span_labels'] = al_util.update_clusters_with_edge(batch['span_labels'], edge)
 
                                 if self._query_type == 'discrete':
-                                    pdb.set_trace()
                                     if self._use_percent_labels:
                                         # upper bound is asking question about every span
                                         total_possible_queries = len(output_dict['top_spans'][0])
@@ -1101,8 +1100,6 @@ class Trainer(Registrable):
                                                     batch['span_labels'], indA_edge_asked, delete=True,
                                                     all_edges=indA_model_edges)
                                                 indA_model_edges = indA_model_edges[edge_asked_mask < 3]
-                                            else:
-                                                pdb.set_trace()
                                             # Add to confirmed non-coreferent
                                             if len(confirmed_non_coref_edges) == 0:
                                                 confirmed_non_coref_edges = indA_edge_asked.unsqueeze(0)
@@ -1142,7 +1139,6 @@ class Trainer(Registrable):
                                             {"num_queried": num_queried, "coref": num_coreferent, "not coref":
                                                 num_queried - num_coreferent, "batch_size": batch_size}
                                 else:  # pairwise
-                                    pdb.set_trace()
                                     total_possible_queries = len((~queried_edges_mask).nonzero())
                                     if self._use_percent_labels:
                                         # upper bound is asking question about every span
