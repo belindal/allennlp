@@ -965,7 +965,7 @@ class Trainer(Registrable):
                 logger.info("Estimated training time remaining: %s", formatted_time)
 
             if increment_model:
-                self.model_idx = (self.model_idx + 1) % 3
+                self.model_idx = (self.model_idx + 1) % len(self.ensemble_model.submodels)
             if all_finished:
                 break
 

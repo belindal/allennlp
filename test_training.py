@@ -1,4 +1,4 @@
-from typing import Dict, Iterable
+from typing import Dict, Iterable, Optional
 import argparse
 import logging
 import os
@@ -142,6 +142,7 @@ def create_serialization_dir(
 def train_model(params: Params,
                 serialization_dir: str,
                 selector: str,
+                num_ensemble_models: Optional[int],
                 file_friendly_logging: bool = False,
                 recover: bool = False,
                 force: bool = False) -> Model:
@@ -200,7 +201,8 @@ def train_model(params: Params,
 
     model_params = params.pop('model')
     if selector == 'qbc':
-        models_list = [Model.from_params(vocab=vocab, params=model_params.duplicate()) for i in range(3)]
+        assert num_ensemble_models is not None
+        models_list = [Model.from_params(vocab=vocab, params=model_params.duplicate()) for i in range(num_ensemble_models)]
         ensemble_model = CorefEnsemble(models_list)
         model = ensemble_model.submodels[0]
     else:
@@ -304,7 +306,7 @@ def train_model(params: Params,
 # In practice you'd probably do this from the command line:
 #   $ allennlp train tutorials/tagger/experiment.jsonnet -s /tmp/serialization_dir
 #
-def main(cuda_device, testing=False, testing_vocab=False, experiments=None, pairwise=False, selector='entropy'):
+def main(cuda_device, testing=False, testing_vocab=False, experiments=None, pairwise=False, selector='entropy', num_ensemble_models=None):
     assert(selector == 'entropy' or selector == 'score' or selector == 'random' or selector == 'qbc')
     use_percents=False
     if cuda_device == 0:
@@ -314,7 +316,7 @@ def main(cuda_device, testing=False, testing_vocab=False, experiments=None, pair
     if cuda_device == 2:
         percent_list = [20, 120, 60, 80]
     if selector == 'qbc':
-        cuda_device = [cuda_device, (cuda_device + 1) % 3, (cuda_device + 2) % 3]
+        cuda_device = [(cuda_device + i) % 3 for i in range(3)]
         os.system('rm -rf active_learning_model_states_ensemble_' + str(cuda_device))
     else:
         cuda_device = [cuda_device]
@@ -336,7 +338,7 @@ def main(cuda_device, testing=False, testing_vocab=False, experiments=None, pair
                 params.params['trainer']['active_learning']['selector']['type'] = selector
             params.params['trainer']['active_learning']['use_percent'] = use_percents
             params.params['trainer']['active_learning']['num_labels'] = round(0.01 * x, 2) if use_percents else x
-            best_model, metrics, query_info = train_model(params, serialization_dir, selector, recover=False)
+            best_model, metrics, query_info = train_model(params, serialization_dir, selector, num_ensemble_models, recover=False)
             dump_metrics(os.path.join(save_dir, str(x) + ".json"), metrics, log=True)
             with open(os.path.join(save_dir, str(x) + "_query_info.json"), 'w', encoding='utf-8') as f:
                 json.dump(query_info, f)
@@ -360,7 +362,7 @@ def main(cuda_device, testing=False, testing_vocab=False, experiments=None, pair
             params.params['trainer']['cuda_device'] = cuda_device
             params.params['trainer']['active_learning']['query_type'] = "pairwise" if pairwise else "discrete"
             params.params['trainer']['active_learning']['selector']['type'] = selector if selector else "entropy"
-            best_model, metrics, query_info = train_model(params, serialization_dir, selector)
+            best_model, metrics, query_info = train_model(params, serialization_dir, selector, num_ensemble_models)
             with open(os.path.join(serialization_dir, "query_info.json"), 'w', encoding='utf-8') as f:
                 json.dump(query_info, f)
 
@@ -389,4 +391,9 @@ if __name__ == "__main__":
                         help='what type of selector to use')
    
     args = parser.parse_args()
-    main(vars(args)['cuda_device'], vars(args)['testing'], vars(args)['testing_vocab'], vars(args)['experiments'], vars(args)['pairwise'], vars(args)['selector'])
+    num_ensemble_models = None
+    if vars(args)['selector'][:3] == 'qbc':
+        assert (len(vars(args)['selector']) > 3)
+        num_ensemble_models = int(vars(args)['selector'][3:])
+        vars(args)['selector'] = 'qbc'
+    main(vars(args)['cuda_device'], vars(args)['testing'], vars(args)['testing_vocab'], vars(args)['experiments'], vars(args)['pairwise'], vars(args)['selector'], num_ensemble_models)
