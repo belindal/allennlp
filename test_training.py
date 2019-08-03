@@ -1,6 +1,7 @@
 from typing import Dict, Iterable, Optional
 import argparse
 import logging
+import math
 import os
 import re
 import shutil
@@ -184,6 +185,12 @@ def train_model(params: Params,
     params.to_file(os.path.join(serialization_dir, CONFIG_NAME))
 
     all_datasets = datasets_from_params(params)
+    # pdb.set_trace()
+    # spans_per_word = params['model']['spans_per_word']
+    # total_top_spans = 0
+    # for instance in all_datasets['held_out_train']:
+    #     total_top_spans += int(math.floor(spans_per_word * len(instance['text'])))
+    # print(total_top_spans / len(all_datasets['held_out_train']))
     datasets_for_vocab_creation = set(params.pop("datasets_for_vocab_creation", all_datasets))
 
     for dataset in datasets_for_vocab_creation:

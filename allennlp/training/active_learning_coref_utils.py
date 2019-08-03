@@ -797,6 +797,8 @@ def find_next_most_uncertain_mention(selector, model_labels, output_dict, querie
                         row_non_cluster_entropy != row_non_cluster_entropy] = 0  # don't want to add nan caused by log-ing 0 probabilities
                     mention_confidence_scores[b] += -row_non_cluster_entropy.sum(1)
                 elif selector == 'score':
+                    # clustered score
+                    pdb.set_trace()
                     if len(clustered_mask.nonzero()) > 0:
                         # mask for mentions belonging in chosen cluster
                         chosen_cluster_rows_mask = (
@@ -895,6 +897,12 @@ def get_link_closures_edge(must_link, cannot_link, edge, should_link=False, must
             output_dict['coreference_scores_models'][:, coref_pairs[:, 0], coref_pairs[:, 1], coref_pairs[:, 2] + 1] = 0
 
         # get CL involving each of edge[1] and edge[2]
+        # forall a',m,b'; ML(a,b) & ML(a,a') & CL(a',m) -> (ML(b,b') -> CL(b',m))
+        #   Since we already have CL closure on non-a and non-b mentions, ML(a,a') & CL(a',m) => CL(a,m) for all a' where a'!=b
+        # forall m,b'; ML(a,b) & CL(a,m) -> (ML(b,b') -> CL(b',m))
+        # forall m,b'; ML(a,b) & CL(a,m) & ML(b,b') -> CL(b',m)
+        #   Since we already have ML closure, ML(a,b) & ML(b,b') => ML(a,b') for all b'
+        # forall b'; ML(a,b') & CL(a,m) -> CL(b',m)
         # 1. For each of CL(*,edge[1] cluster) and CL(edge[1] cluster,*), add CL(*,edge[2] cluster) and/or CL(edge[2] cluster,*)
         # 2. For each of CL(*,edge[2] cluster) and CL(edge[2] cluster,*), add CL(*,edge[1] cluster) and/or CL(edge[1] cluster,*)
         # CL involving elements of edge[1] cluster (the other element of it)
