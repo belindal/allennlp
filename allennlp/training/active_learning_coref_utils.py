@@ -423,7 +423,7 @@ def find_next_most_uncertain_mention_unclustered(selector, model_labels, output_
     model_labels: batch x num_spans tensor detailing cluster ID of cluster each span belongs to, according to model edges
     and user corrections. IMPORTANT: indexes into TOP_SPANS, not all spans.
     '''
-    DEBUG_FLAG = True
+    DEBUG_FLAG = False
     coref_scores_mask = output_dict['coreference_scores'] != -float("inf")
     mention_confidence_scores = torch.zeros(output_dict['top_spans'].size()[:2], dtype=torch.float,
                                             device=model_labels.device)
@@ -456,7 +456,9 @@ def find_next_most_uncertain_mention_unclustered(selector, model_labels, output_
                     for i in range(len(votes)):
                         votes[i] = (model_pred_ants[:,ant] == i).sum()
                     votes = votes.float() / num_models
-                    entropy = -(votes * votes.log()).sum()
+                    entropy = votes * votes.log()
+                    entropy[entropy != entropy] = 0
+                    entropy = -entropy.sum()
                     if entropy != mention_confidence_scores[b, ant]:
                         pdb.set_trace()
         else:
