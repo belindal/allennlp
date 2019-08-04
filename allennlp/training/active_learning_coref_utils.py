@@ -785,12 +785,13 @@ def find_next_most_uncertain_mention(selector, model_labels, output_dict, querie
                 # [-1,-1,-1,-1, 2]    [.,  .,  .,  .,2+12]
                 # model counts for all of same row/mention and cluster (label) get mapped to the same bin
                 # [m1c1,m1c2,m1c3,...,m2c1,m2c2,m2c3,...]
-                row_increment_range_vec = torch.arange(0, model_output_mention_pair_clusters.size(0) * num_clusters,
-                                                       num_clusters, dtype=torch.long, device=model_labels.device).unsqueeze(1)
-                row_cluster_sum = (model_output_mention_pair_clusters + row_increment_range_vec)[
-                    mention_pair_cluster_mask].bincount(coreference_probs[mention_pair_cluster_mask],
-                                                        minlength=row_increment_range_vec.max() + num_clusters)
-                row_cluster_sum = row_cluster_sum.view(-1, num_clusters)
+                if len(clustered_mask.nonzero()) > 0:
+                    row_increment_range_vec = torch.arange(0, model_output_mention_pair_clusters.size(0) * num_clusters,
+                                                           num_clusters, dtype=torch.long, device=model_labels.device).unsqueeze(1)
+                    row_cluster_sum = (model_output_mention_pair_clusters + row_increment_range_vec)[
+                        mention_pair_cluster_mask].bincount(coreference_probs[mention_pair_cluster_mask],
+                                                            minlength=row_increment_range_vec.max() + num_clusters)
+                    row_cluster_sum = row_cluster_sum.view(-1, num_clusters)
                 if selector == 'entropy':
                     if len(clustered_mask.nonzero()) > 0:
                         # TODO VERIFY: for i, row in enumerate(row_cluster_sum): assert(len(coreference_probs[i][mention_pair_cluster_mask[i]]) == 0 or len(((row - model_output_mention_pair_clusters[i][mention_pair_cluster_mask[i]].bincount(coreference_probs[i][mention_pair_cluster_mask[i]], minlength=len(row))).abs() > 0.0001).nonzero()) == 0)
@@ -806,11 +807,7 @@ def find_next_most_uncertain_mention(selector, model_labels, output_dict, querie
                 elif selector == 'score':
                     assert verify_existing is not None
                     # scores for mentions with antecedents (which are possibly clustered with other antecedents)
-                    try:
-                        assert (clustered_mask != (output_dict['predicted_antecedents'] != -1)).sum() == 0
-                    except:
-                        pdb.set_trace()
-                    if verify_existing:
+                    if verify_existing and (~queried_mentions_mask[b][clustered_mask]).sum() > 0:
                         try:
                             assert len(clustered_mask.nonzero()) > 0
                         except:
@@ -818,7 +815,8 @@ def find_next_most_uncertain_mention(selector, model_labels, output_dict, querie
                         # get rows of those in selected clusters, add scores
                         mention_confidence_scores[b][clustered_mask] = row_cluster_sum[clustered_mask][
                             torch.arange(0, len(clustered_mask.nonzero())), antecedent_clusters[clustered_mask]]
-                        opt_score = mention_confidence_scores[b][clustered_mask].min()
+                        scores = mention_confidence_scores[b][clustered_mask][~queried_mentions_mask[b][clustered_mask]]
+                        opt_score = scores.min()
                     else:
                         # rows are mentions, columns are antecedent clusters, c1,2 are non-singleton clusters, a1-100 are antecedents
                         # Suppose a1 and a2 for m1 are in the same cluster (c1), a2 and a100 for m2 are in the same cluster (c2)
@@ -826,10 +824,11 @@ def find_next_most_uncertain_mention(selector, model_labels, output_dict, querie
                         # m1[ 2, 2,...,   3]    =>   [ 0, 0,...,   3,2+3=6,    0]
                         # m2[ 3, 4,...,   5]    =>   [ 3, 0,...,   0,    0,4+5=9]
                         non_cluster_mention_score = (coreference_probs * (~mention_pair_cluster_mask).float())[~clustered_mask][:, 1:]
-                        non_cluster_mention_score = torch.cat([non_cluster_mention_score, row_cluster_sum[~clustered_mask]], -1)
+                        if len(clustered_mask.nonzero()) > 0:
+                            non_cluster_mention_score = torch.cat([non_cluster_mention_score, row_cluster_sum[~clustered_mask]], -1)
                         # scores for mentions w/out antecedents: Max of these
                         mention_confidence_scores[b][~clustered_mask] = non_cluster_mention_score.max(-1)[0]
-                        opt_score = mention_confidence_scores[b][~clustered_mask].max()
+                        opt_score = mention_confidence_scores[b][~clustered_mask][~queried_mentions_mask[b][~clustered_mask]].max()
     if DEBUG_BREAK_FLAG and len(clustered_mask.nonzero()) > 0:
         torch.save(mention_confidence_scores, "mention_confidence_scores.txt")
         torch.save(coreference_probs, "coreference_probs.txt")
