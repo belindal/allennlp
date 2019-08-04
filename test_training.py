@@ -313,7 +313,8 @@ def train_model(params: Params,
 # In practice you'd probably do this from the command line:
 #   $ allennlp train tutorials/tagger/experiment.jsonnet -s /tmp/serialization_dir
 #
-def main(cuda_device, testing=False, testing_vocab=False, experiments=None, pairwise=False, selector='entropy', num_ensemble_models=None):
+def main(cuda_device, testing=False, testing_vocab=False, experiments=None, pairwise=False, selector='entropy', num_ensemble_models=None,
+         no_clusters=False):
     assert(selector == 'entropy' or selector == 'score' or selector == 'random' or selector == 'qbc')
     use_percents=False
     if cuda_device == 0:
@@ -343,6 +344,7 @@ def main(cuda_device, testing=False, testing_vocab=False, experiments=None, pair
             params.params['trainer']['active_learning']['query_type'] = "pairwise" if pairwise else "discrete"
             if selector:
                 params.params['trainer']['active_learning']['selector']['type'] = selector
+            params.params['trainer']['active_learning']['selector']['use_clusters'] = not no_clusters
             params.params['trainer']['active_learning']['use_percent'] = use_percents
             params.params['trainer']['active_learning']['num_labels'] = round(0.01 * x, 2) if use_percents else x
             best_model, metrics, query_info = train_model(params, serialization_dir, selector, num_ensemble_models, recover=False)
@@ -369,6 +371,7 @@ def main(cuda_device, testing=False, testing_vocab=False, experiments=None, pair
             params.params['trainer']['cuda_device'] = cuda_device
             params.params['trainer']['active_learning']['query_type'] = "pairwise" if pairwise else "discrete"
             params.params['trainer']['active_learning']['selector']['type'] = selector if selector else "entropy"
+            params.params['trainer']['active_learning']['selector']['use_clusters'] = not no_clusters
             best_model, metrics, query_info = train_model(params, serialization_dir, selector, num_ensemble_models)
             with open(os.path.join(serialization_dir, "query_info.json"), 'w', encoding='utf-8') as f:
                 json.dump(query_info, f)
@@ -392,6 +395,10 @@ if __name__ == "__main__":
                         action='store_true',
                         default=False,
                         help='run pairwise querying')
+    parser.add_argument('-nc', '--no-clusters',
+                        action='store_true',
+                        default=False,
+                        help='run non-clustering selectors')
     parser.add_argument('-s', '--selector',
                         type=str,
                         default='entropy',
@@ -403,4 +410,4 @@ if __name__ == "__main__":
         assert (len(vars(args)['selector']) > 3)
         num_ensemble_models = int(vars(args)['selector'][3:])
         vars(args)['selector'] = 'qbc'
-    main(vars(args)['cuda_device'], vars(args)['testing'], vars(args)['testing_vocab'], vars(args)['experiments'], vars(args)['pairwise'], vars(args)['selector'], num_ensemble_models)
+    main(vars(args)['cuda_device'], vars(args)['testing'], vars(args)['testing_vocab'], vars(args)['experiments'], vars(args)['pairwise'], vars(args)['selector'], num_ensemble_models, vars(args)['no_clusters'])

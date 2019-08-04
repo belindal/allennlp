@@ -1096,8 +1096,7 @@ class Trainer(Registrable):
                                             al_util.find_next_most_uncertain_mention_unclustered(self._selector,
                                                                                      top_spans_model_labels,
                                                                                      output_dict, queried_mentions_mask,
-                                                                                     verify_existing=verify_existing,
-                                                                                     DEBUG_BREAK_FLAG=self.DEBUG_BREAK_FLAG)
+                                                                                     verify_existing=verify_existing)
                                     indA_edge, edge_asked, indA_edge_asked = \
                                         al_util.query_user_labels_mention(mention, output_dict, batch['spans'],
                                                                           batch['user_labels'], translation_reference,
@@ -1113,7 +1112,7 @@ class Trainer(Registrable):
                                     if indA_edge_asked[2] != indA_edge[2]:
                                         if len(indA_model_edges) > 0:
                                             # (both lines below implicitly check whether indA_edge_asked was actually added before)
-                                            edge_asked_mask = (indA_model_edges == indA_edge_asked).sum(1)
+                                            edge_asked_mask = (indA_model_edges == indA_edge_asked).sum(-1)
                                             batch['span_labels'] = al_util.update_clusters_with_edge(
                                                 batch['span_labels'], indA_edge_asked, delete=True,
                                                 all_edges=indA_model_edges)
