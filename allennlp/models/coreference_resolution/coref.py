@@ -379,7 +379,7 @@ class CoreferenceResolver(Model):
             negative_marginal_log_likelihood = -util.logsumexp(correct_antecedent_log_probs).sum()
 
             ml_loss_penalty = cl_loss_penalty = 0
-            # Now add constraints
+            # Now add constraints, if ML is non-empty
             if must_link is not None and (must_link.size(1) > 1 or must_link[0, 0, 0] != -1 or must_link[0, 0, 1] != -1):
                 # obtain model-predicted clusters
                 no_antecedent_mask = output_dict['predicted_antecedents'] != -1

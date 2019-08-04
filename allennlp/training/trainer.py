@@ -1073,13 +1073,23 @@ class Trainer(Registrable):
                                         total_possible_queries = len(output_dict['top_spans'][0])
                                         num_to_query = min(self._active_learning_num_labels, total_possible_queries)
                                     top_spans_model_labels = torch.gather(batch['span_labels'], 1, translation_reference)
+
+                                    # score selector stuff
+                                    verify_existing = None
+                                    if self._selector == 'score':
+                                        verify_existing = True
+
                                     num_queried = 0
                                     num_coreferent = 0
                                     while num_queried < num_to_query:
+                                        # num existing edges to verify = min((# to query total / 2), # of existing edges)
+                                        if self._selector == 'score' and (num_queried == int(num_to_query / 2) or num_queried == len(model_edges)):
+                                            verify_existing = False
                                         mention, mention_score = \
                                             al_util.find_next_most_uncertain_mention(self._selector, top_spans_model_labels,
                                                                                      output_dict, queried_mentions_mask,
-                                                                                     self.DEBUG_BREAK_FLAG)
+                                                                                     verify_existing=verify_existing,
+                                                                                     DEBUG_BREAK_FLAG=self.DEBUG_BREAK_FLAG)
                                         indA_edge, edge_asked, indA_edge_asked = \
                                             al_util.query_user_labels_mention(mention, output_dict, batch['spans'],
                                                                               batch['user_labels'], translation_reference,
