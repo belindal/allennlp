@@ -1,6 +1,7 @@
 import logging
 import math
 from typing import Any, Dict, List, Optional, Tuple, Union
+from retrying import retry
 
 import torch
 import torch.nn.functional as F
@@ -729,11 +730,28 @@ class CoreferenceResolver(Model):
             antecedent_distance_embeddings = antecedent_distance_embeddings.expand(*expanded_distance_embeddings_shape)
 
         # Shape: (batch_size, num_spans_to_keep, max_antecedents, embedding_size)
-        span_pair_embeddings = torch.cat([target_embeddings,
-                                          antecedent_embeddings,
-                                          antecedent_embeddings * target_embeddings,
-                                          antecedent_distance_embeddings], -1)
+        try:
+            span_pair_embeddings = self._get_span_pair_embeddings(target_embeddings,
+                                                                  antecedent_embeddings,
+                                                                  antecedent_distance_embeddings)
+        except:
+            import os
+            print("Suspend process " + str(os.getpid()) + "(ctrl-z)")
+            print("Remember press enter to continue...")
+            pdb.set_trace()
+            span_pair_embeddings = self._get_span_pair_embeddings(target_embeddings,
+                                                                  antecedent_embeddings,
+                                                                  antecedent_distance_embeddings)
+
         return span_pair_embeddings
+
+    @retry(wait_exponential_multiplier=1000, wait_exponential_max=10000, stop_max_attempt_number=100)
+    @staticmethod
+    def _get_span_pair_embeddings(target_embeddings, antecedent_embeddings, antecedent_distance_embeddings):
+        torch.cuda.empty_cache()
+        return torch.cat([target_embeddings, antecedent_embeddings,
+                          antecedent_embeddings * target_embeddings,
+                          antecedent_distance_embeddings], -1)
 
     @staticmethod
     def _compute_antecedent_gold_labels(top_span_labels: torch.IntTensor,
