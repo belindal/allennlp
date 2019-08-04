@@ -680,7 +680,7 @@ def find_next_most_uncertain_pairwise_edge(selector, model_labels, output_dict, 
 
 
 """ FOR CLUSTERED, DISCRETE SELECTION """
-def find_next_most_uncertain_mention(selector, model_labels, output_dict, queried_mentions_mask, verify_existing=None.
+def find_next_most_uncertain_mention(selector, model_labels, output_dict, queried_mentions_mask, verify_existing=None,
                                      DEBUG_BREAK_FLAG=False):
     '''
     model_labels: batch x num_spans tensor detailing cluster ID of cluster each span belongs to, according to model edges
@@ -810,24 +810,26 @@ def find_next_most_uncertain_mention(selector, model_labels, output_dict, querie
                         assert (clustered_mask != (output_dict['predicted_antecedents'] != -1)).sum() == 0
                     except:
                         pdb.set_trace()
-                    pdb.set_trace()
-                    if len(clustered_mask.nonzero()) > 0:
+                    if verify_existing:
+                        try:
+                            assert len(clustered_mask.nonzero()) > 0
+                        except:
+                            pdb.set_trace()
                         # get rows of those in selected clusters, add scores
                         mention_confidence_scores[b][clustered_mask] = row_cluster_sum[clustered_mask][
                             torch.arange(0, len(clustered_mask.nonzero())), antecedent_clusters[clustered_mask]]
-                    # rows are mentions, columns are antecedent clusters, c1,2 are non-singleton clusters, a1-100 are antecedents
-                    # Suppose a1 and a2 for m1 are in the same cluster (c1), a2 and a100 for m2 are in the same cluster (c2)
-                    #    a1,a2,...,a100     =>    a1,a2,...,a100,   c1,   c2
-                    # m1[ 2, 2,...,   3]    =>   [ 0, 0,...,   3,2+3=6,    0]
-                    # m2[ 3, 4,...,   5]    =>   [ 3, 0,...,   0,    0,4+5=9]
-                    non_cluster_mention_score = (coreference_probs * (~mention_pair_cluster_mask).float())[~clustered_mask][:, 1:]
-                    non_cluster_mention_score = torch.cat([non_cluster_mention_score, row_cluster_sum[~clustered_mask]], -1)
-                    # scores for mentions w/out antecedents: Max of these
-                    mention_confidence_scores[b][~clustered_mask] = non_cluster_mention_score.max(-1)[0]
-                    if verify_existing:
                         opt_score = mention_confidence_scores[b][clustered_mask].min()
                     else:
-                        mention_confidence_scores[b][~clustered_mask].max()
+                        # rows are mentions, columns are antecedent clusters, c1,2 are non-singleton clusters, a1-100 are antecedents
+                        # Suppose a1 and a2 for m1 are in the same cluster (c1), a2 and a100 for m2 are in the same cluster (c2)
+                        #    a1,a2,...,a100     =>    a1,a2,...,a100,   c1,   c2
+                        # m1[ 2, 2,...,   3]    =>   [ 0, 0,...,   3,2+3=6,    0]
+                        # m2[ 3, 4,...,   5]    =>   [ 3, 0,...,   0,    0,4+5=9]
+                        non_cluster_mention_score = (coreference_probs * (~mention_pair_cluster_mask).float())[~clustered_mask][:, 1:]
+                        non_cluster_mention_score = torch.cat([non_cluster_mention_score, row_cluster_sum[~clustered_mask]], -1)
+                        # scores for mentions w/out antecedents: Max of these
+                        mention_confidence_scores[b][~clustered_mask] = non_cluster_mention_score.max(-1)[0]
+                        opt_score = mention_confidence_scores[b][~clustered_mask].max()
     if DEBUG_BREAK_FLAG and len(clustered_mask.nonzero()) > 0:
         torch.save(mention_confidence_scores, "mention_confidence_scores.txt")
         torch.save(coreference_probs, "coreference_probs.txt")

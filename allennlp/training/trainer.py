@@ -1082,14 +1082,14 @@ class Trainer(Registrable):
                                     num_queried = 0
                                     num_coreferent = 0
                                     while num_queried < num_to_query:
-                                        pdb.set_trace()
-                                        if self._selector == 'score' and num_queried == int(num_to_query / 2):
+                                        # num existing edges to verify = min((# to query total / 2), # of existing edges)
+                                        if self._selector == 'score' and (num_queried == int(num_to_query / 2) or num_queried == len(model_edges)):
                                             verify_existing = False
                                         mention, mention_score = \
                                             al_util.find_next_most_uncertain_mention(self._selector, top_spans_model_labels,
                                                                                      output_dict, queried_mentions_mask,
                                                                                      verify_existing=verify_existing,
-                                                                                     debug_break_flag=self.DEBUG_BREAK_FLAG)
+                                                                                     DEBUG_BREAK_FLAG=self.DEBUG_BREAK_FLAG)
                                         indA_edge, edge_asked, indA_edge_asked = \
                                             al_util.query_user_labels_mention(mention, output_dict, batch['spans'],
                                                                               batch['user_labels'], translation_reference,
