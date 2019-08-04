@@ -433,49 +433,57 @@ def find_next_most_uncertain_mention_unclustered(selector, model_labels, output_
                                    ).unsqueeze(-1)
         coreference_probs = util.masked_log_softmax(score_instance, top_span_mask).exp()
         if selector == 'qbc':
-            pdb.set_trace()
             num_models = output_dict['coreference_scores_models'].size(0)
+            num_mentions = output_dict['coreference_scores'].size(1)
             _, model_pred_ants = output_dict['coreference_scores_models'][:, b].max(-1)
             # count antecedent votes (including empty)
-            model_pred_ants = model_pred_ants[:, :, 0]
             num_antecedents = output_dict['coreference_scores'].size(2)
-            mention_increment_range_vec = torch.arange(0, model_output_mention_pair_clusters.size(
-                1) * num_antecedents, num_antecedents, dtype=torch.long, device=model_labels.device)
-            mention_antecedent_votes = (model_pred_ants + mention_increment_range_vec)[~cluster_mask].bincount(
-                minlength=len(mention_increment_range_vec) * num_antecedents)
-            mention_antecedent_votes = mention_antecedent_votes.view(-1, num_antecedents)
+            mention_increment_range_vec = torch.arange(0, (model_pred_ants.max() + 1) * num_mentions,
+                model_pred_ants.max() + 1, dtype=torch.long, device=model_labels.device)
+            # [m1a1, m1a2, m1a3, ..., m2a1, m2a2, m2a3, ...]
+            mention_antecedent_votes = (model_pred_ants + mention_increment_range_vec).view(-1).bincount(
+                minlength=(model_pred_ants.max() + 1) * num_mentions)
+            mention_antecedent_votes = mention_antecedent_votes.view(num_mentions, -1)
             ant_vote_entropy = mention_antecedent_votes.float() / num_models
             ant_vote_entropy = ant_vote_entropy * ant_vote_entropy.log()
             ant_vote_entropy[ant_vote_entropy != ant_vote_entropy] = 0
             ant_vote_entropy = ant_vote_entropy.sum(-1)
             mention_confidence_scores[b] += -ant_vote_entropy
+            if DEBUG_FLAG:
+                for ant in range(model_pred_ants.size(-1)):
+                    votes = torch.zeros(model_pred_ants[:,ant].max() + 1, device=model_pred_ants.device, dtype=torch.long)
+                    for i in range(len(votes)):
+                        votes[i] = model_pred_ants[:,ant] == i
+                    pdb.set_trace()
+                    votes = votes / num_models
+                    entropy = -(votes * votes.log()).sum()
+                    if entropy != mention_confidence_scores[b, ant]:
+                        pdb.set_trace()
         else:
             clustered_mask = output_dict['predicted_antecedents'] != -1  # mask for mentions selected antecedents in
                                                                          # clusters
             if selector == 'entropy':
-                pdb.set_trace()
                 row_non_cluster_entropy = coreference_probs * coreference_probs.log()
                 row_non_cluster_entropy[row_non_cluster_entropy != row_non_cluster_entropy] = 0  # avoid adding nan
-                mention_confidence_scores[b] += -row_non_cluster_entropy.sum(1)
+                mention_confidence_scores[b] += -row_non_cluster_entropy.sum(-1)
             elif selector == 'score':
-                pdb.set_trace()
                 assert verify_existing is not None
                 # scores for mentions with antecedents (which are possibly clustered with other antecedents)
-                if verify_existing and (~queried_mentions_mask[b][clustered_mask]).sum() > 0:
+                if verify_existing and (~queried_mentions_mask[clustered_mask]).sum() > 0:
                     try:
                         assert len(clustered_mask.nonzero()) > 0
                     except:
                         pdb.set_trace()
                     # get rows of those in selected clusters, add scores
-                    mention_confidence_scores[b][clustered_mask] = coreference_probs[clustered_mask][torch.arange(
+                    mention_confidence_scores[clustered_mask] = coreference_probs[clustered_mask[b]][torch.arange(
                         0, len(clustered_mask.nonzero())), (output_dict['predicted_antecedents'][clustered_mask] + 1)]
-                    scores = mention_confidence_scores[b][clustered_mask][~queried_mentions_mask[b][clustered_mask]]
+                    scores = mention_confidence_scores[clustered_mask][~queried_mentions_mask[clustered_mask]]
                     opt_score = scores.min()
                 else:
-                    non_cluster_mention_score = coreference_probs[~clustered_mask][:, 1:]
-                    mention_confidence_scores[b][~clustered_mask] = non_cluster_mention_score.max(-1)[0]
+                    non_cluster_mention_score = coreference_probs[~clustered_mask[b]][:, 1:]
+                    mention_confidence_scores[~clustered_mask] = non_cluster_mention_score.max(-1)[0]
                     opt_score = \
-                        mention_confidence_scores[b][~clustered_mask][~queried_mentions_mask[b][~clustered_mask]].max()
+                        mention_confidence_scores[~clustered_mask][~queried_mentions_mask[~clustered_mask]].max()
     if selector == 'entropy' or selector == 'qbc':
         opt_score = mention_confidence_scores.max()
     # choose arbitrary unchosen, least-confident mention
