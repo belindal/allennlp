@@ -515,7 +515,7 @@ class Trainer(Registrable):
         metrics["loss"] = float(total_loss / num_batches) if num_batches > 0 else 0.0
         return metrics
 
-    @retry(wait_exponential_multiplier=500, stop_max_attempt_number=50)
+    @retry(stop_max_attempt_number=25)
     def _backprop(self, loss):
         torch.cuda.empty_cache()
         loss.backward()

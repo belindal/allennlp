@@ -750,7 +750,7 @@ class CoreferenceResolver(Model):
 
         return span_pair_embeddings
 
-    @retry(wait_fixed=500, stop_max_attempt_number=50)
+    @retry(stop_max_attempt_number=25)
     def _get_span_pair_embeddings(self, target_embeddings, antecedent_embeddings, antecedent_distance_embeddings):
         torch.cuda.empty_cache()
         return torch.cat([target_embeddings, antecedent_embeddings,
