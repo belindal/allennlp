@@ -625,7 +625,8 @@ def find_next_most_uncertain_mention(selector, model_labels, output_dict, querie
                 elif selector == 'score':
                     assert verify_existing is not None
                     # scores for mentions with antecedents (which are possibly clustered with other antecedents)
-                    if verify_existing and (~queried_mentions_mask[b][clustered_mask]).sum() > 0:
+                    if ((verify_existing and (~queried_mentions_mask[b][clustered_mask]).sum() > 0) or
+                        (not verify_existing and (~queried_mentions_mask[b][~clustered_mask]).sum() == 0)):
                         try:
                             assert len(clustered_mask.nonzero()) > 0
                         except:
