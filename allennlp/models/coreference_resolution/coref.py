@@ -731,23 +731,27 @@ class CoreferenceResolver(Model):
 
         # Shape: (batch_size, num_spans_to_keep, max_antecedents, embedding_size)
         try:
-            span_pair_embeddings = self._get_span_pair_embeddings(target_embeddings,
-                                                                  antecedent_embeddings,
-                                                                  antecedent_distance_embeddings)
+            span_pair_embeddings = torch.cat([target_embeddings, antecedent_embeddings,
+                                              antecedent_embeddings * target_embeddings,
+                                              antecedent_distance_embeddings], -1)
         except:
-            import os
-            print("Suspend process " + str(os.getpid()) + "(ctrl-z)")
-            print("Remember press enter to continue...")
-            pdb.set_trace()
-            span_pair_embeddings = self._get_span_pair_embeddings(target_embeddings,
-                                                                  antecedent_embeddings,
-                                                                  antecedent_distance_embeddings)
+            try:
+                span_pair_embeddings = self._get_span_pair_embeddings(target_embeddings,
+                                                                      antecedent_embeddings,
+                                                                      antecedent_distance_embeddings)
+            except:
+                import os
+                print("Suspend process " + str(os.getpid()) + "(ctrl-z)")
+                print("Remember press enter to continue...")
+                pdb.set_trace()
+                span_pair_embeddings = self._get_span_pair_embeddings(target_embeddings,
+                                                                      antecedent_embeddings,
+                                                                      antecedent_distance_embeddings)
 
         return span_pair_embeddings
 
-    @retry(wait_exponential_multiplier=1000, wait_exponential_max=10000, stop_max_attempt_number=100)
-    @staticmethod
-    def _get_span_pair_embeddings(target_embeddings, antecedent_embeddings, antecedent_distance_embeddings):
+    @retry(wait_fixed=500, stop_max_attempt_number=50)
+    def _get_span_pair_embeddings(self, target_embeddings, antecedent_embeddings, antecedent_distance_embeddings):
         torch.cuda.empty_cache()
         return torch.cat([target_embeddings, antecedent_embeddings,
                           antecedent_embeddings * target_embeddings,

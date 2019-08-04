@@ -18,6 +18,7 @@ import datetime
 import traceback
 import numpy as np
 from typing import Dict, Optional, List, Tuple, Union, Iterable, Any, Set
+from retrying import retry
 
 import torch
 import torch.optim.lr_scheduler
@@ -514,6 +515,11 @@ class Trainer(Registrable):
         metrics["loss"] = float(total_loss / num_batches) if num_batches > 0 else 0.0
         return metrics
 
+    @retry(wait_exponential_multiplier=500, stop_max_attempt_number=50)
+    def _backprop(self, loss):
+        torch.cuda.empty_cache()
+        loss.backward()
+
     def _train_epoch(self, epoch: int) -> Dict[str, float]:
         """
         Trains one epoch and returns metrics.
@@ -560,9 +566,15 @@ class Trainer(Registrable):
                 torch.cuda.empty_cache()
                 loss.backward()
             except:
-                pdb.set_trace()
-                for param in self.model.parameters():
-                    print(param.grad)
+                try:
+                    self._backprop(loss)
+                except:
+                    import os
+                    print("Suspend process " + str(os.getpid()) + "(ctrl-z)")
+                    print("Remember press enter to continue...")
+                    pdb.set_trace()
+                    self._backprop(loss)
+
             train_loss += loss.item()
 
             batch_grad_norm = self.rescale_gradients()
