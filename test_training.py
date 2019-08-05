@@ -318,11 +318,14 @@ def main(cuda_device, testing=False, testing_vocab=False, experiments=None, pair
     assert(selector == 'entropy' or selector == 'score' or selector == 'random' or selector == 'qbc')
     use_percents=False
     if cuda_device == 0:
-        percent_list = [200, 180, 160]
+        #percent_list = [200, 180, 160]
+        percent_list = [120, 100, 80]
     if cuda_device == 1:
-        percent_list = [0, 40, 140, 100]
+        #percent_list = [0, 40, 140, 100]
+        percent_list = [60, 40, 140]
     if cuda_device == 2:
-        percent_list = [20, 120, 60, 80]
+        #percent_list = [20, 120, 60, 80]
+        percent_list = [180, 160, 20]
     if selector == 'qbc':
         cuda_device = [(cuda_device + i) % 3 for i in range(3)]
         os.system('rm -rf active_learning_model_states_ensemble_' + str(cuda_device))
