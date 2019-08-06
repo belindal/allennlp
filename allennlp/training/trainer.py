@@ -518,7 +518,7 @@ class Trainer(Registrable):
     @retry(stop_max_attempt_number=25)
     def _backprop(self, loss):
         torch.cuda.empty_cache()
-        loss.backward()
+        loss.backward(retain_graph=True)
 
     def _train_epoch(self, epoch: int) -> Dict[str, float]:
         """
