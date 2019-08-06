@@ -573,7 +573,10 @@ class Trainer(Registrable):
                     print("Suspend process " + str(os.getpid()) + "(ctrl-z)")
                     print("Remember press enter to continue...")
                     pdb.set_trace()
-                    self._backprop(loss)
+                    try:
+                        self._backprop(loss)
+                    except:
+                        pdb.set_trace()
 
             train_loss += loss.item()
 
