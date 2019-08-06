@@ -744,9 +744,12 @@ class CoreferenceResolver(Model):
                 print("Suspend process " + str(os.getpid()) + "(ctrl-z)")
                 print("Remember press enter to continue...")
                 pdb.set_trace()
-                span_pair_embeddings = self._get_span_pair_embeddings(target_embeddings,
-                                                                      antecedent_embeddings,
-                                                                      antecedent_distance_embeddings)
+                try:
+                    span_pair_embeddings = self._get_span_pair_embeddings(target_embeddings,
+                                                                          antecedent_embeddings,
+                                                                          antecedent_distance_embeddings)
+                except:
+                    pdb.set_trace()
 
         return span_pair_embeddings
 
