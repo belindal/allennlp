@@ -285,7 +285,6 @@ def train_model(params: Params,
     archive_model(serialization_dir, files_to_archive=params.files_to_archive)
 
     best_model = None
-    '''
     logger.info("Loading the best epoch weights.")
     best_model_state_path = os.path.join(serialization_dir, 'best.th')
     best_model_state = torch.load(best_model_state_path)
@@ -300,7 +299,7 @@ def train_model(params: Params,
         )
         for key, value in test_metrics.items():
             metrics["test_" + key] = value
-
+    '''
     elif test_data:
         logger.info("To evaluate on the test set after training, pass the "
                     "'evaluate_on_test' flag, or use the 'allennlp evaluate' command.")
@@ -319,13 +318,13 @@ def main(cuda_device, testing=False, testing_vocab=False, experiments=None, pair
     use_percents=False
     if cuda_device == 0:
         #percent_list = [200, 180, 160]
-        percent_list = [120, 100, 80]
+        percent_list = [20]#[120, 100, 80]
     if cuda_device == 1:
         #percent_list = [0, 40, 140, 100]
-        percent_list = [60, 40, 140]
+        percent_list = [20]#[60, 40, 140]
     if cuda_device == 2:
         #percent_list = [20, 120, 60, 80]
-        percent_list = [180, 160, 20]
+        percent_list = [20]#[180, 160, 20]
     if selector == 'qbc':
         cuda_device = [(cuda_device + i) % 3 for i in range(3)]
         os.system('rm -rf active_learning_model_states_ensemble_' + str(cuda_device))
@@ -359,7 +358,7 @@ def main(cuda_device, testing=False, testing_vocab=False, experiments=None, pair
         if use_percents:
             params.params['trainer']['active_learning']['num_labels'] = 1
         else:
-            params.params['trainer']['active_learning']['num_labels'] = 120
+            params.params['trainer']['active_learning']['num_labels'] = 20
         params.params['trainer']['active_learning']['use_percent'] = use_percents
         if testing or testing_vocab:
             params.params['trainer']['active_learning']['epoch_interval'] = 0

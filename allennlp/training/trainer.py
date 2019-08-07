@@ -17,6 +17,7 @@ import re
 import datetime
 import traceback
 import numpy as np
+import math
 from typing import Dict, Optional, List, Tuple, Union, Iterable, Any, Set
 from retrying import retry
 
@@ -301,7 +302,9 @@ class Trainer(Registrable):
         self.train_data = train_dataset
         self._held_out_train_data = held_out_train_dataset
         self._discrete_query_time_info = None
-        if active_learning['query_type'] == 'pairwise':
+        self._discrete_query_time_diff = 0  # our iime - standard time
+        self._equal_time_flag = True
+        if self._equal_time_flag:
             with open('discrete_entropy_link_penalties/' + str(active_learning['num_labels']) + '_query_info.json') as f:
                 self._discrete_query_time_info = json.load(f)
         self._docid_to_query_time_info = {}
@@ -1079,12 +1082,19 @@ class Trainer(Registrable):
                                 batch['span_labels'] = al_util.update_clusters_with_edge(batch['span_labels'], edge)
 
                             if self._query_type == 'discrete':
+                                total_possible_queries = len(output_dict['top_spans'][0])
                                 if self._use_percent_labels:
                                     # upper bound is asking question about every span
-                                    total_possible_queries = len(output_dict['top_spans'][0])
                                     num_to_query = int(self._active_learning_percent_labels * total_possible_queries)
+                                elif self._discrete_query_time_info is not None:
+                                    # ONLY FOR 1 INSTANCE PER BATCH
+                                    batch_query_info = self._discrete_query_time_info[batch['metadata'][0]["ID"]]
+                                    self._discrete_query_time_diff -= batch_query_info['not coref'] *35.05054725571854 + batch_query_info['coref'] * 10.75954115554078
+                                    assert batch_query_info['batch_size'] == 1
+                                    num_to_query = min(total_possible_queries,
+                                                       int(math.ceil(batch_query_info['not coref']
+                                                           * 3.257624721075467 + batch_query_info['coref'])))
                                 else:
-                                    total_possible_queries = len(output_dict['top_spans'][0])
                                     num_to_query = min(self._active_learning_num_labels, total_possible_queries)
                                 top_spans_model_labels = torch.gather(batch['span_labels'], 1, translation_reference)
 
@@ -1096,7 +1106,9 @@ class Trainer(Registrable):
                                 num_queried = 0
                                 num_coreferent = 0
                                 while num_queried < num_to_query:
-                                    # num existing edges to verify = min((# to query total / 2), # of existing edges)
+                                    if self._discrete_query_time_diff >= 0:
+                                        break
+                                    # num existing edges to verify = min((# to query total / 3), # of existing edges)
                                     if self._selector == 'score' and (num_queried == int(num_to_query / 2) or num_queried == len(model_edges)):
                                         verify_existing = False
                                     if self._selector_clusters:
@@ -1117,7 +1129,10 @@ class Trainer(Registrable):
                                                                           batch['user_labels'], translation_reference,
                                                                           self._sample_from_training, batch)
                                     if indA_edge_asked[2] == indA_edge[2]:
+                                        self._discrete_query_time_diff += 10.75954115554078
                                         num_coreferent += 1
+                                    else:
+                                        self._discrete_query_time_diff += 35.05054725571854
 
                                     # add mention to queried before (arbitrarily set it in predicted_antecedents and coreference_scores to no cluster, even if not truly
                                     # the case--the only thing that matters is that it has a value that it is 100% confident of)
@@ -1178,6 +1193,7 @@ class Trainer(Registrable):
                                 elif self._discrete_query_time_info is not None:
                                     # ONLY FOR 1 INSTANCE PER BATCH
                                     batch_query_info = self._discrete_query_time_info[batch['metadata'][0]["ID"]]
+                                    self._discrete_query_time_diff -= batch_query_info['not coref'] *35.05054725571854 + batch_query_info['coref'] * 10.75954115554078
                                     assert batch_query_info['batch_size'] == 1
                                     num_to_query = int(np.round(batch_query_info['not coref']
                                                                 * 3.257624721075467 + batch_query_info['coref']))
