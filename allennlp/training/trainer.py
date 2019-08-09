@@ -1137,6 +1137,13 @@ class Trainer(Registrable):
                                     # add mention to queried before (arbitrarily set it in predicted_antecedents and coreference_scores to no cluster, even if not truly
                                     # the case--the only thing that matters is that it has a value that it is 100% confident of)
                                     queried_mentions_mask[mention[0], mention[1]] = 1
+                                    output_dict['predicted_antecedents'][mention[0], mention[1]] = -1
+                                    output_dict['coreference_scores'][mention[0], mention[1], 1:] = -float("inf")
+                                    if self._selector == 'qbc':
+                                        # must update for each model
+                                        output_dict['coreference_scores_models'][:, mention[0], mention[1],
+                                        1:] = -float("inf")
+
 
                                     # If asked edge was deemed not coreferent, delete it
                                     if indA_edge_asked[2] != indA_edge[2]:
@@ -1153,11 +1160,13 @@ class Trainer(Registrable):
                                         else:
                                             confirmed_non_coref_edges = torch.cat(
                                                 (confirmed_non_coref_edges, indA_edge_asked.unsqueeze(0)), dim=0)
+                                        '''
                                         batch['must_link'], batch['cannot_link'], confirmed_clusters, output_dict = \
                                             al_util.get_link_closures_edge(batch['must_link'], batch['cannot_link'],
                                                                            indA_edge_asked, False,
                                                                            confirmed_clusters, output_dict,
                                                                            translation_reference, False)
+                                        '''
 
                                     # Add edge deemed coreferent
                                     if indA_edge[2] != -1:
@@ -1168,10 +1177,13 @@ class Trainer(Registrable):
                                                                          dim=0)
                                             batch['span_labels'] = al_util.update_clusters_with_edge(
                                                 batch['span_labels'], indA_edge)
+                                            confirmed_clusters = al_util.update_clusters_with_edge(confirmed_clusters, indA_edge)
+                                        '''
                                         batch['must_link'], batch['cannot_link'], confirmed_clusters, output_dict = \
                                             al_util.get_link_closures_edge(batch['must_link'], batch['cannot_link'],
                                                                            indA_edge, True, confirmed_clusters,
                                                                            output_dict, translation_reference, False)
+                                        '''
                                     else:
                                         # set to null antecedent
                                         output_dict['predicted_antecedents'][mention[0], mention[1]] = -1
@@ -1250,7 +1262,7 @@ class Trainer(Registrable):
                                         confirmed_clusters = al_util.update_clusters_with_edge(confirmed_clusters,
                                                                                                indA_edge)
                                         # Add to must-link
-                                        batch['must_link'] = torch.cat((batch['must_link'], indA_edge.unsqueeze(0)), dim=0)
+                                        #batch['must_link'] = torch.cat((batch['must_link'], indA_edge.unsqueeze(0)), dim=0)
                                     num_queried += 1
 
                                 for i in range(batch_size):
@@ -1271,9 +1283,10 @@ class Trainer(Registrable):
                                     train_instances_to_update[ind_instance] = [[], []]
 
                             # do transitive closure of must-links and cannot-links
-                            if self._query_type != 'discrete':
-                                batch['must_link'], batch['cannot_link'] = al_util.get_link_closures(batch['must_link'],
+                            #if self._query_type != 'discrete':
+                            batch['must_link'], batch['cannot_link'] = al_util.get_link_closures(batch['must_link'],
                                                                                                      batch['cannot_link'])
+                            '''
                             elif self.DEBUG_BREAK_FLAG:  # check closures against each other
                                 must_link_closure, cannot_link_closure = al_util.get_link_closures(batch['must_link'],
                                                                                                    batch['cannot_link'])
@@ -1310,7 +1323,7 @@ class Trainer(Registrable):
                                         assert (m.sum(-1) != 1).nonzero().size(0) == 0
                                 except:
                                     pdb.set_trace()
-
+                            '''
                             # update must-links and cannot-links
                             for edge in batch['must_link']:
                                 ind_instance = edge[0].item()

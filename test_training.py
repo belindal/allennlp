@@ -238,7 +238,9 @@ def train_model(params: Params,
     held_out_train_data = all_datasets.get('held_out_train')
     validation_data = all_datasets.get('validation')
     test_data = all_datasets.get('test')
+    evaluate_on_test = params.pop_bool("evaluate_on_test", False)
 
+    #'''
     trainer_params = params.pop("trainer")
     no_grad_regexes = trainer_params.pop("no_grad", ())
     for name, parameter in model.named_parameters():
@@ -268,7 +270,6 @@ def train_model(params: Params,
                                                           held_out_iterator=held_out_iterator,
                                                           ensemble_model=ensemble_model)
 
-    evaluate_on_test = params.pop_bool("evaluate_on_test", False)
     params.assert_empty('base train command')
 
     try:
@@ -283,6 +284,7 @@ def train_model(params: Params,
 
     # Now tar up results
     archive_model(serialization_dir, files_to_archive=params.files_to_archive)
+    #'''
 
     best_model = None
     logger.info("Loading the best epoch weights.")

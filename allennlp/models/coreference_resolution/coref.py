@@ -118,7 +118,7 @@ class CoreferenceResolver(Model):
         else:
             self._cuda_devices = [device]
         #self._must_link_weight = torch.nn.Parameter(torch.rand(()).cuda(self._cuda_devices[0]))
-        self._cannot_link_weight = torch.nn.Parameter(torch.rand(()).cuda(self._cuda_devices[0]))
+        #self._cannot_link_weight = torch.nn.Parameter(torch.rand(()).cuda(self._cuda_devices[0]))
 
         self._mention_recall = MentionRecall()
         self._conll_coref_scores = ConllCorefScores()
