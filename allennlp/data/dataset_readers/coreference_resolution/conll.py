@@ -1,12 +1,13 @@
 import logging
 import collections
 from typing import Any, Dict, List, Optional, Tuple, DefaultDict, Set
+import torch
 
 from overrides import overrides
 
 from allennlp.common.file_utils import cached_path
 from allennlp.data.dataset_readers.dataset_reader import DatasetReader
-from allennlp.data.fields import Field, ListField, TextField, SpanField, MetadataField, SequenceLabelField
+from allennlp.data.fields import Field, ListField, TextField, SpanField, MetadataField, SequenceLabelField, PairField, IndexField
 from allennlp.data.instance import Instance
 from allennlp.data.tokenizers import Token
 from allennlp.data.token_indexers import SingleIdTokenIndexer, TokenIndexer
@@ -78,6 +79,7 @@ class ConllCorefReader(DatasetReader):
                  token_indexers: Dict[str, TokenIndexer] = None,
                  simulate_user_inputs: bool = False,
                  fully_labelled_threshold: int = 1000,
+                 saved_data_file: str = None,
                  lazy: bool = False) -> None:
         super().__init__(lazy)
         self._max_span_width = max_span_width
@@ -85,6 +87,10 @@ class ConllCorefReader(DatasetReader):
         self._simulate_user_inputs = simulate_user_inputs
         # threshold for how many documents should be fully labelled (all remaining documents are half-labelled)
         self._fully_labelled_threshold = fully_labelled_threshold
+        # serialized labels
+        self._saved_labels = None
+        if saved_data_file is not None:
+            self._saved_labels = torch.load(saved_data_file)
 
     @overrides
     def _read(self, file_path: str):
@@ -197,15 +203,24 @@ class ConllCorefReader(DatasetReader):
         cannot_link: Optional[List[int]] = [] if gold_clusters is not None else None
 
         sentence_offset = 0
+        doc_info = None
+        if self._saved_labels is not None and metadata['ID'] in self._saved_labels:
+            doc_info = self._saved_labels[metadata['ID']]
+            span_labels = doc_info['span_labels'].tolist()
+            if 'must_link' in doc_info:
+                must_link = doc_info['must_link'].squeeze(-1).tolist()
+                cannot_link = doc_info['cannot_link'].squeeze(-1).tolist()
         for sentence in sentences:
             for start, end in enumerate_spans(sentence,
                                               offset=sentence_offset,
                                               max_span_width=self._max_span_width):
                 if span_labels is not None:
-                    if (start, end) in cluster_dict:
-                        span_labels.append(cluster_dict[(start, end)])
-                    else:
-                        span_labels.append(-1)
+                    if doc_info is None:
+                        # only do if we haven't already loaded span labels
+                        if (start, end) in cluster_dict:
+                            span_labels.append(cluster_dict[(start, end)])
+                        else:
+                            span_labels.append(-1)
                     if self._simulate_user_inputs and user_threshold > 0:
                         if (start, end) in simulated_user_cluster_dict:
                             user_labels.append(simulated_user_cluster_dict[(start, end)])
@@ -221,11 +236,36 @@ class ConllCorefReader(DatasetReader):
         fields: Dict[str, Field] = {"text": text_field,
                                     "spans": span_field,
                                     "metadata": metadata_field}
+
+        if must_link is not None and len(must_link) > 0:
+            must_link_field = []
+            cannot_link_field = []
+            for link in must_link:
+                must_link_field.append(PairField(
+                    IndexField(link[0], span_field),
+                    IndexField(link[1], span_field),
+                ))
+            for link in cannot_link:
+                cannot_link_field.append(PairField(
+                    IndexField(link[0], span_field),
+                    IndexField(link[1], span_field),
+                ))
+            must_link_field = ListField(must_link_field)
+            cannot_link_field = ListField(cannot_link_field)
+            fields["must_link"] = must_link_field
+            fields["cannot_link"] = cannot_link_field
+
         if span_labels is not None:
             fields["span_labels"] = SequenceLabelField(span_labels, span_field)
             if user_labels is not None:
                 fields["user_labels"] = SequenceLabelField(user_labels, span_field)
 
+        if doc_info is not None:
+            assert (fields["span_labels"].as_tensor(fields["span_labels"].get_padding_lengths()) != doc_info['span_labels']).nonzero().size(0) == 0
+            if 'must_link' in doc_info:
+                assert 'must_link' in fields
+                assert (fields["must_link"].as_tensor(fields["must_link"].get_padding_lengths()) != doc_info['must_link']).nonzero().size(0) == 0
+                assert (fields["cannot_link"].as_tensor(fields["cannot_link"].get_padding_lengths()) != doc_info['cannot_link']).nonzero().size(0) == 0
         return Instance(fields)
 
     @staticmethod

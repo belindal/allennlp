@@ -475,7 +475,24 @@ class Trainer(Registrable):
 
         used_device_ids = self._cuda_devices[:len(inputs)]
         replicas = replicate(self.model, used_device_ids)
-        outputs = parallel_apply(replicas, inputs, module_kwargs, used_device_ids)
+        try:
+            outputs = parallel_apply(replicas, inputs, module_kwargs, used_device_ids)
+        except:
+            pdb.set_trace()
+            labels_map = {}
+            for doc in self.train_data:
+                span_labels = doc['span_labels'].as_tensor(doc['span_labels'].get_padding_lengths())
+                labels_map[doc['metadata']['ID']] = {'span_labels': span_labels}
+                if 'must_link' in doc:
+                    labels_map[doc['metadata']['ID']]['must_link'] = doc['must_link'].as_tensor(doc['must_link'].get_padding_lengths())
+                    labels_map[doc['metadata']['ID']]['cannot_link'] = doc['cannot_link'].as_tensor(doc['cannot_link'].get_padding_lengths())
+            #save data
+            pdb.set_trace()
+            save_file = "../data/saved_data_" + str(self._selector) + "_"
+            if self.ensemble_model is not None:
+                save_file += str(len(self.ensemble_model.submodels)) + "_"
+            save_file += str(self._active_learning_num_labels) + ".th"
+            torch.save(labels_map, save_file)
         if self._do_active_learning:
             assert(len(outputs) == 1)
             return outputs[0]
@@ -567,7 +584,7 @@ class Trainer(Registrable):
             loss = self.batch_loss(batch, for_training=True)
             try:
                 torch.cuda.empty_cache()
-                loss.backward()
+                loss.backward(retain_graph=True)
             except:
                 try:
                     self._backprop(loss)

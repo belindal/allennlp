@@ -37,6 +37,7 @@ def datasets_from_params(params: Params) -> Dict[str, Iterable[Instance]]:
     Load all the datasets specified by the config.
     """
     fully_labelled_threshold = 3000 if 'fully_labelled_threshold' not in params['dataset_reader'] else params['dataset_reader']['fully_labelled_threshold']
+    saved_data_file = params['dataset_reader']['saved_data_file'] if 'saved_data_file' in params['dataset_reader'] else None
     dataset_reader = DatasetReader.from_params(params.pop("dataset_reader", None))
     validation_dataset_reader_params = params.pop("validation_dataset_reader", None)
 
@@ -52,8 +53,11 @@ def datasets_from_params(params: Params) -> Dict[str, Iterable[Instance]]:
     logger.info("Reading training data from %s", train_data_path)
     train_data = dataset_reader.read(train_data_path)
 
-    held_out_train_data = train_data[fully_labelled_threshold:]     # after threshold
-    train_data = train_data[:fully_labelled_threshold]      # before threshold
+    num_saved_labels = fully_labelled_threshold
+    if saved_data_file is not None:
+        num_saved_labels = len(torch.load(saved_data_file))
+    held_out_train_data = train_data[num_saved_labels:]     # after threshold
+    train_data = train_data[:num_saved_labels]      # before threshold
 
     datasets: Dict[str, Iterable[Instance]] = {"train": train_data, "held_out_train": held_out_train_data}
 
@@ -318,10 +322,10 @@ def main(cuda_device, testing=False, testing_vocab=False, experiments=None, pair
     use_percents=False
     if cuda_device == 0:
         #percent_list = [200, 180, 160]
-        percent_list = [20]#[120, 100, 80]
+        percent_list = [0]#[120, 100, 80]
     if cuda_device == 1:
         #percent_list = [0, 40, 140, 100]
-        percent_list = [20]#[60, 40, 140]
+        percent_list = [200]#[60, 40, 140]
     if cuda_device == 2:
         #percent_list = [20, 120, 60, 80]
         percent_list = [20]#[180, 160, 20]
@@ -342,6 +346,10 @@ def main(cuda_device, testing=False, testing_vocab=False, experiments=None, pair
             serialization_dir = os.path.join(save_dir, "temp_" + str(cuda_device[0]))
             os.system('rm -rf ' + serialization_dir)
             params = Params.from_file(os.path.join(save_dir, 'coref.jsonnet'))
+            # restore data file
+            saved_data_file = '../data/saved_data_' + str(selector) + '_' + str(num_ensemble_models) + '_' + str(x) + '.th'
+            if os.path.exists(saved_data_file):
+                params['dataset_reader']['saved_data_file'] = saved_data_file
             params.params['trainer']['cuda_device'] = cuda_device
             params.params['trainer']['active_learning']['query_type'] = "pairwise" if pairwise else "discrete"
             if selector:
@@ -358,7 +366,11 @@ def main(cuda_device, testing=False, testing_vocab=False, experiments=None, pair
         if use_percents:
             params.params['trainer']['active_learning']['num_labels'] = 1
         else:
-            params.params['trainer']['active_learning']['num_labels'] = 20
+            params.params['trainer']['active_learning']['num_labels'] = 100
+        # restore data file
+        saved_data_file = '../data/saved_data_' + str(selector) + '_' + str(num_ensemble_models) + '_' + str(params.params['trainer']['active_learning']['num_labels']) + '.th'
+        if os.path.exists(saved_data_file):
+            params['dataset_reader']['saved_data_file'] = saved_data_file
         params.params['trainer']['active_learning']['use_percent'] = use_percents
         if testing or testing_vocab:
             params.params['trainer']['active_learning']['epoch_interval'] = 0
