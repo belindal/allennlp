@@ -305,7 +305,7 @@ class Trainer(Registrable):
         self._discrete_query_time_diff = 0  # our iime - standard time
         self._equal_time_flag = True
         if self._equal_time_flag:
-            with open('discrete_entropy_link_penalties/' + str(active_learning['num_labels']) + '_query_info.json') as f:
+            with open('discrete_entropy/' + str(active_learning['num_labels']) + '_query_info.json') as f:
                 self._discrete_query_time_info = json.load(f)
         self._docid_to_query_time_info = {}
         self._validation_data = validation_dataset
