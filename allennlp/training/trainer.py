@@ -493,6 +493,7 @@ class Trainer(Registrable):
                 save_file += str(len(self.ensemble_model.submodels)) + "_"
             save_file += str(self._active_learning_num_labels) + ".th"
             torch.save(labels_map, save_file)
+            return
         if self._do_active_learning:
             assert(len(outputs) == 1)
             return outputs[0]
@@ -592,11 +593,6 @@ class Trainer(Registrable):
                     import os
                     print("Suspend process " + str(os.getpid()) + "(ctrl-z)")
                     print("Remember press enter to continue...")
-                    pdb.set_trace()
-                    try:
-                        self._backprop(loss)
-                    except:
-                        pdb.set_trace()
 
             train_loss += loss.item()
 
