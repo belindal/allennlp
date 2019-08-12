@@ -276,7 +276,7 @@ def train_model(params: Params,
     params.assert_empty('base train command')
 
     try:
-        metrics, query_info = trainer.train()
+        metrics, query_info, F1_deltas = trainer.train()
     except KeyboardInterrupt:
         # if we have completed an epoch, try to create a model archive.
         if os.path.exists(os.path.join(serialization_dir, _DEFAULT_WEIGHTS)):
@@ -284,6 +284,12 @@ def train_model(params: Params,
                          "a model archive using the current best epoch weights.")
             archive_model(serialization_dir, files_to_archive=params.files_to_archive)
         raise
+    if query_info is None:
+        print(F1_deltas)
+        return None, None, None, F1_deltas
+
+    if F1_deltas is not None:
+        metrics['F1_deltas'] = F1_deltas
 
     # Now tar up results
     archive_model(serialization_dir, files_to_archive=params.files_to_archive)
@@ -311,7 +317,7 @@ def train_model(params: Params,
     dump_metrics(os.path.join(serialization_dir, "metrics.json"), metrics, log=True)
 
     '''
-    return best_model, metrics, query_info
+    return best_model, metrics, query_info, F1_deltas
 
 # In practice you'd probably do this from the command line:
 #   $ allennlp train tutorials/tagger/experiment.jsonnet -s /tmp/serialization_dir
@@ -320,9 +326,13 @@ def main(cuda_device, testing=False, testing_vocab=False, experiments=None, pair
          no_clusters=False):
     assert(selector == 'entropy' or selector == 'score' or selector == 'random' or selector == 'qbc')
     use_percents=False
+# [20, 40, 60, 80, 100, 120, 140, 160, 180, 200]
+# [20, 80, 140, 200]
+# [180, 120, 60, 40]
+# [100, 160]
     if cuda_device == 0:
         #percent_list = [200, 180, 160]
-        percent_list = [0]#[120, 100, 80]
+        percent_list = [20, 100, 140, 200]#[120, 100, 80]
     if cuda_device == 1:
         #percent_list = [0, 40, 140, 100]
         percent_list = [200]#[60, 40, 140]
@@ -357,7 +367,12 @@ def main(cuda_device, testing=False, testing_vocab=False, experiments=None, pair
             params.params['trainer']['active_learning']['selector']['use_clusters'] = not no_clusters
             params.params['trainer']['active_learning']['use_percent'] = use_percents
             params.params['trainer']['active_learning']['num_labels'] = round(0.01 * x, 2) if use_percents else x
-            best_model, metrics, query_info = train_model(params, serialization_dir, selector, num_ensemble_models, recover=False)
+            best_model, metrics, query_info, F1_deltas = train_model(params, serialization_dir, selector, num_ensemble_models, recover=False)
+            if metrics is None:
+                assert F1_deltas is not None
+                with open(os.path.join(save_dir, str(x) + "_deltas.json"), 'w') as f:
+                    f.write(str(F1_deltas))
+                return
             dump_metrics(os.path.join(save_dir, str(x) + ".json"), metrics, log=True)
             with open(os.path.join(save_dir, str(x) + "_query_info.json"), 'w', encoding='utf-8') as f:
                 json.dump(query_info, f)
@@ -386,7 +401,13 @@ def main(cuda_device, testing=False, testing_vocab=False, experiments=None, pair
             params.params['trainer']['active_learning']['query_type'] = "pairwise" if pairwise else "discrete"
             params.params['trainer']['active_learning']['selector']['type'] = selector if selector else "entropy"
             params.params['trainer']['active_learning']['selector']['use_clusters'] = not no_clusters
-            best_model, metrics, query_info = train_model(params, serialization_dir, selector, num_ensemble_models)
+            best_model, metrics, query_info, F1_deltas = train_model(params, serialization_dir, selector, num_ensemble_models)
+            if metrics is None:
+                assert F1_deltas is not None
+                with open(os.path.join(serialization_dir, "deltas.json"), 'w') as f:
+                    f.write(str(F1_deltas))
+                pdb.set_trace()
+                return
             with open(os.path.join(serialization_dir, "query_info.json"), 'w', encoding='utf-8') as f:
                 json.dump(query_info, f)
 
