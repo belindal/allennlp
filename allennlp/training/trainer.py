@@ -380,7 +380,9 @@ class Trainer(Registrable):
         # Whether or not to do active learning
         self._do_active_learning = False
         self.DEBUG_BREAK_FLAG = False
+        self.F1_deltas_sum = None
         if active_learning:
+            self.F1_deltas_sum = 0
             if active_learning['model_type'] != 'coref':
                 raise ConfigurationError("Active learning only compatible with coreference model (for now)")
             self._do_active_learning = True
@@ -873,6 +875,8 @@ class Trainer(Registrable):
         epochs_trained = 0
         training_start_time = time.time()
         first_epoch_for_converge = 0
+        num_docs_seen = 0
+        F1_deltas_sum = 0
         
         max_epoch = self._num_epochs
         if self.ensemble_model is not None:
@@ -1404,6 +1408,8 @@ class Trainer(Registrable):
                                 for scorer in conll_coref.scorers:
                                     scorer.update(predicted_clusters, gold_clusters, mention_to_predicted, mention_to_gold)
                             new_P, new_R, new_F1 = conll_coref.get_metric()
+                            F1_deltas_sum += (new_F1 - held_out_metrics['coref_f1'])
+                            num_docs_seen += 1
                             description_display = {'old_P': held_out_metrics['coref_precision'], 'new_P': new_P,
                                                    'old_R': held_out_metrics['coref_recall'], 'new_R': new_R,
                                                    'old_F1': held_out_metrics['coref_f1'], 'new_F1': new_F1,
@@ -1418,6 +1424,11 @@ class Trainer(Registrable):
                             total_labels += total_possible_queries
                             description += ' # labels: ' + str(total_num_queried) + '/' + str(total_labels) + ' ||'
                             held_out_generator_tqdm.set_description(description, refresh=False)
+                            # TODO DELETE THIS
+                            '''
+                            if len(self._held_out_train_data) == 0:
+                                return metrics, None, float(F1_deltas_sum) / num_docs_seen
+                            '''
                 else:
                     for batch_ind, batch in enumerate(held_out_generator_tqdm):
                         for i, metadata in enumerate(batch['metadata']):
@@ -1508,7 +1519,7 @@ class Trainer(Registrable):
                         self._learning_rate_scheduler.lr_scheduler.load_state_dict(init_scheduler_state)
             epochs_trained += 1
 
-        return metrics, self._docid_to_query_time_info
+        return metrics, self._docid_to_query_time_info, float(F1_deltas_sum) / num_docs_seen
 
     def _is_best_so_far(self,
                         this_epoch_val_metric: float,
