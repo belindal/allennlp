@@ -327,18 +327,18 @@ def main(cuda_device, testing=False, testing_vocab=False, experiments=None, pair
     assert(selector == 'entropy' or selector == 'score' or selector == 'random' or selector == 'qbc')
     use_percents=False
 # [20, 40, 60, 80, 100, 120, 140, 160, 180, 200]
-# [20, 80, 140, 200]
-# [180, 120, 60, 40]
+# [10, 80, 140, 200]
+# [90, 12760, 40]
 # [100, 160]
     if cuda_device == 0:
         #percent_list = [200, 180, 160]
-        percent_list = [20, 100, 140, 200]#[120, 100, 80]
+        percent_list = [120, 100]#[120, 100, 80]
     if cuda_device == 1:
         #percent_list = [0, 40, 140, 100]
-        percent_list = [200]#[60, 40, 140]
+        percent_list = [160, 80]#[60, 40, 140]
     if cuda_device == 2:
         #percent_list = [20, 120, 60, 80]
-        percent_list = [20]#[180, 160, 20]
+        percent_list = [200, 20]#[180, 160, 20]
     if selector == 'qbc':
         cuda_device = [(cuda_device + i) % 3 for i in range(3)]
         os.system('rm -rf active_learning_model_states_ensemble_' + str(cuda_device))
@@ -372,10 +372,10 @@ def main(cuda_device, testing=False, testing_vocab=False, experiments=None, pair
                 assert F1_deltas is not None
                 with open(os.path.join(save_dir, str(x) + "_deltas.json"), 'w') as f:
                     f.write(str(F1_deltas))
-                return
-            dump_metrics(os.path.join(save_dir, str(x) + ".json"), metrics, log=True)
-            with open(os.path.join(save_dir, str(x) + "_query_info.json"), 'w', encoding='utf-8') as f:
-                json.dump(query_info, f)
+            else:
+                dump_metrics(os.path.join(save_dir, str(x) + ".json"), metrics, log=True)
+                with open(os.path.join(save_dir, str(x) + "_query_info.json"), 'w', encoding='utf-8') as f:
+                    json.dump(query_info, f)
     else:
         params = Params.from_file('training_config/coref.jsonnet')
         if use_percents:
