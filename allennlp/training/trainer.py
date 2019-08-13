@@ -1246,8 +1246,6 @@ class Trainer(Registrable):
                                                 batch['span_labels'], indA_edge, delete=True,
                                                 all_edges=indA_model_edges)
                                             indA_model_edges = indA_model_edges[edge_asked_mask < 3]
-                                        else:
-                                            pdb.set_trace()
                                         # Add to confirmed non-coreferent
                                         if len(confirmed_non_coref_edges) == 0:
                                             confirmed_non_coref_edges = indA_edge.unsqueeze(0)
@@ -1424,11 +1422,6 @@ class Trainer(Registrable):
                             total_labels += total_possible_queries
                             description += ' # labels: ' + str(total_num_queried) + '/' + str(total_labels) + ' ||'
                             held_out_generator_tqdm.set_description(description, refresh=False)
-                            # TODO DELETE THIS
-                            '''
-                            if len(self._held_out_train_data) == 0:
-                                return metrics, None, float(F1_deltas_sum) / num_docs_seen
-                            '''
                 else:
                     for batch_ind, batch in enumerate(held_out_generator_tqdm):
                         for i, metadata in enumerate(batch['metadata']):
