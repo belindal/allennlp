@@ -400,6 +400,7 @@ class Trainer(Registrable):
             self._selector = active_learning['selector']['type'] if 'selector' in active_learning else 'entropy'
             if self._selector == 'qbc':
                 assert(ensemble_model is not None)
+                self._existing_trained = [0]
             self._selector_clusters = active_learning['selector']['use_clusters'] if 'selector' in active_learning else True
             self._query_type = active_learning['query_type'] if 'query_type' in active_learning else 'discrete'
             assert(self._query_type == 'pairwise' or self._query_type == 'discrete')
@@ -487,12 +488,20 @@ class Trainer(Registrable):
                     labels_map[doc['metadata']['ID']]['must_link'] = doc['must_link'].as_tensor(doc['must_link'].get_padding_lengths())
                     labels_map[doc['metadata']['ID']]['cannot_link'] = doc['cannot_link'].as_tensor(doc['cannot_link'].get_padding_lengths())
             #save data
-            pdb.set_trace()
             save_file = "../data/saved_data_" + str(self._selector) + "_"
+            query_info_save_file = '../saved_query_infos/' + str(self._selector) + '_'
             if self.ensemble_model is not None:
                 save_file += str(len(self.ensemble_model.submodels)) + "_"
+                query_info_save_file += str(len(self.ensemble_model.submodels)) + '_'
             save_file += str(self._active_learning_num_labels) + ".th"
+            query_info_save_file += str(self._active_learning_num_labels) 
+            query_info_idx = 0
+            while os.path.exists(query_info_save_file + '_' + str(query_info_idx) + '.json'):
+                query_info_idx += 1
+            query_info_save_file = query_info_save_file + '_' + str(query_info_idx) + '.json'
             torch.save(labels_map, save_file)
+            with open(query_info_save_file, 'w') as f:
+                json.dump(self._docid_to_query_time_info, f)
             return
         if self._do_active_learning:
             assert(len(outputs) == 1)
@@ -856,11 +865,33 @@ class Trainer(Registrable):
             init_model_path = os.path.join(dirname, "init_model_state.th")
             init_optimizer_path = os.path.join(dirname, "init_optimizer_state.th")
             init_lr_scheduler_path = os.path.join(dirname, "init_lr_scheduler_state.th")
-            os.system("rm -rf " + str(dirname))
-            os.makedirs(dirname)
-            torch.save(init_model_state, init_model_path)
-            torch.save(init_optimizer_state, init_optimizer_path)
-            torch.save(init_lr_scheduler_state, init_lr_scheduler_path)
+            if not os.path.exists(dirname):
+                os.makedirs(dirname)
+                torch.save(init_model_state, init_model_path)
+                torch.save(init_optimizer_state, init_optimizer_path)
+                torch.save(init_lr_scheduler_state, init_lr_scheduler_path)
+
+        self._finished_training_eval_ensemble = False
+        if self._selector == 'qbc' and self._finished_training_eval_ensemble:
+            metrics = {}
+            epoch = 0
+            with torch.no_grad():
+                # evaluate ensemble of BEST models at this epoch
+                for i in range(len(self.ensemble_model.submodels)):
+                    submodel_path = os.path.join(dirname, "best_submodel_" + str(i) + "_state.th")
+                    submodel_state = torch.load(submodel_path, map_location=util.device_mapping(-1))
+                    self.ensemble_model.submodels[i].load_state_dict(submodel_state)
+                self.model = self.ensemble_model
+                # We have a validation set, so compute all the metrics on it.
+                val_loss, num_batches = self._validation_loss()
+                ensemble_val_metrics = self._get_metrics(val_loss, num_batches, reset=True)
+
+            for key, value in ensemble_val_metrics.items():
+                metrics["ensemble_validation_" + key] = value
+
+            if self._serialization_dir:
+                dump_metrics(os.path.join(self._serialization_dir, f'metrics_epoch_{epoch}.json'), metrics)
+            return metrics, None
 
         logger.info("Beginning training.")
 
@@ -1242,8 +1273,6 @@ class Trainer(Registrable):
                                                 batch['span_labels'], indA_edge, delete=True,
                                                 all_edges=indA_model_edges)
                                             indA_model_edges = indA_model_edges[edge_asked_mask < 3]
-                                        else:
-                                            pdb.set_trace()
                                         # Add to confirmed non-coreferent
                                         if len(confirmed_non_coref_edges) == 0:
                                             confirmed_non_coref_edges = indA_edge.unsqueeze(0)
