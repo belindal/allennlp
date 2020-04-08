@@ -1,7 +1,0 @@
-{
-  "ensemble_validation_coref_precision": 0.6902379357198973,
-  "ensemble_validation_coref_recall": 0.5233398033528276,
-  "ensemble_validation_coref_f1": 0.5943853034588282,
-  "ensemble_validation_mention_recall": 0.9064996084573218,
-  "ensemble_validation_loss": 63.74929585356168
-}
