@@ -49,7 +49,7 @@ from allennlp.common.checks import check_for_gpu, ConfigurationError
 from allennlp.common.util import lazy_groups_of
 from allennlp.models.archival import load_archive
 from allennlp.predictors.predictor import Predictor, JsonDict
-from allennlp.data import Instance
+from allennlp.data import dataset_readers, Instance
 
 class Predict(Subcommand):
     def add_subparser(self, name: str, parser: argparse._SubParsersAction) -> argparse.ArgumentParser:
@@ -174,6 +174,12 @@ class _PredictManager:
         if has_reader:
             for batch in lazy_groups_of(self._get_instance_data(), self._batch_size):
                 for model_input_instance, result in zip(batch, self._predict_instances(batch)):
+                    if isinstance(self._dataset_reader, dataset_readers.coreference_resolution.conll.ConllCorefReader):
+                        # also save gold clusters (for comparison)
+                        model_input_instance = model_input_instance.as_tensor_dict()
+                        result = json.loads(result)
+                        result["gold_clusters"] = model_input_instance['metadata']['clusters']
+                        result = json.dumps(result) + "\n"
                     self._maybe_print_to_console_and_file(result, str(model_input_instance))
         else:
             for batch_json in lazy_groups_of(self._get_json_data(), self._batch_size):

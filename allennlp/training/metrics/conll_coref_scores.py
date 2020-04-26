@@ -26,7 +26,8 @@ class ConllCorefScores(Metric):
             (start, end) indices for all spans kept after span pruning in the model.
             Expected shape: (batch_size, num_spans, 2)
         antecedent_indices : ``torch.Tensor``
-            For each span, the indices of all allowed antecedents for that span.
+            For each span, the indices of all allowed antecedents for that span. This is
+            independent of the batch dimension, as it's just based on order in the document.
             Expected shape: (batch_size, num_spans, num_antecedents)
         predicted_antecedents: ``torch.Tensor``
             For each span, this contains the index (into antecedent_indices) of the most likely

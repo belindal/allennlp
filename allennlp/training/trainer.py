@@ -302,10 +302,10 @@ class Trainer(Registrable):
         self.train_data = train_dataset
         self._held_out_train_data = held_out_train_dataset
         self._discrete_query_time_info = None
-        self._discrete_query_time_diff = 0  # our iime - standard time
-        self._equal_time_flag = True
-        if self._equal_time_flag:
-            with open('discrete_entropy/' + str(active_learning['num_labels']) + '_query_info.json') as f:
+        self._discrete_query_time_diff = 0  # our time - standard time
+        self._equal_time_flag = False  # TODO don't hardcode
+        if self._equal_time_flag:  # TODO don't hardcode FP
+            with open('/private/home/belindali/al_for_coref_results/discrete/discrete_entropy/' + str(active_learning['num_labels']) + '_query_info.json') as f:
                 self._discrete_query_time_info = json.load(f)
         self._docid_to_query_time_info = {}
         self._validation_data = validation_dataset
@@ -389,8 +389,8 @@ class Trainer(Registrable):
             if self._use_percent_labels:
                 self._active_learning_percent_labels = active_learning['num_labels']
             else:
-                self._active_learning_num_labels = active_learning['num_labels']
-            self._sample_from_training = active_learning['simulate_user_inputs']
+                self.active_learning_num_labels = active_learning['num_labels']
+            self._save_al_queries = active_learning['save_al_queries']
             self._active_learning_patience = active_learning['patience']
             self._percent_label_experiments = True if 'percent_label_experiments' in active_learning else False
             self._replace_with_next_pos_edge = active_learning['replace_with_next_pos_edge']
@@ -1038,15 +1038,16 @@ class Trainer(Registrable):
             if self._do_active_learning and len(self._held_out_train_data) > 0 and query_this_epoch:
                 # take a subset of training data to evaluate on, and add to actual training set
                 # TODO: currently arbitrarily choosing next 1 instance (by order in file), perhaps change this future(?)
-                if self._query_type == "discrete" and not self._sample_from_training:
-                    train_data_to_add = self._held_out_train_data[:1000]
-                    self._held_out_train_data = self._held_out_train_data[1000:]
-                elif not self._sample_from_training:
-                    train_data_to_add = self._held_out_train_data[1000:2000]
-                    self._held_out_train_data = self._held_out_train_data[2000:]
-                else:
-                    train_data_to_add = self._held_out_train_data[:280]
-                    self._held_out_train_data = self._held_out_train_data[280:]
+                # TODO UNDELETE?
+                # if self._query_type == "discrete" and self._save_al_queries:
+                #     train_data_to_add = self._held_out_train_data[:1000]
+                #     self._held_out_train_data = self._held_out_train_data[1000:]
+                # elif self._save_al_queries:
+                #     train_data_to_add = self._held_out_train_data[1000:2000]
+                #     self._held_out_train_data = self._held_out_train_data[2000:]
+                # else:
+                train_data_to_add = self._held_out_train_data[:280]
+                self._held_out_train_data = self._held_out_train_data[280:]
                 held_out_generator = self._held_out_iterator(train_data_to_add, num_epochs=1, shuffle=False)
                 num_held_out_batches = self.iterator.get_num_batches(train_data_to_add)
                 held_out_generator_tqdm = Tqdm.tqdm(held_out_generator, total=num_held_out_batches)
@@ -1133,7 +1134,7 @@ class Trainer(Registrable):
                                 elif self._discrete_query_time_info is not None:
                                     # ONLY FOR 1 INSTANCE PER BATCH
                                     batch_query_info = self._discrete_query_time_info[batch['metadata'][0]["ID"]]
-                                    self._discrete_query_time_diff -= batch_query_info['not coref'] *35.05054725571854 + batch_query_info['coref'] * 10.75954115554078
+                                    self._discrete_query_time_diff -= batch_query_info['not coref'] * 35.05054725571854 + batch_query_info['coref'] * 10.75954115554078
                                     assert batch_query_info['batch_size'] == 1
                                     num_to_query = min(total_possible_queries,
                                                        int(math.ceil(batch_query_info['not coref']
@@ -1150,7 +1151,7 @@ class Trainer(Registrable):
                                 num_queried = 0
                                 num_coreferent = 0
                                 while num_queried < num_to_query:
-                                    if self._discrete_query_time_diff >= 0:
+                                    if self._discrete_query_time_info is not None and self._discrete_query_time_diff >= 0:
                                         break
                                     # num existing edges to verify = min((# to query total / 3), # of existing edges)
                                     if self._selector == 'score' and (num_queried == int(num_to_query / 2) or num_queried == len(model_edges)):
@@ -1171,12 +1172,14 @@ class Trainer(Registrable):
                                     indA_edge, edge_asked, indA_edge_asked = \
                                         al_util.query_user_labels_mention(mention, output_dict, batch['spans'],
                                                                           batch['user_labels'], translation_reference,
-                                                                          self._sample_from_training, batch)
+                                                                          self._save_al_queries, batch,
+                                                                          os.path.join(self._serialization_dir, "saved_queries_epoch_{}".format(epoch)),
+                                                                          batch['span_labels'])
                                     if indA_edge_asked[2] == indA_edge[2]:
-                                        self._discrete_query_time_diff += 10.75954115554078
+                                        self._discrete_query_time_diff += 10.75954115554078  # TODO not hardcode
                                         num_coreferent += 1
                                     else:
-                                        self._discrete_query_time_diff += 35.05054725571854
+                                        self._discrete_query_time_diff += 35.05054725571854  # TODO don't hardcode
 
                                     # add mention to queried before (arbitrarily set it in predicted_antecedents and coreference_scores to no cluster, even if not truly
                                     # the case--the only thing that matters is that it has a value that it is 100% confident of)
@@ -1237,7 +1240,7 @@ class Trainer(Registrable):
                                 elif self._discrete_query_time_info is not None:
                                     # ONLY FOR 1 INSTANCE PER BATCH
                                     batch_query_info = self._discrete_query_time_info[batch['metadata'][0]["ID"]]
-                                    self._discrete_query_time_diff -= batch_query_info['not coref'] *35.05054725571854 + batch_query_info['coref'] * 10.75954115554078
+                                    self._discrete_query_time_diff -= batch_query_info['not coref'] * 35.05054725571854 + batch_query_info['coref'] * 10.75954115554078
                                     assert batch_query_info['batch_size'] == 1
                                     num_to_query = int(np.round(batch_query_info['not coref']
                                                                 * 3.257624721075467 + batch_query_info['coref']))
@@ -1254,7 +1257,9 @@ class Trainer(Registrable):
                                     coreferent, indA_edge = \
                                         al_util.query_user_labels_pairwise(edge, output_dict, batch['spans'],
                                                                           batch['user_labels'], translation_reference,
-                                                                          self._sample_from_training, batch)
+                                                                          self._save_al_queries, batch,
+                                                                          os.path.join(self._serialization_dir, "saved_queries_epoch_{}".format(epoch)),
+                                                                          batch['span_labels'])
                                     queried_edges_mask[edge[0], edge[1], edge[2] + 1] = 1
                                     # arbitrarily set to null antecedent
                                     output_dict['predicted_antecedents'][edge[0], edge[1]] = edge[2]

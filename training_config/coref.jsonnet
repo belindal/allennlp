@@ -30,9 +30,9 @@
     },
     "max_span_width": 10,
   },
-  "train_data_path": "../data/coref_ontonotes/train.english.v4_gold_conll",
-  "validation_data_path": "../data/coref_ontonotes/dev.english.v4_gold_conll",
-  "test_data_path": "../data/coref_ontonotes/test.english.v4_gold_conll",
+  "train_data_path": "/checkpoint/belindali/active_learning_coref/coref_ontonotes/train.english.v4_gold_conll",
+  "validation_data_path": "/checkpoint/belindali/active_learning_coref/coref_ontonotes/dev.english.v4_gold_conll",
+  "test_data_path": "/checkpoint/belindali/active_learning_coref/coref_ontonotes/test.english.v4_gold_conll",
   "evaluate_on_test": true,
   "model": {
     "type": "coref",
@@ -128,6 +128,7 @@
       "use_percent": true,
       "num_labels": 1,
       "simulate_user_inputs": true, // have to update in 2 places
+      "save_al_queries": false,
       /*
       "percent_label_experiments": {
           "percent_labels": 1 

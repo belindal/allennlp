@@ -317,18 +317,23 @@ def train_model(params: Params,
 #   $ allennlp train tutorials/tagger/experiment.jsonnet -s /tmp/serialization_dir
 #
 def main(cuda_device, testing=False, testing_vocab=False, experiments=None, pairwise=False, selector='entropy', num_ensemble_models=None,
-         no_clusters=False):
+         no_clusters=False, args=None):
     assert(selector == 'entropy' or selector == 'score' or selector == 'random' or selector == 'qbc')
+    if hasattr(args, 'labels_to_query'):
+        assert args.labels_to_query >= 0
     use_percents=False
-    if cuda_device == 0:
-        #percent_list = [200, 180, 160]
-        percent_list = [0]#[120, 100, 80]
-    if cuda_device == 1:
-        #percent_list = [0, 40, 140, 100]
-        percent_list = [200]#[60, 40, 140]
-    if cuda_device == 2:
-        #percent_list = [20, 120, 60, 80]
-        percent_list = [20]#[180, 160, 20]
+    if not hasattr(args, 'labels_to_query'):
+        if cuda_device == 0:
+            #percent_list = [200, 180, 160]
+            percent_list = [0]#[120, 100, 80]
+        if cuda_device == 1:
+            #percent_list = [0, 40, 140, 100]
+            percent_list = [200]#[60, 40, 140]
+        if cuda_device == 2:
+            #percent_list = [20, 120, 60, 80]
+            percent_list = [20]#[180, 160, 20]
+    else:
+        percent_list = [args.labels_to_query]
     if selector == 'qbc':
         cuda_device = [(cuda_device + i) % 3 for i in range(3)]
         os.system('rm -rf active_learning_model_states_ensemble_' + str(cuda_device))
@@ -338,12 +343,12 @@ def main(cuda_device, testing=False, testing_vocab=False, experiments=None, pair
     if experiments:
         save_dir = experiments
         if not os.path.exists(save_dir):
-            os.makedirs(save_dir)
+            os.makedirs(save_dir, exist_ok=True)
         os.system('cp training_config/coref.jsonnet ' + os.path.join(save_dir, 'coref.jsonnet'))
         for x in percent_list:
             print_str = "% of labels" if use_percents else " labels per doc"
             print("Running with " + str(x) + print_str)
-            serialization_dir = os.path.join(save_dir, "temp_" + str(cuda_device[0]))
+            serialization_dir = os.path.join(save_dir, "checkpoint_" + str(x))
             os.system('rm -rf ' + serialization_dir)
             params = Params.from_file(os.path.join(save_dir, 'coref.jsonnet'))
             # restore data file
@@ -351,6 +356,7 @@ def main(cuda_device, testing=False, testing_vocab=False, experiments=None, pair
             if os.path.exists(saved_data_file):
                 params['dataset_reader']['saved_data_file'] = saved_data_file
             params.params['trainer']['cuda_device'] = cuda_device
+            params.params['trainer']['active_learning']['save_al_queries'] = args.save_al_queries
             params.params['trainer']['active_learning']['query_type'] = "pairwise" if pairwise else "discrete"
             if selector:
                 params.params['trainer']['active_learning']['selector']['type'] = selector
@@ -366,12 +372,13 @@ def main(cuda_device, testing=False, testing_vocab=False, experiments=None, pair
         if use_percents:
             params.params['trainer']['active_learning']['num_labels'] = 1
         else:
-            params.params['trainer']['active_learning']['num_labels'] = 100
+            params.params['trainer']['active_learning']['num_labels'] = 20
         # restore data file
         saved_data_file = '../data/saved_data_' + str(selector) + '_' + str(num_ensemble_models) + '_' + str(params.params['trainer']['active_learning']['num_labels']) + '.th'
         if os.path.exists(saved_data_file):
             params['dataset_reader']['saved_data_file'] = saved_data_file
         params.params['trainer']['active_learning']['use_percent'] = use_percents
+        params.params['trainer']['active_learning']['save_al_queries'] = args.save_al_queries
         if testing or testing_vocab:
             params.params['trainer']['active_learning']['epoch_interval'] = 0
             del params.params['test_data_path']
@@ -417,6 +424,15 @@ if __name__ == "__main__":
                         type=str,
                         default='entropy',
                         help='what type of selector to use')
+    parser.add_argument('--labels_to_query',
+                        type=int,
+                        required=False,
+                        help='labels to query per doc (n >= 0)')
+    parser.add_argument("--save_al_queries",
+                        action='store_true',
+                        required=False,
+                        help='Whether or not to save AL queries (or just simulate them using user inputs)')
+
    
     args = parser.parse_args()
     num_ensemble_models = None
@@ -424,4 +440,4 @@ if __name__ == "__main__":
         assert (len(vars(args)['selector']) > 3)
         num_ensemble_models = int(vars(args)['selector'][3:])
         vars(args)['selector'] = 'qbc'
-    main(vars(args)['cuda_device'], vars(args)['testing'], vars(args)['testing_vocab'], vars(args)['experiments'], vars(args)['pairwise'], vars(args)['selector'], num_ensemble_models, vars(args)['no_clusters'])
+    main(vars(args)['cuda_device'], vars(args)['testing'], vars(args)['testing_vocab'], vars(args)['experiments'], vars(args)['pairwise'], vars(args)['selector'], num_ensemble_models, vars(args)['no_clusters'], args)
