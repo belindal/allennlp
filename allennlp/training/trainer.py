@@ -389,7 +389,7 @@ class Trainer(Registrable):
             if self._use_percent_labels:
                 self._active_learning_percent_labels = active_learning['num_labels']
             else:
-                self.active_learning_num_labels = active_learning['num_labels']
+                self._active_learning_num_labels = active_learning['num_labels']
             self._save_al_queries = active_learning['save_al_queries']
             self._active_learning_patience = active_learning['patience']
             self._percent_label_experiments = True if 'percent_label_experiments' in active_learning else False
